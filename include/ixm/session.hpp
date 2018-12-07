@@ -30,11 +30,9 @@ namespace ixm::session {
             }
 
         private:
-            variable() = default;
-            variable(std::string_view key_, std::string_view value_)
+            explicit variable(std::string_view key_, std::string_view value_ = {})
                 : m_value(value_), m_key(key_)
-            {
-            }
+            {}
 
             std::string_view m_value, m_key;
         };
@@ -47,7 +45,8 @@ namespace ixm::session {
 
         environment()
         {
-            while (impl::envp()[m_envsize]) m_envsize++;
+            auto e = impl::envp();
+            while (e[m_envsize]) m_envsize++;
         }
 
         //template <class T>
@@ -78,7 +77,7 @@ namespace ixm::session {
         void erase(K const&) noexcept;
 
     private:
-        std::pair<size_t, std::string_view> search_env(std::string_view) const noexcept;
+        std::string_view search_env(std::string_view) const noexcept;
 
         size_type m_envsize = 0;
     };

@@ -67,9 +67,8 @@ namespace ixm::session
 
     auto environment::operator[] (std::string_view str) const -> variable
     {
-        auto[result, value] = search_env(str);
-
-        return result != ci_string_view::npos ? variable{ str, value } : variable{};
+        auto value = search_env(str);
+        return value.empty() ? variable{ str } : variable{str, value};
     }
 
     auto environment::operator[] (const char*str) const noexcept -> variable
@@ -79,7 +78,7 @@ namespace ixm::session
 
     bool environment::contains(std::string_view thingy) const noexcept
     {
-        return search_env(thingy).first != ci_string_view::npos;
+        return !search_env(thingy).empty();
     }
 
     auto environment::cbegin() const noexcept -> iterator
@@ -92,14 +91,15 @@ namespace ixm::session
         return iterator{};
     }
 
-    std::pair<size_t, std::string_view> environment::search_env(std::string_view thingy) const noexcept
+    std::string_view environment::search_env(std::string_view thingy) const noexcept
     {
         ci_string_view key{ thingy.data(), thingy.length() };
+        auto** env = impl::envp();
 
-        for (size_t i = 0; impl::envp()[i]; i++)
+        for (size_t i = 0; env[i]; i++)
         {
-            ci_string_view current = impl::envp()[i];
-            auto eqpos = current.find('=');
+            ci_string_view current = env[i];
+            const auto eqpos = current.find('=');
 
             auto ck = current;
             std::string_view cv = { current.data(), current.length() };
@@ -109,11 +109,11 @@ namespace ixm::session
             if (ck == key)
             {
                 cv.remove_prefix(eqpos + 1);
-                return { i, cv };
+                return cv;
             }
         }
 
-        return { ci_string_view::npos, {} };
+        return {};
     }
 
 
