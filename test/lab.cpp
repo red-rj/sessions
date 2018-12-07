@@ -1,9 +1,6 @@
 #include "ixm/session.hpp"
 #include <iostream>
 
-namespace impl {
-  char const** envp() noexcept;
-}
 
 int main(int argc, char const *argv[])
 {
@@ -42,7 +39,7 @@ int main(int argc, char const *argv[])
 
     for (auto e : env)
     {
-        std::cout << i++ << ": " << e << '\n';
+        i++;
     }
 
     return 0;

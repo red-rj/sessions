@@ -38,7 +38,7 @@ public:
         return *this;
     }
 
-    charbuff_iterator& operator ++ (int) {
+    charbuff_iterator operator ++ (int) {
         auto tmp = charbuff_iterator(*this);
         operator++();
         return tmp;
