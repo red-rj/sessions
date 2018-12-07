@@ -104,8 +104,8 @@ namespace ixm::session {
         iterator cbegin() const noexcept;
         iterator cend() const noexcept;
 
-        iterator begin() const noexcept;
-        iterator end() const noexcept;
+        iterator begin() const noexcept { return cbegin(); }
+        iterator end() const noexcept { return cend(); }
 
         reverse_iterator crbegin() const noexcept;
         reverse_iterator crend() const noexcept;

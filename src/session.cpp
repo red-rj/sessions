@@ -143,16 +143,6 @@ namespace ixm::session
         return static_cast<size_type>(argc() - 1);
     }
 
-    arguments::iterator arguments::begin() const noexcept
-    {
-        return cbegin();
-    }
-
-    arguments::iterator arguments::end() const noexcept
-    {
-        return cend();
-    }
-
     arguments::iterator arguments::cbegin () const noexcept
     {
         return iterator{};
