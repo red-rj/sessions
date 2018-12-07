@@ -88,7 +88,7 @@ namespace ixm::session
 
     auto environment::cend() const noexcept -> iterator
     {
-        return iterator{};
+        return iterator{impl::envp(), size()};
     }
 
     std::string_view environment::search_env(std::string_view thingy) const noexcept
