@@ -1,4 +1,5 @@
 #include "ixm/session.hpp"
+#include "impl.hpp"
 #include <cstdlib>
 #include <algorithm>
 
@@ -40,7 +41,7 @@ namespace
 
 namespace ixm::session 
 {
-    // env
+    // variable
     environment::variable::operator std::string_view() const noexcept
     {
         return m_value;
@@ -59,10 +60,17 @@ namespace ixm::session
         return m_key;
     }
 
+    // env
+    environment::environment()
+    {
+        // count size
+        auto e = impl::envp();
+        while (e[m_envsize]) m_envsize++;
+    }
 
     auto environment::operator[] (const std::string& str) const noexcept -> variable
     {
-        return operator[](str.c_str());
+        return operator[](std::string_view{ str });
     }
 
     auto environment::operator[] (std::string_view str) const -> variable
@@ -117,7 +125,6 @@ namespace ixm::session
     }
 
 
-
     // args
     auto arguments::operator [] (arguments::index_type idx) const noexcept -> value_type
     {
@@ -145,12 +152,12 @@ namespace ixm::session
 
     arguments::iterator arguments::cbegin () const noexcept
     {
-        return iterator{};
+        return iterator{argv()};
     }
 
     arguments::iterator arguments::cend () const noexcept
     {
-        return iterator(size());
+        return iterator{argv(), size()};
     }
 
 

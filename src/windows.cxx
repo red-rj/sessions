@@ -12,13 +12,13 @@
 
 #include <cstdlib>
 
-#include "ixm/impl.hpp"
+#include "impl.hpp"
 
 
 namespace {
 
     [[noreturn]]
-    void throw_error(DWORD error = GetLastError())
+    void throw_win_error(DWORD error = GetLastError())
     {
         throw std::system_error(std::error_code{ static_cast<int>(error), std::system_category() });
     }
@@ -52,7 +52,7 @@ namespace {
         auto result = narrow(wstr, ptr.get(), length);
 
         if (result == 0)
-            throw_error();
+            throw_win_error();
 
         return ptr;
     }
@@ -63,7 +63,7 @@ namespace {
         auto result = wide(nstr, ptr.get(), length);
         
         if (result == 0)
-            throw_error();
+            throw_win_error();
 
         return ptr;
     }
@@ -101,13 +101,13 @@ namespace {
 
         ~environ_table()
         {
-            free_items();
+            free_env();
         }
 
 
-        operator char const**() {
+        char const** get() {
             if (!m_valid) {
-                free_items();
+                free_env();
                 init_env();
             }
 
@@ -128,7 +128,7 @@ namespace {
 
             wchar_t** wide_environ = _wenviron;
 
-            m_env.clear();
+            free_env();
             
             for (size_t i = 0; wide_environ[i]; i++)
             {
@@ -140,7 +140,7 @@ namespace {
             m_valid = true;
         }
 
-        void free_items() noexcept
+        void free_env() noexcept
         {
             // delete converted items
             for (auto& elem : m_env) {
@@ -148,7 +148,7 @@ namespace {
                 delete[] elem;
             }
 
-            invalidate();
+            m_env.clear();
         }
 
         bool m_valid;
@@ -172,7 +172,7 @@ namespace impl {
     int argc() noexcept { return static_cast<int>(args_vector().size()); }
 
     char const** envp() noexcept {
-        return g_env;
+        return g_env.get();
     }
 
     void set_env_var(const char* key, const char* value) noexcept

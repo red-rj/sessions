@@ -5,7 +5,7 @@
 #include <string_view>
 #include <utility>
 
-#include "impl.hpp"
+#include "session_impl.hpp"
 
 namespace ixm::session {
 
@@ -37,17 +37,13 @@ namespace ixm::session {
             std::string_view m_value, m_key;
         };
 
-        using iterator = impl::charbuff_iterator;
+        using iterator = detail::charbuff_iterator;
         //using value_range = void /* implementation-defined */;
         //using key_range = void /* implementation-defined */;
         using value_type = variable;
         using size_type = size_t;
 
-        environment()
-        {
-            auto e = impl::envp();
-            while (e[m_envsize]) m_envsize++;
-        }
+        environment();
 
         //template <class T>
         //variable operator [] (T const&) const;
@@ -84,19 +80,14 @@ namespace ixm::session {
 
     struct arguments
     {
-        class iterator : public impl::charbuff_iterator
-        {
-        public:
-            explicit iterator(size_t index = 0) : charbuff_iterator(impl::argv(), index) {}
-        };
-
+        using iterator = detail::charbuff_iterator;
         using reverse_iterator = std::reverse_iterator<iterator>;
         using value_type = std::string_view;
         using index_type = size_t;
         using size_type = size_t;
 
         value_type operator [] (index_type) const noexcept;
-        value_type at(index_type) const noexcept(false);
+        value_type at(index_type) const;
 
         [[nodiscard]] bool empty() const noexcept;
         size_type size() const noexcept;
