@@ -36,7 +36,10 @@ void set_env_var(const char* key, const char* value) noexcept
 {
   setenv(key, value, 42);
 }
-
+void rm_env_var(const char* key) noexcept
+{
+  unsetenv(key);
+}
 const char env_path_sep = ':';
 
 } /* namespace impl */

@@ -4,10 +4,10 @@
 #include <Windows.h>
 #include <shellapi.h>
 
+#include <algorithm>
 #include <vector>
 #include <memory>
 #include <string>
-#include <stdexcept>
 #include <system_error>
 
 #include <cstdlib>
@@ -70,12 +70,12 @@ namespace {
 
     auto initialize_args() {
         auto cl = GetCommandLineW();
-        int argc; // skip invoke command
-        auto wargv = CommandLineToArgvW(cl, &argc) + 1;
+        int argc;
+        auto wargv = CommandLineToArgvW(cl, &argc);
 
-        auto vec = std::vector<char const*>(argc, nullptr);
+        auto vec = std::vector<char const*>(argc+1, nullptr);
 
-        for (int i = 0; i < argc - 1; i++)
+        for (int i = 0; i < argc; i++)
         {
             vec[i] = to_utf8(wargv[i]).release();
         }
@@ -105,7 +105,7 @@ namespace {
         }
 
 
-        char const** get() {
+        char const** data() {
             if (!m_valid) {
                 free_env();
                 init_env();
@@ -113,6 +113,12 @@ namespace {
 
             return m_env.data();
         }
+
+        auto begin() {
+            data();
+            return m_env.begin(); 
+        }
+        auto end() { return m_env.end() - 1; }
 
 
         void invalidate() noexcept { m_valid = false; }
@@ -169,16 +175,40 @@ namespace impl {
         return ::args_vector().data();
     }
 
-    int argc() noexcept { return static_cast<int>(args_vector().size()); }
+    int argc() noexcept { return static_cast<int>(args_vector().size()) - 1; }
 
     char const** envp() noexcept {
-        return g_env.get();
+        return g_env.data();
+    }
+
+    char const* get_env_var(char const* key) noexcept
+    {
+        const auto key_len = strlen(key);
+        
+        for(auto& entry : g_env)
+        {
+            if (strlen(entry) <= key_len) continue;
+            if (entry[key_len] != '=') continue;
+            // case insensitive string compare w/ locale
+            //if (_strnicoll_l(entry, key, key_len, utf8loc) != 0) continue;
+            if (_strnicoll(entry, key, key_len) != 0) continue;
+
+            return entry + key_len + 1;
+        }
+        
+        return nullptr;
     }
 
     void set_env_var(const char* key, const char* value) noexcept
     {
         auto ec = _putenv_s(key, value);
         _ASSERTE(ec == 0);
+        g_env.invalidate();
+    }
+
+    void rm_env_var(const char* key) noexcept
+    {
+        _putenv_s(key, "");
         g_env.invalidate();
     }
 

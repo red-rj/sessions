@@ -44,14 +44,19 @@ namespace ixm::session
     // variable
     environment::variable::operator std::string_view() const noexcept
     {
-        return m_value;
+        auto val = impl::get_env_var(m_key.c_str());
+        
+        if (val) {
+            return val;
+        } else {
+            return {};
+        }
     }
     
-    auto environment::variable::operator=(std::string_view str) -> variable&
+    auto environment::variable::operator=(std::string_view value) -> variable&
     {
-        // TODO: check for null termination
-        m_value = str;
-        impl::set_env_var(key().data(), str.data());
+        std::string val { value };
+        impl::set_env_var(m_key.c_str(), val.c_str());
         return *this;
     }
 
@@ -60,33 +65,28 @@ namespace ixm::session
         return m_key;
     }
 
-    // env
-    environment::environment()
-    {
-        // count size
-        auto e = impl::envp();
-        while (e[m_envsize]) m_envsize++;
-    }
-
     auto environment::operator[] (const std::string& str) const noexcept -> variable
     {
-        return operator[](std::string_view{ str });
+        return operator[](str.c_str());
     }
 
     auto environment::operator[] (std::string_view str) const -> variable
     {
-        auto value = search_env(str);
-        return value.empty() ? variable{ str } : variable{str, value};
+        std::string val { str };
+        return operator[](val.c_str());
     }
 
     auto environment::operator[] (const char*str) const noexcept -> variable
     {
-        return operator[](std::string_view{ str });
+        auto value = impl::get_env_var(str);
+        // if value is null means a new key might be added through the variable
+        m_size_cache_valid = value != nullptr;
+        return variable{str};
     }
 
     bool environment::contains(std::string_view thingy) const noexcept
     {
-        return !search_env(thingy).empty();
+        return impl::get_env_var(thingy.data()) != nullptr;
     }
 
     auto environment::cbegin() const noexcept -> iterator
@@ -96,32 +96,20 @@ namespace ixm::session
 
     auto environment::cend() const noexcept -> iterator
     {
-        return iterator{impl::envp(), size()};
+        return iterator{impl::envp() + size()};
     }
 
-    std::string_view environment::search_env(std::string_view thingy) const noexcept
+    auto environment::size() const noexcept -> size_type
     {
-        ci_string_view key{ thingy.data(), thingy.length() };
-        auto** env = impl::envp();
+        if (m_size_cache_valid) return m_envsize;
 
-        for (size_t i = 0; env[i]; i++)
-        {
-            ci_string_view current = env[i];
-            const auto eqpos = current.find('=');
+        m_envsize = 0;
+        auto env = impl::envp();
+        while (env[m_envsize]) m_envsize++;
 
-            auto ck = current;
-            std::string_view cv = { current.data(), current.length() };
+        m_size_cache_valid = true;
 
-            ck.remove_suffix(current.size() - eqpos);
-
-            if (ck == key)
-            {
-                cv.remove_prefix(eqpos + 1);
-                return cv;
-            }
-        }
-
-        return {};
+        return m_envsize;
     }
 
 
@@ -147,7 +135,7 @@ namespace ixm::session
     
     arguments::size_type arguments::size() const noexcept
     {
-        return static_cast<size_type>(argc() - 1);
+        return static_cast<size_type>(argc());
     }
 
     arguments::iterator arguments::cbegin () const noexcept
@@ -157,7 +145,7 @@ namespace ixm::session
 
     arguments::iterator arguments::cend () const noexcept
     {
-        return iterator{argv(), size()};
+        return iterator{argv() + argc()};
     }
 
 

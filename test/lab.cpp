@@ -27,20 +27,18 @@ int main(int argc, char const *argv[])
         std::cout << i++ << ": " << e << '\n';
     }
 
-    std::string_view usrname = env["USERNAME"];
-    std::cout << '\n' << "username before: " << usrname << '\n';
+    auto usrname = env["USERNAME"];
+    std::cout << '\n' << "username before: " << (std::string_view)usrname << '\n';
 
-    env["USERNAME"] = "Fulano";
+    usrname = "Fulano";
 
     std::cout << '\n' << "username after: " << (std::string_view)env["USERNAME"] << '\n';
 
     i = 0;
-    std::cout << "\nEnv:\n";
 
-    for (auto e : env)
-    {
-        i++;
-    }
+    std::cout << "env size: " << env.size() << '\n';
+    
+    auto invalidateIts = env.begin();
 
     return 0;
 }
