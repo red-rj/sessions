@@ -34,5 +34,15 @@ int main()
 
     env.erase("HAVE_PHONES");
 
+    std::string_view path = env["PATH"];
+
+    ixm::session::detail::pathsep_iterator<char> pi_begin{';', path};
+    pi_begin++;
+    pi_begin++;
+    pi_begin++;
+
+
+    ;
+
     return 0;
 }

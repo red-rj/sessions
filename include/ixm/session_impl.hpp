@@ -6,6 +6,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <algorithm>
 
 namespace ixm::session::detail
 {
@@ -100,13 +101,79 @@ namespace ixm::session::detail
     };
 
 
-    auto split_line(std::string_view line) {
+    inline auto split_line(std::string_view line) {
         const size_t eqpos = line.find('='), sz = line.size();
         if (eqpos == std::string::npos) 
             return std::pair<std::string_view, std::string_view>{};
 
         return std::pair{line.substr(0, sz - eqpos), line.substr(eqpos + 1)};
     }
+
+    template<typename CharT>
+    class pathsep_iterator
+    {
+    public:
+        using value_type = std::basic_string_view<CharT>;
+        using reference = value_type&;
+        using difference_type = ptrdiff_t;
+        using pointer = value_type *;
+        using iterator_category = std::forward_iterator_tag;
+
+        pathsep_iterator() = default;
+
+        explicit pathsep_iterator(CharT sep, value_type str = {}) : m_var(str), Sep(sep) {
+            next_sep();
+        }
+
+        pathsep_iterator& operator ++ () {
+            next_sep();
+            return *this;
+        }
+        pathsep_iterator operator ++ (int) {
+            auto tmp = pathsep_iterator(*this);
+            operator++();
+            return tmp;
+        }
+
+        // pathsep_iterator& operator -- (int) {
+        //     next_sep(false);
+        //     return *this;
+        // }
+
+        bool operator == (const pathsep_iterator& rhs) {
+            return m_view == rhs.m_view;
+        }
+        bool operator != (const pathsep_iterator& rhs) {
+            return !(*this == rhs)
+        }
+
+        reference operator * () {
+            return m_view;
+        }
+
+    private:
+        void next_sep()
+        {
+            auto pos = m_var.find(Sep, m_offset);
+            
+            if (pos == std::string::npos) {
+                m_view = {};
+                m_offset = pos;
+                return;
+            }
+            
+            m_view = m_var.substr(m_offset, pos-m_offset);
+            m_offset = pos+1;
+        }
+
+        // void prev_sep() {
+        //     ;
+        // }
+    
+        value_type m_view, m_var;
+        CharT Sep;
+        size_t m_offset = std::string::npos;
+    };
 
     struct ci_char_traits : public std::char_traits<char> {
         static char to_upper(char ch) {

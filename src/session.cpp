@@ -1,7 +1,6 @@
 #include "ixm/session.hpp"
 #include "impl.hpp"
 #include <cstdlib>
-#include <algorithm>
 
 
 namespace ixm::session 
@@ -23,6 +22,12 @@ namespace ixm::session
         std::string val { value };
         impl::set_env_var(m_key.c_str(), val.c_str());
         return *this;
+    }
+
+    auto environment::variable::split() const -> std::pair<path_iterator, path_iterator>
+    {
+        auto value = this->operator std::string_view();
+        return { path_iterator{impl::env_path_sep, value}, path_iterator{} };
     }
 
 

@@ -190,7 +190,7 @@ namespace impl {
     }
 
     size_t env_size() {
-        return environ_.size();
+        return environ_.size() - 1;
     }
 
     char const* get_env_var(char const* key) noexcept

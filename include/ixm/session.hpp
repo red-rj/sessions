@@ -11,10 +11,12 @@ namespace ixm::session {
         class variable
         {
         public:
+            using path_iterator = detail::pathsep_iterator<char>;
+        
             operator std::string_view() const noexcept;
             variable& operator = (std::string_view);
             std::string_view key() const noexcept { return m_key; }
-            // /* implementation-defined */ split () const;
+            std::pair<path_iterator, path_iterator> split () const;
 
             explicit variable(std::string_view key_) : m_key(key_) {}
         private:
