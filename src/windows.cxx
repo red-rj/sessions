@@ -96,6 +96,12 @@ namespace {
     public:
         environ_table()
         {
+            // make sure _wenviron is initialized
+            // https://docs.microsoft.com/en-us/cpp/c-runtime-library/environ-wenviron?view=vs-2017#remarks
+            if (!_wenviron) {
+                _wgetenv(L"initpls");
+            }
+
             init_env();
         }
 
@@ -107,14 +113,22 @@ namespace {
 
         char const** data() {
             if (!m_valid) {
-                    init_env();
+                init_env();
             }
-
             return m_env.data();
         }
 
+        size_t size(bool check = true) {
+            if (check && !m_valid) {
+                init_env();
+            }
+            return m_env.size();
+        }
+
         auto begin() {
-            data();
+            if (!m_valid) {
+                init_env();
+            }
             return m_env.begin(); 
         }
         auto end() { return m_env.end() - 1; }
@@ -125,18 +139,13 @@ namespace {
     private:
         void init_env()
         {
-            // make sure _wenviron is initialized
-            // https://docs.microsoft.com/en-us/cpp/c-runtime-library/environ-wenviron?view=vs-2017#remarks
-            if (!_wenviron) {
-                _wgetenv(L"initpls");
-            }
-
             wchar_t** wide_environ = _wenviron;
 
             free_env();
             
             for (size_t i = 0; wide_environ[i]; i++)
             {
+                // we own the converted strings
                 m_env.push_back(to_utf8(wide_environ[i]).release());
             }
 
@@ -159,7 +168,7 @@ namespace {
         bool m_valid;
         std::vector<char const*> m_env;
     
-    } g_env;
+    } environ_;
 
 
 } /* nameless namespace */
@@ -177,19 +186,22 @@ namespace impl {
     int argc() noexcept { return static_cast<int>(args_vector().size()) - 1; }
 
     char const** envp() noexcept {
-        return g_env.data();
+        return environ_.data();
+    }
+
+    size_t env_size() {
+        return environ_.size();
     }
 
     char const* get_env_var(char const* key) noexcept
     {
         const auto key_len = strlen(key);
         
-        for(auto& entry : g_env)
+        for(auto& entry : environ_)
         {
             if (strlen(entry) <= key_len) continue;
             if (entry[key_len] != '=') continue;
-            // case insensitive string compare w/ locale
-            //if (_strnicoll_l(entry, key, key_len, utf8loc) != 0) continue;
+            // case insensitive string compare w/ current locale
             if (_strnicoll(entry, key, key_len) != 0) continue;
 
             return entry + key_len + 1;
@@ -201,13 +213,13 @@ namespace impl {
     void set_env_var(const char* key, const char* value) noexcept
     {
         _putenv_s(key, value);
-        g_env.invalidate();
+        environ_.invalidate();
     }
 
     void rm_env_var(const char* key) noexcept
     {
         _putenv_s(key, "");
-        g_env.invalidate();
+        environ_.invalidate();
     }
 
     const char env_path_sep = ';';

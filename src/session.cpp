@@ -6,7 +6,7 @@
 
 namespace ixm::session 
 {
-    // variable
+    // env::variable
     environment::variable::operator std::string_view() const noexcept
     {
         auto val = impl::get_env_var(m_key.c_str());
@@ -25,11 +25,8 @@ namespace ixm::session
         return *this;
     }
 
-    std::string_view environment::variable::key() const noexcept
-    {
-        return m_key;
-    }
 
+    // env
     auto environment::operator[] (const std::string& str) const noexcept -> variable
     {
         return operator[](str.c_str());
@@ -43,15 +40,13 @@ namespace ixm::session
 
     auto environment::operator[] (const char*str) const noexcept -> variable
     {
-        auto value = impl::get_env_var(str);
-        // if value is null means a new key might be added through the variable
-        m_size_cache_valid = value != nullptr;
         return variable{str};
     }
 
-    bool environment::contains(std::string_view thingy) const noexcept
+    bool environment::contains(std::string_view key) const noexcept
     {
-        return impl::get_env_var(thingy.data()) != nullptr;
+        auto thingy = std::string(key);
+        return impl::get_env_var(thingy.c_str()) != nullptr;
     }
 
     auto environment::cbegin() const noexcept -> iterator
@@ -66,15 +61,7 @@ namespace ixm::session
 
     auto environment::size() const noexcept -> size_type
     {
-        if (m_size_cache_valid) return m_envsize;
-
-        m_envsize = 0;
-        auto env = impl::envp();
-        while (env[m_envsize]) m_envsize++;
-
-        m_size_cache_valid = true;
-
-        return m_envsize;
+        return impl::env_size();
     }
 
     void environment::internal_erase(const char* k) noexcept

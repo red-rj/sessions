@@ -1,5 +1,5 @@
-#ifndef SESSION_IMPL_HPP
-#define SESSION_IMPL_HPP
+#ifndef IXM_SESSION_IMPL_HPP
+#define IXM_SESSION_IMPL_HPP
 
 #include <type_traits>
 #include <iterator>
@@ -64,6 +64,9 @@ namespace ixm::session::detail
         charbuff_iterator operator - (difference_type n) {
             auto tmp = charbuff_iterator(*this);
             return tmp -= n;
+        }
+        difference_type operator - (const charbuff_iterator& rhs) {
+            return m_buff - rhs.m_buff;
         }
 
         bool operator == (const charbuff_iterator& rhs) const {

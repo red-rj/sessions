@@ -13,7 +13,7 @@ namespace ixm::session {
         public:
             operator std::string_view() const noexcept;
             variable& operator = (std::string_view);
-            std::string_view key() const noexcept;
+            std::string_view key() const noexcept { return m_key; }
             // /* implementation-defined */ split () const;
 
             explicit variable(std::string_view key_) : m_key(key_) {}
@@ -92,9 +92,6 @@ namespace ixm::session {
 
     private:
         void internal_erase(const char*) noexcept;
-
-        mutable size_type m_envsize = 0;
-        mutable bool m_size_cache_valid = false;
     };
 
 
