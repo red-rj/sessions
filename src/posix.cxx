@@ -23,6 +23,7 @@ auto init = +[] (int argc, char const** argv, char const**) {
 } /* nameless namespace */
 
 extern "C" char** environ;
+char *getenv( const char *name );
 
 namespace impl {
 
@@ -31,7 +32,10 @@ char const** argv() noexcept { return argv__; }
 int argc () noexcept { return argc__; }
 
 char const** envp () noexcept { return (char const**)environ; }
-
+char const* get_env_var(char const* key) noexcept
+{
+  return getenv(key);
+}
 void set_env_var(const char* key, const char* value) noexcept
 {
   setenv(key, value, 42);

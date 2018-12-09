@@ -3,6 +3,9 @@
 
 #include <type_traits>
 #include <iterator>
+#include <string>
+#include <string_view>
+#include <utility>
 
 namespace ixm::session::detail
 {
@@ -93,44 +96,48 @@ namespace ixm::session::detail
         pointer m_buff = nullptr;
     };
 
-    // charbuff_iterator operator + (ptrdiff_t n, charbuff_iterator it) {
-    //     return it += n;
-    // }
 
+    auto split_line(std::string_view line) {
+        const size_t eqpos = line.find('='), sz = line.size();
+        if (eqpos == std::string::npos) 
+            return std::pair<std::string_view, std::string_view>{};
 
-    class env_iterator : detail::charbuff_iterator
-    {
-    public:
-        using value_type = std::pair<std::string_view, std::string_view>;
-        using reference = value_type;
+        return std::pair{line.substr(0, sz - eqpos), line.substr(eqpos + 1)};
+    }
 
-        explicit env_iterator(const char** buff = nullptr) 
-        : charbuff_iterator(buff)
-        {
-            if (buff)
-                m_current = split_line(*buff);
+    struct ci_char_traits : public std::char_traits<char> {
+        static char to_upper(char ch) {
+            return toupper((unsigned char)ch);
         }
-
-
-
-        reference operator * () {
-            return m_current;
+        static bool eq(char c1, char c2) {
+            return to_upper(c1) == to_upper(c2);
         }
-
-    private:
-        value_type split_line(const char* str) {
-            std::string_view line = str;
-            const auto eqpos = line.find('=');
-
-            auto retval = value_type(line, line);
-            retval.first.remove_suffix(line.size() - eqpos);
-            retval.second.remove_prefix(eqpos + 1);
-
-            return retval;
+        static bool lt(char c1, char c2) {
+            return to_upper(c1) < to_upper(c2);
         }
-
-        value_type m_current;
+        static int compare(const char* s1, const char* s2, size_t n) {
+            while (n-- != 0) {
+                if (to_upper(*s1) < to_upper(*s2)) return -1;
+                if (to_upper(*s1) > to_upper(*s2)) return 1;
+                ++s1; ++s2;
+            }
+            return 0;
+        }
+        static const char* find(const char* s, int n, char a) {
+            auto const ua(to_upper(a));
+            while (n-- != 0)
+            {
+                if (to_upper(*s) == ua)
+                    return s;
+                s++;
+            }
+            return nullptr;
+        }
     };
+
+    using ci_string_view = std::basic_string_view<char, ci_char_traits>;
+    using ci_string = std::basic_string<char, ci_char_traits>;
+
 } // ixm::session::detail
 
 

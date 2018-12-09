@@ -107,8 +107,7 @@ namespace {
 
         char const** data() {
             if (!m_valid) {
-                free_env();
-                init_env();
+                    init_env();
             }
 
             return m_env.data();
@@ -201,8 +200,7 @@ namespace impl {
 
     void set_env_var(const char* key, const char* value) noexcept
     {
-        auto ec = _putenv_s(key, value);
-        _ASSERTE(ec == 0);
+        _putenv_s(key, value);
         g_env.invalidate();
     }
 

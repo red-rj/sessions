@@ -1,16 +1,13 @@
 #ifndef IXM_SESSION_HPP
 #define IXM_SESSION_HPP
 
-#include <string>
-#include <string_view>
-#include <utility>
-
 #include "session_impl.hpp"
 
 namespace ixm::session {
 
-    struct environment
+    class environment
     {
+    public:
         class variable
         {
         public:
@@ -32,7 +29,7 @@ namespace ixm::session {
 
 
         template <class T>
-        using Is_valid_key_type = std::enable_if_t<
+        using ConvertsToSV_Only = std::enable_if_t<
             std::conjunction_v<
                 std::is_convertible<const T&, std::string_view>, 
                 std::negation<std::is_convertible<const T&, const char*>
@@ -40,7 +37,11 @@ namespace ixm::session {
             >
         >;
 
-        template <class T, class = Is_valid_key_type<T>>
+        template <class T>
+        using ConvertsToSV = std::enable_if_t<std::is_convertible_v<const T&, std::string_view>>;
+
+
+        template <class T, class = ConvertsToSV_Only<T>>
         variable operator [] (T const& k) const {
             return operator[](k);
         }
@@ -49,9 +50,24 @@ namespace ixm::session {
         variable operator [] (std::string_view) const;
         variable operator [] (char const*) const noexcept;
 
-        template <class K, class = Is_valid_key_type<K>>
-        iterator find(K const&) const noexcept {
+        template <class K, class = ConvertsToSV<K>>
+        iterator find(K const& key) const noexcept {
+            using detail::ci_string_view;
+            
+            ci_string_view keysv = key;
+            
+            for(auto it = cbegin(); it != cend(); it++)
+            {
+                ci_string_view elem = *it;
 
+                if (elem.length() <= keysv.length()) continue;
+                if (elem[keysv.length()] != '=') continue;
+                if (elem.compare(0, keysv.length(), keysv) != 0) continue;
+                
+                return it;
+            }
+            
+            return cend();
         }
 
         bool contains(std::string_view) const noexcept;
@@ -68,20 +84,24 @@ namespace ixm::session {
         //value_range values() const noexcept;
         //key_range keys() const noexcept;
 
-        template <class K, class = Is_valid_key_type<K>>
-        void erase(K const&) noexcept {
-
+        template <class K, class = ConvertsToSV<K>>
+        void erase(K const& key) noexcept {
+            std::string keystr{key};
+            internal_erase(keystr.c_str());
         }
 
     private:
-        // std::string_view search_env(std::string_view) const noexcept;
+        void internal_erase(const char*) noexcept;
 
         mutable size_type m_envsize = 0;
         mutable bool m_size_cache_valid = false;
     };
 
-    struct arguments
+
+
+    class arguments
     {
+    public:
         using iterator = detail::charbuff_iterator;
         using reverse_iterator = std::reverse_iterator<iterator>;
         using value_type = std::string_view;
