@@ -6,7 +6,6 @@
 #include <string>
 #include <string_view>
 #include <utility>
-#include <algorithm>
 
 namespace ixm::session::detail
 {

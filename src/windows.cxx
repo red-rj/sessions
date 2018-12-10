@@ -7,12 +7,12 @@
 #include <algorithm>
 #include <vector>
 #include <memory>
-#include <string>
 #include <system_error>
 
 #include <cstdlib>
 
 #include "impl.hpp"
+#include "ixm/session_impl.hpp"
 
 
 namespace {
@@ -90,9 +90,12 @@ namespace {
         return value;
     }
 
+    using namespace ixm::session::detail;
 
     class environ_table
     {
+        using env_iterator = std::vector<const char*>::iterator;
+
     public:
         environ_table()
         {
@@ -112,31 +115,72 @@ namespace {
 
 
         char const** data() {
-            if (!m_valid) {
-                init_env();
-            }
             return m_env.data();
         }
 
-        size_t size(bool check = true) {
-            if (check && !m_valid) {
-                init_env();
-            }
-            return m_env.size() - 1;
+        size_t size() const noexcept { return m_env.size() - 1; }
+
+        auto begin() noexcept { return m_env.begin(); }
+        auto end() noexcept { return m_env.end() - 1; }
+
+        
+        auto getvar(ci_string_view key) noexcept
+        {
+            auto it = getvarline(key);
+            return it != m_env.end() ? *it + key.length() + 1 : nullptr;
         }
 
-        auto begin() {
-            if (!m_valid) {
-                init_env();
+        void setvar(std::string_view key, std::string_view value)
+        {
+            auto varline = make_varline(key, value);
+            auto it = getvarline({key.data(), key.length()});
+            
+            if (it == end()) {
+                // insert b4 the terminating null
+                m_env.insert(end(), varline.release());
             }
-            return m_env.begin(); 
+            else {
+                const char* old = *it;
+                *it = varline.release();
+                delete[] old;
+            }
+
+            _putenv_s(key.data(), value.data());
         }
-        auto end() { return m_env.end() - 1; }
 
+        void rmvar(const char* key) 
+        {
+            auto it = getvarline(key);
+            if (it == m_env.end()) 
+                return;
 
-        void invalidate() noexcept { m_valid = false; }
+            m_env.erase(it);
+            _putenv_s(key, "");
+        }
 
     private:
+        auto getvarline(ci_string_view key) noexcept -> env_iterator
+        {
+            return std::find_if(begin(), end(), 
+            [&](ci_string_view entry){
+                return 
+                    entry.length() > key.length() &&
+                    entry[key.length()] == '=' &&
+                    entry.compare(0, key.size(), key) == 0;
+            });
+        }
+
+        auto make_varline(std::string_view key, std::string_view value) -> std::unique_ptr<char[]>
+        {
+            const auto buffer_sz = key.size()+value.size()+2;
+            auto buffer = std::make_unique<char[]>(buffer_sz);
+            key.copy(buffer.get(), key.size());
+            buffer[key.size()] = '=';
+            value.copy(buffer.get() + key.size() + 1, value.size());
+
+            return buffer;
+        }
+
         void init_env()
         {
             wchar_t** wide_environ = _wenviron;
@@ -195,31 +239,17 @@ namespace impl {
 
     char const* get_env_var(char const* key) noexcept
     {
-        const auto key_len = strlen(key);
-        
-        for(auto& entry : environ_)
-        {
-            if (strlen(entry) <= key_len) continue;
-            if (entry[key_len] != '=') continue;
-            // case insensitive string compare w/ current locale
-            if (_strnicoll(entry, key, key_len) != 0) continue;
-
-            return entry + key_len + 1;
-        }
-        
-        return nullptr;
+        return environ_.getvar(key);
     }
 
     void set_env_var(const char* key, const char* value) noexcept
     {
-        _putenv_s(key, value);
-        environ_.invalidate();
+        environ_.setvar(key, value);
     }
 
     void rm_env_var(const char* key) noexcept
     {
-        _putenv_s(key, "");
-        environ_.invalidate();
+        environ_.rmvar(key);
     }
 
     const char env_path_sep = ';';

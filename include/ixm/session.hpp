@@ -130,5 +130,5 @@ namespace ixm::session {
     };
 
 } /* namespace ixm::session */
-
+    
 #endif /* IXM_SESSION_HPP */

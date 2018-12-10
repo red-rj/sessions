@@ -39,6 +39,8 @@ int main()
     {
         std::cout << *it << '\n';
     }
+
+    env["DRUAGA1"] = "WEED";
     
 
     return 0;
