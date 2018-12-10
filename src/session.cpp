@@ -111,17 +111,6 @@ namespace ixm::session
     }
 
 
-    arguments::reverse_iterator arguments::crbegin () const noexcept
-    {
-        return reverse_iterator{ cend() };
-    }
-
-    arguments::reverse_iterator arguments::crend () const noexcept
-    {
-        return reverse_iterator{ cbegin() };
-    }
-
-
     const char** arguments::argv() const noexcept
     {
         return impl::argv();

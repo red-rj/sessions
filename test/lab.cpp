@@ -16,7 +16,7 @@ int main()
     }
 
     i = 0;
-    std::cout << "\nEnv (size: " << env.size() << "):\n";
+    std::cout << "\n" "Env (size: " << env.size() << "):\n";
 
     for (auto e : env)
     {
@@ -32,17 +32,14 @@ int main()
 
     auto memeIt = env.find("HAVE_PHONES");
 
-    env.erase("HAVE_PHONES");
+    auto[path_begin, path_end] = env["PATH"].split();
 
-    std::string_view path = env["PATH"];
-
-    ixm::session::detail::pathsep_iterator<char> pi_begin{';', path};
-    pi_begin++;
-    pi_begin++;
-    pi_begin++;
-
-
-    ;
+    puts("\n" "PATH split:");
+    for (auto it = path_begin; it != path_end; it++)
+    {
+        std::cout << *it << '\n';
+    }
+    
 
     return 0;
 }

@@ -122,7 +122,7 @@ namespace {
             if (check && !m_valid) {
                 init_env();
             }
-            return m_env.size();
+            return m_env.size() - 1;
         }
 
         auto begin() {
@@ -190,7 +190,7 @@ namespace impl {
     }
 
     size_t env_size() {
-        return environ_.size() - 1;
+        return environ_.size();
     }
 
     char const* get_env_var(char const* key) noexcept

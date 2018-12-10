@@ -144,7 +144,7 @@ namespace ixm::session::detail
             return m_view == rhs.m_view;
         }
         bool operator != (const pathsep_iterator& rhs) {
-            return !(*this == rhs)
+            return !(*this == rhs);
         }
 
         reference operator * () {
@@ -154,10 +154,15 @@ namespace ixm::session::detail
     private:
         void next_sep()
         {
+            if (m_offset == std::string::npos) {
+                m_view = {};
+                return;
+            }
+
             auto pos = m_var.find(Sep, m_offset);
             
             if (pos == std::string::npos) {
-                m_view = {};
+                m_view = m_var.substr(m_offset, pos);
                 m_offset = pos;
                 return;
             }
@@ -172,7 +177,7 @@ namespace ixm::session::detail
     
         value_type m_view, m_var;
         CharT Sep;
-        size_t m_offset = std::string::npos;
+        size_t m_offset = 0;
     };
 
     struct ci_char_traits : public std::char_traits<char> {
