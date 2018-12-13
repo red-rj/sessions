@@ -1,4 +1,5 @@
 #include "impl.hpp"
+#include <cstdlib>
 
 #if defined(__ELF__) and __ELF__
   #define SESSION_IMPL_SECTION ".init_array"
@@ -26,7 +27,6 @@ auto init = +[] (int argc, char const** argv, char const**) {
 } /* nameless namespace */
 
 extern "C" char** environ;
-char *getenv( const char *name );
 
 namespace impl {
 
@@ -61,6 +61,5 @@ void rm_env_var(const char* key) noexcept
   unsetenv(key);
   environ_size_valid__ = false;
 }
-const char env_path_sep = ':';
 
 } /* namespace impl */

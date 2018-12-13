@@ -27,7 +27,7 @@ namespace ixm::session
     auto environment::variable::split() const -> std::pair<path_iterator, path_iterator>
     {
         auto value = this->operator std::string_view();
-        return { path_iterator{impl::env_path_sep, value}, path_iterator{} };
+        return { path_iterator{value}, path_iterator{} };
     }
 
 

@@ -120,7 +120,7 @@ namespace ixm::session::detail
 
         pathsep_iterator() = default;
 
-        explicit pathsep_iterator(CharT sep, value_type str = {}) : m_var(str), Sep(sep) {
+        explicit pathsep_iterator(value_type str) : m_var(str) {
             next_sep();
         }
 
@@ -175,7 +175,14 @@ namespace ixm::session::detail
         // }
     
         value_type m_view, m_var;
-        CharT Sep;
+        CharT Sep = 
+#if defined(_WIN32)
+        ';' ;
+#else
+        ':';
+#endif // _WIN32
+        
+        
         size_t m_offset = 0;
     };
 

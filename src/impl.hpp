@@ -14,7 +14,6 @@ size_t env_size();
 char const* get_env_var(char const*) noexcept;
 void set_env_var(const char*, const char*) noexcept;
 void rm_env_var(const char*) noexcept;
-extern const char env_path_sep;
 
 } /* namespace impl */
 

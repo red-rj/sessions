@@ -252,6 +252,4 @@ namespace impl {
         environ_.rmvar(key);
     }
 
-    const char env_path_sep = ';';
-
 } /* namespace impl */
