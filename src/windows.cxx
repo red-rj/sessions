@@ -14,7 +14,6 @@
 #include "impl.hpp"
 #include "ixm/session_impl.hpp"
 
-
 namespace {
 
     [[noreturn]]
@@ -105,12 +104,31 @@ namespace {
                 _wgetenv(L"initpls");
             }
 
-            init_env();
+            wchar_t** wide_environ = _wenviron;
+
+            for (size_t i = 0; wide_environ[i]; i++)
+            {
+                // we own the converted strings
+                m_env.push_back(to_utf8(wide_environ[i]).release());
+            }
+            
+            m_env.emplace_back(); // terminating null
+        }
+
+        environ_table(const environ_table&) = delete;
+
+        environ_table(environ_table&& other) noexcept
+        {
+            m_env.swap(other.m_env);
         }
 
         ~environ_table()
         {
-            free_env();
+            // delete converted items
+            for (auto& elem : m_env) {
+                // assumes default deleter
+                delete[] elem;
+            }
         }
 
 
@@ -124,28 +142,25 @@ namespace {
         auto end() noexcept { return m_env.end() - 1; }
 
         
-        auto getvar(ci_string_view key) noexcept
+        const char* getvar(ci_string_view key) noexcept
         {
             auto it = getvarline(key);
             return it != m_env.end() ? *it + key.length() + 1 : nullptr;
         }
 
-        void setvar(std::string_view key, std::string_view value)
+        void setvar(const char* key, const char* value)
         {
-            auto varline = make_varline(key, value);
-            auto it = getvarline({key.data(), key.length()});
+            auto it = getvarline(key);
             
             if (it == end()) {
                 // insert b4 the terminating null
-                m_env.insert(end(), varline.release());
+                m_env.insert(end(), new_varline(key, value));
             }
             else {
                 const char* old = *it;
-                *it = varline.release();
+                *it = new_varline(key, value);
                 delete[] old;
             }
-
-            _putenv_s(key.data(), value.data());
         }
 
         void rmvar(const char* key) 
@@ -155,7 +170,6 @@ namespace {
                 return;
 
             m_env.erase(it);
-            _putenv_s(key, "");
         }
 
     private:
@@ -170,46 +184,18 @@ namespace {
             });
         }
 
-        auto make_varline(std::string_view key, std::string_view value) -> std::unique_ptr<char[]>
+        [[nodiscard]]
+        char* new_varline(std::string_view key, std::string_view value)
         {
             const auto buffer_sz = key.size()+value.size()+2;
-            auto buffer = std::make_unique<char[]>(buffer_sz);
-            key.copy(buffer.get(), key.size());
+            auto buffer = new char[buffer_sz];
+            key.copy(buffer, key.size());
             buffer[key.size()] = '=';
-            value.copy(buffer.get() + key.size() + 1, value.size());
+            value.copy(buffer + key.size() + 1, value.size());
 
             return buffer;
         }
 
-        void init_env()
-        {
-            wchar_t** wide_environ = _wenviron;
-
-            free_env();
-            
-            for (size_t i = 0; wide_environ[i]; i++)
-            {
-                // we own the converted strings
-                m_env.push_back(to_utf8(wide_environ[i]).release());
-            }
-
-            m_env.emplace_back(); // terminating null
-            
-            m_valid = true;
-        }
-
-        void free_env() noexcept
-        {
-            // delete converted items
-            for (auto& elem : m_env) {
-                // TODO: assumes default deleter
-                delete[] elem;
-            }
-
-            m_env.clear();
-        }
-
-        bool m_valid;
         std::vector<char const*> m_env;
     
     } environ_;
@@ -245,11 +231,13 @@ namespace impl {
     void set_env_var(const char* key, const char* value) noexcept
     {
         environ_.setvar(key, value);
+        _putenv_s(key, value);
     }
 
     void rm_env_var(const char* key) noexcept
     {
         environ_.rmvar(key);
+        _putenv_s(key, "");
     }
 
 } /* namespace impl */
