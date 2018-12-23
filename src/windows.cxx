@@ -115,13 +115,6 @@ namespace {
             m_env.emplace_back(); // terminating null
         }
 
-        environ_table(const environ_table&) = delete;
-
-        environ_table(environ_table&& other) noexcept
-        {
-            m_env.swap(other.m_env);
-        }
-
         ~environ_table()
         {
             // delete converted items
@@ -145,7 +138,7 @@ namespace {
         const char* getvar(ci_string_view key) noexcept
         {
             auto it = getvarline(key);
-            return it != m_env.end() ? *it + key.length() + 1 : nullptr;
+            return it != end() ? *it + key.length() + 1 : nullptr;
         }
 
         void setvar(const char* key, const char* value)
@@ -169,7 +162,9 @@ namespace {
             if (it == m_env.end()) 
                 return;
 
+            auto* old = *it;
             m_env.erase(it);
+            delete[] old;
         }
 
     private:
@@ -192,6 +187,7 @@ namespace {
             key.copy(buffer, key.size());
             buffer[key.size()] = '=';
             value.copy(buffer + key.size() + 1, value.size());
+            buffer[buffer_sz-1] = 0;
 
             return buffer;
         }
@@ -219,7 +215,7 @@ namespace impl {
         return environ_.data();
     }
 
-    size_t env_size() {
+    size_t env_size() noexcept {
         return environ_.size();
     }
 
@@ -231,13 +227,17 @@ namespace impl {
     void set_env_var(const char* key, const char* value) noexcept
     {
         environ_.setvar(key, value);
-        _putenv_s(key, value);
+        
+        auto wkey = to_utf16(key), wvalue = to_utf16(value);
+        _wputenv_s(wkey.get(), wvalue.get());
     }
 
     void rm_env_var(const char* key) noexcept
     {
         environ_.rmvar(key);
-        _putenv_s(key, "");
+
+        auto wkey = to_utf16(key);
+        _wputenv_s(wkey.get(), L"");
     }
 
 } /* namespace impl */
