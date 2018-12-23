@@ -42,6 +42,15 @@ int main()
 
     env["DRUAGA1"] = "WEED";
     
+    // TODO: what should happend if an external source mutates the environment?
+#ifdef WIN32
+    _wputenv_s(L"thug2song", L"354125go");
+#else
+    setenv("thug2song", "354125go", true);
+#endif // WIN32
+
+    // won't be found on windows
+    std::string_view song = env["thug2song"];
 
     return 0;
 }

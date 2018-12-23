@@ -92,9 +92,6 @@ namespace ixm::session::detail
             return *m_buff;
         }
 
-    protected:
-        auto buffer() const noexcept { return m_buff; }
-
     private:
         pointer m_buff = nullptr;
     };
