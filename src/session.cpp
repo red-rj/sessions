@@ -31,6 +31,10 @@ namespace ixm::session
     }
 
 
+    environment::environment() : m_envp(impl::envp())
+    {
+    }
+
     // env
     auto environment::operator[] (const std::string& str) const noexcept -> variable
     {
@@ -56,12 +60,12 @@ namespace ixm::session
 
     auto environment::cbegin() const noexcept -> iterator
     {
-        return iterator{ impl::envp() };
+        return iterator{ m_envp };
     }
 
     auto environment::cend() const noexcept -> iterator
     {
-        return iterator{impl::envp() + size()};
+        return iterator{ m_envp + size()};
     }
 
     auto environment::size() const noexcept -> size_type

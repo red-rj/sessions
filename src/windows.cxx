@@ -103,25 +103,18 @@ namespace {
             if (!_wenviron) {
                 _wgetenv(L"initpls");
             }
+        }
 
-            wchar_t** wide_environ = _wenviron;
+        environ_table(const environ_table&) = delete;
 
-            for (size_t i = 0; wide_environ[i]; i++)
-            {
-                // we own the converted strings
-                m_env.push_back(to_utf8(wide_environ[i]).release());
-            }
-            
-            m_env.emplace_back(); // terminating null
+        environ_table(environ_table&& other)
+        {
+            m_env.swap(other.m_env);
         }
 
         ~environ_table()
         {
-            // delete converted items
-            for (auto& elem : m_env) {
-                // assumes default deleter
-                delete[] elem;
-            }
+            free_env();
         }
 
 
@@ -134,6 +127,11 @@ namespace {
         auto begin() noexcept { return m_env.begin(); }
         auto end() noexcept { return m_env.end() - 1; }
 
+        void sync()
+        {
+            free_env();
+            init_env();
+        }
         
         const char* getvar(ci_string_view key) noexcept
         {
@@ -192,10 +190,33 @@ namespace {
             return buffer;
         }
 
+        void free_env() noexcept
+        {
+            // delete converted items
+            for (auto& elem : m_env) {
+                // assumes default deleter
+                delete[] elem;
+            }
+
+            m_env.clear();
+        }
+
+        void init_env()
+        {
+            wchar_t** wide_environ = _wenviron;
+
+            for (int i = 0; wide_environ[i]; i++)
+            {
+                // we own the converted strings
+                m_env.push_back(to_utf8(wide_environ[i]).release());
+            }
+
+            m_env.emplace_back(); // terminating null
+        }
+
         std::vector<char const*> m_env;
     
     } environ_;
-
 
 } /* nameless namespace */
 
@@ -212,6 +233,7 @@ namespace impl {
     int argc() noexcept { return static_cast<int>(args_vector().size()) - 1; }
 
     char const** envp() noexcept {
+        environ_.sync();
         return environ_.data();
     }
 

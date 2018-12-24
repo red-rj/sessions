@@ -43,6 +43,8 @@ namespace ixm::session {
         using ConvertsToSV = std::enable_if_t<std::is_convertible_v<const T&, std::string_view>>;
 
 
+        environment();
+
         template <class T, class = ConvertsToSV_Only<T>>
         variable operator [] (T const& k) const {
             return operator[](k);
@@ -94,6 +96,7 @@ namespace ixm::session {
 
     private:
         void internal_erase(const char*) noexcept;
+        const char** m_envp;
     };
 
 
