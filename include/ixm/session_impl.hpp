@@ -97,14 +97,6 @@ namespace ixm::session::detail
     };
 
 
-    inline auto split_line(std::string_view line) {
-        const size_t eqpos = line.find('='), sz = line.size();
-        if (eqpos == std::string::npos) 
-            return std::pair<std::string_view, std::string_view>{};
-
-        return std::pair{line.substr(0, sz - eqpos), line.substr(eqpos + 1)};
-    }
-
     template<typename CharT>
     class pathsep_iterator
     {

@@ -31,11 +31,11 @@ namespace ixm::session
     }
 
 
+    // env
     environment::environment() : m_envp(impl::envp())
     {
     }
 
-    // env
     auto environment::operator[] (const std::string& str) const noexcept -> variable
     {
         return operator[](str.c_str());
@@ -43,13 +43,12 @@ namespace ixm::session
 
     auto environment::operator[] (std::string_view str) const -> variable
     {
-        std::string val { str };
-        return operator[](val.c_str());
+        return variable{ str };
     }
 
     auto environment::operator[] (const char*str) const noexcept -> variable
     {
-        return variable{str};
+        return variable{ str };
     }
 
     bool environment::contains(std::string_view key) const noexcept
@@ -94,11 +93,6 @@ namespace ixm::session
         return impl::argv(idx);
     }
 
-    bool arguments::empty() const noexcept
-    {
-        return size() == 0;
-    }
-    
     arguments::size_type arguments::size() const noexcept
     {
         return static_cast<size_type>(argc());

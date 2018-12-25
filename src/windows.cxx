@@ -157,7 +157,7 @@ namespace {
         void rmvar(const char* key) 
         {
             auto it = getvarline(key);
-            if (it == m_env.end()) 
+            if (it == end()) 
                 return;
 
             auto* old = *it;

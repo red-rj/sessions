@@ -113,7 +113,7 @@ namespace ixm::session {
         value_type operator [] (index_type) const noexcept;
         value_type at(index_type) const;
 
-        [[nodiscard]] bool empty() const noexcept;
+        [[nodiscard]] bool empty() const noexcept { return size() == 0; }
         size_type size() const noexcept;
 
         iterator cbegin() const noexcept;
