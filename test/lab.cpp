@@ -16,7 +16,8 @@ int main()
     print(env);
 
     auto memeIt = env.find("HAVE_PHONES");
-    std::cout << "memeIt: " << *memeIt << '\n';
+    if (memeIt != env.end())
+        std::cout << "memeIt: " << *memeIt << '\n';
 
     auto[path_begin, path_end] = env["PATH"].split();
 
@@ -30,7 +31,7 @@ int main()
     env["DRUAGA1"] = "WEED";
     env["PROTOCOL"] = "DEFAULT";
     env["ERASE"] = "ME1234";
-
+    
     // TODO: what should happend if an external source mutates the environment?
 #ifdef WIN32
     _wputenv_s(L"thug2song", L"354125go");

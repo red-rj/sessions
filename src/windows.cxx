@@ -232,8 +232,9 @@ namespace impl {
 
     int argc() noexcept { return static_cast<int>(args_vector().size()) - 1; }
 
-    char const** envp() noexcept {
-        environ_.sync();
+    char const** envp(bool sync) noexcept {
+        if (sync)
+            environ_.sync();
         return environ_.data();
     }
 

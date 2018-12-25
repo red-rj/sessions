@@ -32,7 +32,7 @@ namespace ixm::session
 
 
     // env
-    environment::environment() : m_envp(impl::envp())
+    environment::environment() : m_envp(impl::envp(true))
     {
     }
 

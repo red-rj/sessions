@@ -31,13 +31,11 @@ char const* argv (std::size_t idx) noexcept { return argv__[idx]; }
 char const** argv() noexcept { return argv__; }
 int argc () noexcept { return argc__; }
 
-char const** envp () noexcept { return (char const**)environ; }
+char const** envp (bool) noexcept { return (char const**)environ; }
 size_t env_size() noexcept {
     size_t environ_size = 0;
     while (environ[environ_size]) environ_size++;
     return environ_size;
-}
-
 }
 
 char const* get_env_var(char const* key) noexcept
