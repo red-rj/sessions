@@ -32,25 +32,14 @@ int main()
     env["PROTOCOL"] = "DEFAULT";
     env["ERASE"] = "ME1234";
     
-    // TODO: what should happend if an external source mutates the environment?
 #ifdef WIN32
     _wputenv_s(L"thug2song", L"354125go");
-    // won't be found on windows
-    std::string_view song = env["thug2song"];
-
-    std::cout << "\n" "song var (getenv): " << getenv("thug2song") << '\n';
-    std::cout << "\n" "song var (environment before): " << song;
-
-    // but it will be if env is recreated;
-    env = {};
-
-    song = env["thug2song"];
-
-    std::cout << "\n" "song var (environment after): " << song << "\n\n";
-
 #else
     setenv("thug2song", "354125go", true);
 #endif // WIN32
+
+    std::string_view song = env["thug2song"];
+    std::cout << "\n" "song var: " << song << "\n\n";
 
     // erasing
     env.erase("ERASE");

@@ -244,7 +244,21 @@ namespace impl {
 
     char const* get_env_var(char const* key) noexcept
     {
-        return environ_.getvar(key);
+        auto local = environ_.getvar(key);
+        if (local) {
+            return local;
+        } else {
+            // not found, try the OS environment
+            auto wvalue = _wgetenv(to_utf16(key).get());
+
+            if (wvalue) {
+                // add to our env
+                environ_.setvar(key, to_utf8(wvalue).get());
+                return environ_.getvar(key);
+            } else {
+                return nullptr;
+            }
+        }
     }
 
     void set_env_var(const char* key, const char* value) noexcept
