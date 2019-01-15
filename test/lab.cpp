@@ -15,10 +15,6 @@ int main()
     std::cout << '\n';
     print(env);
 
-    auto memeIt = env.find("HAVE_PHONES");
-    if (memeIt != env.end())
-        std::cout << "memeIt: " << *memeIt << '\n';
-
     auto[path_begin, path_end] = env["PATH"].split();
 
     puts("\n" "PATH split:");
@@ -34,15 +30,21 @@ int main()
     
 #ifdef WIN32
     _wputenv_s(L"thug2song", L"354125go");
+    _wputenv_s(L"findme", L"asddsa");
 #else
     setenv("thug2song", "354125go", true);
+    setenv("findme", "asddsa", true);
 #endif // WIN32
 
     std::string_view song = env["thug2song"];
     std::cout << "\n" "song var: " << song << "\n\n";
 
+    // finding
+    auto it1 = env.find("findme"), it2 = env.find("thug2song");
+
     // erasing
     env.erase("ERASE");
+    env.erase("findme");
 
     print(env);
 

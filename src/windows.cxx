@@ -10,11 +10,13 @@
 #include <system_error>
 
 #include <cstdlib>
+#include <cassert>
 
 #include "impl.hpp"
 #include "ixm/session_impl.hpp"
 
 namespace {
+    using namespace ixm::session::detail;
 
     [[noreturn]]
     void throw_win_error(DWORD error = GetLastError())
@@ -89,13 +91,13 @@ namespace {
         return value;
     }
 
-    using namespace ixm::session::detail;
 
     class environ_table
     {
-        using env_iterator = std::vector<const char*>::iterator;
-
     public:
+
+        using iterator = std::vector<const char*>::iterator;
+    
         environ_table()
         {
             // make sure _wenviron is initialized
@@ -103,6 +105,8 @@ namespace {
             if (!_wenviron) {
                 _wgetenv(L"initpls");
             }
+
+            init_env();
         }
 
         environ_table(const environ_table&) = delete;
@@ -127,12 +131,6 @@ namespace {
         auto begin() noexcept { return m_env.begin(); }
         auto end() noexcept { return m_env.end() - 1; }
 
-        void sync()
-        {
-            free_env();
-            init_env();
-        }
-        
         const char* getvar(ci_string_view key) noexcept
         {
             auto it = getvarline(key);
@@ -141,17 +139,10 @@ namespace {
 
         void setvar(const char* key, const char* value)
         {
-            auto it = getvarline(key);
-            
-            if (it == end()) {
-                // insert b4 the terminating null
-                m_env.insert(end(), new_varline(key, value));
-            }
-            else {
-                const char* old = *it;
-                *it = new_varline(key, value);
-                delete[] old;
-            }
+            setvarline(key, value);
+
+            auto wkey = to_utf16(key), wvalue = to_utf16(value);
+            _wputenv_s(wkey.get(), wvalue.get());
         }
 
         void rmvar(const char* key) 
@@ -163,22 +154,73 @@ namespace {
             auto* old = *it;
             m_env.erase(it);
             delete[] old;
+
+            auto wkey = to_utf16(key);
+            _wputenv_s(wkey.get(), L"");
+        }
+
+        int find_pos(const char* key)
+        {
+            auto it = getvarline(key);
+            return it - begin();
         }
 
     private:
-        auto getvarline(ci_string_view key) noexcept -> env_iterator
+
+        auto getvarline(ci_string_view key) noexcept -> iterator
         {
-            return std::find_if(begin(), end(), 
+            auto it = std::find_if(begin(), end(), 
             [&](ci_string_view entry){
                 return 
                     entry.length() > key.length() &&
                     entry[key.length()] == '=' &&
                     entry.compare(0, key.size(), key) == 0;
             });
+
+            if (it == end()) {
+                // not found, try the OS environment
+                it = sync_one(key);
+            }
+            
+            return it;
+        }
+
+        auto setvarline(ci_string_view key, ci_string_view value) -> iterator
+        {
+            auto it = getvarline(key);
+            const char* vl = new_varline(key, value);
+            
+            if (it == end()) {
+                // insert b4 the terminating null
+                it = m_env.insert(end(), vl);
+            }
+            else {
+                const char* old = *it;
+                *it = vl;
+                delete[] old;
+            }
+
+            return it;
+        }
+
+        iterator sync_one(ci_string_view key)
+        {
+            // assume key is null terminated
+            assert(strlen(key.data()) == key.length());
+
+            auto wvalue = _wgetenv(to_utf16(key.data()).get());
+            if (wvalue) {
+                // found! add to our env
+                // insert b4 the terminating null
+                return m_env.insert(end(), new_varline(key, to_utf8(wvalue).get()));
+            }
+            else {
+                return end();
+            }
         }
 
         [[nodiscard]]
-        char* new_varline(std::string_view key, std::string_view value)
+        char* new_varline(ci_string_view key, ci_string_view value)
         {
             const auto buffer_sz = key.size()+value.size()+2;
             auto buffer = new char[buffer_sz];
@@ -232,10 +274,12 @@ namespace impl {
 
     int argc() noexcept { return static_cast<int>(args_vector().size()) - 1; }
 
-    char const** envp(bool sync) noexcept {
-        if (sync)
-            environ_.sync();
+    char const** envp() noexcept {
         return environ_.data();
+    }
+
+    int env_find(char const* key) noexcept {
+        return environ_.find_pos(key);
     }
 
     size_t env_size() noexcept {
@@ -244,37 +288,17 @@ namespace impl {
 
     char const* get_env_var(char const* key) noexcept
     {
-        auto local = environ_.getvar(key);
-        if (local) {
-            return local;
-        } else {
-            // not found, try the OS environment
-            auto wvalue = _wgetenv(to_utf16(key).get());
-
-            if (wvalue) {
-                // add to our env
-                environ_.setvar(key, to_utf8(wvalue).get());
-                return environ_.getvar(key);
-            } else {
-                return nullptr;
-            }
-        }
+        return environ_.getvar(key);
     }
 
     void set_env_var(const char* key, const char* value) noexcept
     {
         environ_.setvar(key, value);
-        
-        auto wkey = to_utf16(key), wvalue = to_utf16(value);
-        _wputenv_s(wkey.get(), wvalue.get());
     }
 
     void rm_env_var(const char* key) noexcept
     {
         environ_.rmvar(key);
-
-        auto wkey = to_utf16(key);
-        _wputenv_s(wkey.get(), L"");
     }
 
 } /* namespace impl */

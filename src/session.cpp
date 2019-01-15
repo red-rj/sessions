@@ -1,6 +1,5 @@
 #include "ixm/session.hpp"
 #include "impl.hpp"
-#include <cstdlib>
 
 
 namespace ixm::session 
@@ -32,10 +31,6 @@ namespace ixm::session
 
 
     // env
-    environment::environment() : m_envp(impl::envp(true))
-    {
-    }
-
     auto environment::operator[] (const std::string& str) const noexcept -> variable
     {
         return operator[](str.c_str());
@@ -59,12 +54,12 @@ namespace ixm::session
 
     auto environment::cbegin() const noexcept -> iterator
     {
-        return iterator{ m_envp };
+        return iterator{ m_envp() };
     }
 
     auto environment::cend() const noexcept -> iterator
     {
-        return iterator{ m_envp + size()};
+        return iterator{ m_envp() + size()};
     }
 
     auto environment::size() const noexcept -> size_type
@@ -76,6 +71,15 @@ namespace ixm::session
     {
         impl::rm_env_var(k);
     }
+
+    bool environment::internal_find(const char* key, int& offset) const noexcept
+    {
+        offset = impl::env_find(key);
+        return offset != -1;
+    }
+
+    char const** environment::m_envp() const noexcept { return impl::envp(); }
+
 
 
     // args

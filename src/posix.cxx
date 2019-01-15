@@ -1,4 +1,5 @@
 #include "impl.hpp"
+#include <string_view>
 #include <cstdlib>
 
 #if defined(__ELF__) and __ELF__
@@ -31,11 +32,29 @@ char const* argv (std::size_t idx) noexcept { return argv__[idx]; }
 char const** argv() noexcept { return argv__; }
 int argc () noexcept { return argc__; }
 
-char const** envp (bool) noexcept { return (char const**)environ; }
+char const** envp () noexcept { return (char const**)environ; }
+
+int env_find(char const* key) noexcept {
+  std::string_view keysv = key;
+
+  for (int i = 0; environ[i]; i++)
+  {
+    std::string_view elem = environ[i];
+    
+    if (elem.length() <= keysv.length()) continue;
+    if (elem[keysv.length()] != '=') continue;
+    if (elem.compare(0, keysv.length(), keysv) != 0) continue;
+
+    return i;
+  }
+
+  return -1;
+}
+
 size_t env_size() noexcept {
-    size_t environ_size = 0;
-    while (environ[environ_size]) environ_size++;
-    return environ_size;
+  size_t environ_size = 0;
+  while (environ[environ_size]) environ_size++;
+  return environ_size;
 }
 
 char const* get_env_var(char const* key) noexcept

@@ -43,8 +43,6 @@ namespace ixm::session {
         using ConvertsToSV = std::enable_if_t<std::is_convertible_v<const T&, std::string_view>>;
 
 
-        environment();
-
         template <class T, class = ConvertsToSV_Only<T>>
         variable operator [] (T const& k) const {
             return operator[](k);
@@ -56,22 +54,14 @@ namespace ixm::session {
 
         template <class K, class = ConvertsToSV<K>>
         iterator find(K const& key) const noexcept {
-            using detail::ci_string_view;
+            std::string keystr{key};
+            int off;
             
-            ci_string_view keysv = key;
-            
-            for(auto it = cbegin(); it != cend(); it++)
-            {
-                ci_string_view elem = *it;
-
-                if (elem.length() <= keysv.length()) continue;
-                if (elem[keysv.length()] != '=') continue;
-                if (elem.compare(0, keysv.length(), keysv) != 0) continue;
-                
-                return it;
+            if (internal_find(keystr.c_str(), off)) {
+                return iterator{m_envp() + off};
+            } else {
+                return cend();
             }
-            
-            return cend();
         }
 
         bool contains(std::string_view) const noexcept;
@@ -96,7 +86,8 @@ namespace ixm::session {
 
     private:
         void internal_erase(const char*) noexcept;
-        const char** m_envp;
+        bool internal_find(const char* key, int& offset) const noexcept;
+        char const** m_envp() const noexcept;
     };
 
 
