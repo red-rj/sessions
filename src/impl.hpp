@@ -10,6 +10,7 @@ char const** argv() noexcept;
 int argc () noexcept;
 
 char const** envp () noexcept;
+void env_sync();
 int env_find(char const* key) noexcept;
 size_t env_size() noexcept;
 char const* get_env_var(char const*) noexcept;

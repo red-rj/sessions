@@ -34,6 +34,8 @@ int argc () noexcept { return argc__; }
 
 char const** envp () noexcept { return (char const**)environ; }
 
+void env_sync() { /* noop */ }
+
 int env_find(char const* key) noexcept {
   std::string_view keysv = key;
 
