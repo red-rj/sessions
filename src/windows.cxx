@@ -1,8 +1,8 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #define _CRT_SECURE_NO_WARNINGS
-#include <Windows.h>
-#include <shellapi.h>
+// #include <Windows.h>
+// #include <shellapi.h>
 
 #include <algorithm>
 #include <vector>
@@ -111,10 +111,7 @@ namespace {
 
         environ_table(const environ_table&) = delete;
 
-        environ_table(environ_table&& other)
-        {
-            m_env.swap(other.m_env);
-        }
+        environ_table(environ_table&& other) = delete;
 
         ~environ_table()
         {
@@ -131,9 +128,16 @@ namespace {
         auto begin() noexcept { return m_env.begin(); }
         auto end() noexcept { return m_env.end() - 1; }
 
+        auto erase(iterator it)
+        {
+            const char* old = *it;
+            delete[] old;
+            return m_env.erase(it);
+        }
+
         const char* getvar(ci_string_view key) noexcept
         {
-            auto it = getvarline(key);
+            auto it = getvarline(key, true);
             return it != end() ? *it + key.length() + 1 : nullptr;
         }
 
@@ -147,13 +151,12 @@ namespace {
 
         void rmvar(const char* key) 
         {
-            auto it = getvarline(key);
-            if (it == end()) 
-                return;
-
-            auto* old = *it;
-            m_env.erase(it);
-            delete[] old;
+            auto it = getvarline(key, false);
+            if (it != end()) {
+                auto* old = *it;
+                m_env.erase(it);
+                delete[] old;
+            }
 
             auto wkey = to_utf16(key);
             _wputenv_s(wkey.get(), L"");
@@ -161,13 +164,13 @@ namespace {
 
         int find_pos(const char* key)
         {
-            auto it = getvarline(key);
+            auto it = getvarline(key, true);
             return it - begin();
         }
 
     private:
 
-        auto getvarline(ci_string_view key) noexcept -> iterator
+        auto getvarline(ci_string_view key, bool sync_os) -> iterator
         {
             auto it = std::find_if(begin(), end(), 
             [&](ci_string_view entry){
@@ -178,8 +181,21 @@ namespace {
             });
 
             if (it == end()) {
-                // not found, try the OS environment
+                // not found in cache, try the OS environment
                 it = sync_one(key);
+            }
+            else if (sync_os) {
+                // found in cache, sync if values differ
+                auto it_os = sync_one(key);
+                ci_string_view cached = *it, os = it_os != end() ? *it_os : "";
+
+                if (cached == os) {
+                    erase(it_os);
+                }
+                else {
+                    std::iter_swap(it, it_os);
+                    erase(it_os);
+                }
             }
             
             return it;
@@ -187,7 +203,7 @@ namespace {
 
         auto setvarline(ci_string_view key, ci_string_view value) -> iterator
         {
-            auto it = getvarline(key);
+            auto it = getvarline(key, false);
             const char* vl = new_varline(key, value);
             
             if (it == end()) {
@@ -216,6 +232,20 @@ namespace {
             }
             else {
                 return end();
+            }
+        }
+
+        [[nodiscard]]
+        char* varline_from_os(const char* key)
+        {
+            auto wvalue = _wgetenv(to_utf16(key));
+            if (wvalue) {
+                // found! add to our env
+                // insert b4 the terminating null
+                return new_varline(key, to_utf8(wvalue));
+            }
+            else {
+                return "";
             }
         }
 
