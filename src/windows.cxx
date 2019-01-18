@@ -105,10 +105,16 @@ namespace {
             if (!_wenviron) {
                 _wgetenv(L"initpls");
             }
+
+            init_env();
         }
 
         environ_table(const environ_table&) = delete;
-        environ_table(environ_table&& other) = delete;
+
+        environ_table(environ_table&& other)
+        {
+            m_env.swap(other.m_env);
+        }
 
         ~environ_table()
         {
@@ -116,33 +122,18 @@ namespace {
         }
 
 
-        void sync()
-        {
-            free_env();
-            init_env();
+        char const** data() {
+            return m_env.data();
         }
-
-        char const** data() noexcept { return m_env.data(); }
 
         size_t size() const noexcept { return m_env.size() - 1; }
 
         auto begin() noexcept { return m_env.begin(); }
         auto end() noexcept { return m_env.end() - 1; }
 
-        const char* getvar(ci_string_view key)
+        const char* getvar(ci_string_view key) noexcept
         {
             auto it = getvarline(key);
-
-            if (it == end()) {
-                // not found, try the OS environment
-                auto vl = get_from_os(key.data());
-                if (vl) {               
-                    // found! add to our env
-                    // insert b4 the terminating null
-                    it = m_env.insert(end(), vl);
-                }
-            }
-            
             return it != end() ? *it + key.length() + 1 : nullptr;
         }
 
@@ -157,11 +148,12 @@ namespace {
         void rmvar(const char* key) 
         {
             auto it = getvarline(key);
-            if (it != end()) {
-                auto* old = *it;
-                m_env.erase(it);
-                delete[] old;
-            }
+            if (it == end()) 
+                return;
+
+            auto* old = *it;
+            m_env.erase(it);
+            delete[] old;
 
             auto wkey = to_utf16(key);
             _wputenv_s(wkey.get(), L"");
@@ -175,15 +167,22 @@ namespace {
 
     private:
 
-        auto getvarline(ci_string_view key) -> iterator
+        auto getvarline(ci_string_view key) noexcept -> iterator
         {
-            return std::find_if(begin(), end(), 
+            auto it = std::find_if(begin(), end(), 
             [&](ci_string_view entry){
                 return 
                     entry.length() > key.length() &&
                     entry[key.length()] == '=' &&
                     entry.compare(0, key.size(), key) == 0;
             });
+
+            if (it == end()) {
+                // not found, try the OS environment
+                it = sync_one(key);
+            }
+            
+            return it;
         }
 
         auto setvarline(ci_string_view key, ci_string_view value) -> iterator
@@ -204,18 +203,20 @@ namespace {
             return it;
         }
 
-        [[nodiscard]]
-        char* get_from_os(const char* key)
+        iterator sync_one(ci_string_view key)
         {
-            char* retval{};
-            auto wkey = to_utf16(key);
-            wchar_t* wvalue = _wgetenv(wkey.get());
+            // assume key is null terminated
+            assert(strlen(key.data()) == key.length());
 
+            auto wvalue = _wgetenv(to_utf16(key.data()).get());
             if (wvalue) {
-                retval = new_varline(key, to_utf8(wvalue).get());
+                // found! add to our env
+                // insert b4 the terminating null
+                return m_env.insert(end(), new_varline(key, to_utf8(wvalue).get()));
             }
-            
-            return retval;
+            else {
+                return end();
+            }
         }
 
         [[nodiscard]]
@@ -275,10 +276,6 @@ namespace impl {
 
     char const** envp() noexcept {
         return environ_.data();
-    }
-
-    void env_sync() {
-        environ_.sync();
     }
 
     int env_find(char const* key) noexcept {

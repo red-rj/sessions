@@ -31,11 +31,6 @@ namespace ixm::session
 
 
     // env
-    environment::environment()
-    {
-        impl::env_sync();
-    }
-    
     auto environment::operator[] (const std::string& str) const noexcept -> variable
     {
         return operator[](str.c_str());
