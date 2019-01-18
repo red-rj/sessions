@@ -1,8 +1,8 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #define _CRT_SECURE_NO_WARNINGS
-// #include <Windows.h>
-// #include <shellapi.h>
+#include <Windows.h>
+#include <shellapi.h>
 
 #include <algorithm>
 #include <vector>
@@ -153,9 +153,7 @@ namespace {
         {
             auto it = getvarline(key, false);
             if (it != end()) {
-                auto* old = *it;
-                m_env.erase(it);
-                delete[] old;
+                erase(it);
             }
 
             auto wkey = to_utf16(key);
@@ -221,32 +219,21 @@ namespace {
 
         iterator sync_one(ci_string_view key)
         {
-            // assume key is null terminated
-            assert(strlen(key.data()) == key.length());
-
-            auto wvalue = _wgetenv(to_utf16(key.data()).get());
-            if (wvalue) {
+            char* vl_os = varline_from_os(key.data());
+            if (vl_os) {
                 // found! add to our env
                 // insert b4 the terminating null
-                return m_env.insert(end(), new_varline(key, to_utf8(wvalue).get()));
+                return m_env.insert(end(), vl_os);
             }
-            else {
-                return end();
-            }
+
+            return end();
         }
 
         [[nodiscard]]
         char* varline_from_os(const char* key)
         {
-            auto wvalue = _wgetenv(to_utf16(key));
-            if (wvalue) {
-                // found! add to our env
-                // insert b4 the terminating null
-                return new_varline(key, to_utf8(wvalue));
-            }
-            else {
-                return "";
-            }
+            auto wvalue = _wgetenv(to_utf16(key).get());
+            return wvalue ? new_varline(key, to_utf8(wvalue).get()) : nullptr;
         }
 
         [[nodiscard]]
