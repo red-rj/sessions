@@ -40,7 +40,7 @@ int main()
     std::cout << "\n" "song var: " << song << "\n\n";
 
     // finding
-    auto it1 = env.find("findme"), it2 = env.find("thug2song");
+    auto it1 = env.find("findme"), it2 = env.find("thug2song"), it3 = env.find("nonesuch");
 
     // erasing
     env.erase("ERASE");
