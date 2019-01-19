@@ -21,7 +21,7 @@ namespace {
     [[noreturn]]
     void throw_win_error(DWORD error = GetLastError())
     {
-        throw std::system_error(std::error_code{ static_cast<int>(error), std::system_category() });
+        throw std::system_error(static_cast<int>(error), std::system_category());
     }
 
     auto narrow(wchar_t const* wstr, char* ptr = nullptr, int length = 0) {
@@ -106,106 +106,47 @@ namespace {
                 _wgetenv(L"initpls");
             }
 
-            init_env();
+            for (wchar_t** wenv = _wenviron; *wenv; wenv++) 
+            {
+                // we own the converted strings
+                m_env.push_back(to_utf8(*wenv).release());
+            }
+
+            m_env.emplace_back(); // terminating null
         }
 
         environ_table(const environ_table&) = delete;
-
         environ_table(environ_table&& other) = delete;
 
         ~environ_table()
         {
-            free_env();
+            // delete converted items
+            for (auto elem : m_env) {
+                delete[] elem;
+            }
         }
 
 
-        char const** data() {
-            return m_env.data();
-        }
+        auto data() noexcept { return m_env.data(); }
 
         size_t size() const noexcept { return m_env.size() - 1; }
 
         auto begin() noexcept { return m_env.begin(); }
         auto end() noexcept { return m_env.end() - 1; }
 
-        auto erase(iterator it)
-        {
-            const char* old = *it;
-            delete[] old;
-            return m_env.erase(it);
-        }
 
         const char* getvar(ci_string_view key) noexcept
         {
-            auto it = getvarline(key, true);
+            auto it = getvarline_sync(key);
             return it != end() ? *it + key.length() + 1 : nullptr;
         }
 
         void setvar(const char* key, const char* value)
         {
-            setvarline(key, value);
-
-            auto wkey = to_utf16(key), wvalue = to_utf16(value);
-            _wputenv_s(wkey.get(), wvalue.get());
-        }
-
-        void rmvar(const char* key) 
-        {
-            auto it = getvarline(key, false);
-            if (it != end()) {
-                erase(it);
-            }
-
-            auto wkey = to_utf16(key);
-            _wputenv_s(wkey.get(), L"");
-        }
-
-        int find_pos(const char* key)
-        {
-            auto it = getvarline(key, true);
-            return it - begin();
-        }
-
-    private:
-
-        auto getvarline(ci_string_view key, bool sync_os) -> iterator
-        {
-            auto it = std::find_if(begin(), end(), 
-            [&](ci_string_view entry){
-                return 
-                    entry.length() > key.length() &&
-                    entry[key.length()] == '=' &&
-                    entry.compare(0, key.size(), key) == 0;
-            });
-
-            if (it == end()) {
-                // not found in cache, try the OS environment
-                it = sync_one(key);
-            }
-            else if (sync_os) {
-                // found in cache, sync if values differ
-                auto it_os = sync_one(key);
-                ci_string_view cached = *it, os = it_os != end() ? *it_os : "";
-
-                if (cached == os) {
-                    erase(it_os);
-                }
-                else {
-                    std::iter_swap(it, it_os);
-                    erase(it_os);
-                }
-            }
-            
-            return it;
-        }
-
-        auto setvarline(ci_string_view key, ci_string_view value) -> iterator
-        {
-            auto it = getvarline(key, false);
+            auto it = getvarline(key);
             const char* vl = new_varline(key, value);
             
             if (it == end()) {
-                // insert b4 the terminating null
                 it = m_env.insert(end(), vl);
             }
             else {
@@ -214,19 +155,70 @@ namespace {
                 delete[] old;
             }
 
-            return it;
+            auto wvarline = to_utf16(vl);
+            _wputenv(wvarline.get());
         }
 
-        iterator sync_one(ci_string_view key)
+        void rmvar(const char* key) 
         {
-            char* vl_os = varline_from_os(key.data());
-            if (vl_os) {
-                // found! add to our env
-                // insert b4 the terminating null
-                return m_env.insert(end(), vl_os);
+            auto it = getvarline(key);
+            if (it != end()) {
+                auto* old = *it;
+                delete[] old;
+                m_env.erase(it);
             }
 
-            return end();
+            auto wkey = to_utf16(key);
+            _wputenv_s(wkey.get(), L"");
+        }
+
+        int find_pos(const char* key)
+        {
+            auto it = getvarline_sync(key);
+            return it != end() ? it - begin() : -1;
+        }
+
+    private:
+
+        iterator getvarline(ci_string_view key)
+        {
+            return std::find_if(begin(), end(), 
+            [&](ci_string_view entry){
+                return 
+                    entry.length() > key.length() &&
+                    entry[key.length()] == '=' &&
+                    entry.compare(0, key.size(), key) == 0;
+            });
+        }
+
+        iterator getvarline_sync(ci_string_view key)
+        {
+            auto it_cache = getvarline(key);
+            const char* varline_os = varline_from_os(key.data());
+            
+            if (it_cache == end() && varline_os) {
+                // not found in cache, found in OS env
+                it_cache = m_env.insert(end(), varline_os);
+            }
+            else if (varline_os) {
+                // found in cache and in OS env
+                m_env.push_back(varline_os);
+                auto it_tmp = m_env.rbegin();
+                
+                ci_string_view var_cache = *it_cache, var_os = varline_os;
+
+                // compare values, sync if values differ
+                auto const offset = key.size() + 1;
+                if (var_cache.compare(offset, var_cache.size(), var_os, offset, var_os.size()) != 0) {
+                    std::iter_swap(it_cache, it_tmp);
+                }
+
+                auto* old = *it_tmp;
+                delete[] old;
+                m_env.pop_back();
+            }
+
+            return it_cache;
         }
 
         [[nodiscard]]
@@ -249,29 +241,6 @@ namespace {
             return buffer;
         }
 
-        void free_env() noexcept
-        {
-            // delete converted items
-            for (auto& elem : m_env) {
-                // assumes default deleter
-                delete[] elem;
-            }
-
-            m_env.clear();
-        }
-
-        void init_env()
-        {
-            wchar_t** wide_environ = _wenviron;
-
-            for (int i = 0; wide_environ[i]; i++)
-            {
-                // we own the converted strings
-                m_env.push_back(to_utf8(wide_environ[i]).release());
-            }
-
-            m_env.emplace_back(); // terminating null
-        }
 
         std::vector<char const*> m_env;
     
