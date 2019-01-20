@@ -56,10 +56,33 @@ namespace
 #endif // WIN32
     }
 
+
+}
+
+auto& operator << (std::ostream& os, environment::variable const& var)
+{
+    return os << var.operator std::string_view();
+}
+
+void test_chars()
+{
+    environment env;
+    const auto data = "ÁáÉéÍíÓóÚúÇç";
+
+    setlocale(LC_ALL, "");
+
+    std::cout << "\n" "Char test:" "\n";
+    std::cout << "ref: " << data << '\n';
+
+    setlocale(LC_ALL, ".UTF-8");
+
+    std::cout << "env: " << env["CHAR_TEST"] << '\n';
 }
 
 int main()
 {
+    setlocale(LC_ALL, ".UTF-8");
+
     arguments args;
     environment env;
 
@@ -78,6 +101,7 @@ int main()
     env["DRUAGA1"] = "WEED";
     env["PROTOCOL"] = "DEFAULT";
     env["ERASE"] = "ME1234";
+    env["ACENTOS"] = "Atualização e Segurança";
     
     // setting new variables outside the class
     set_env("thug2song", "354125go");
@@ -98,8 +122,12 @@ int main()
     it2 = env.find("thug2song");
 
     rm_env("findme");
-    std::cout << "findme rm? " << (std::string_view)env["findme"] << '\n';
+    std::cout << "findme rm? " << env["findme"] << "\n\n";
 
+    print(env);
+
+    test_chars();
+    
     return 0;
 }
 
