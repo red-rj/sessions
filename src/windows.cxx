@@ -139,7 +139,7 @@ namespace {
             return it != end() ? *it + key.length() + 1 : nullptr;
         }
 
-        void setvar(const char* key, const char* value)
+        void setvar(ci_string_view key, ci_string_view value)
         {
             auto it = getvarline(key);
             const char* vl = new_varline(key, value);
@@ -192,7 +192,7 @@ namespace {
         iterator getvarline_sync(ci_string_view key)
         {
             auto it_cache = getvarline(key);
-            const char* varline_os = varline_from_os(key.data());
+            const char* varline_os = varline_from_os(key);
             
             if (it_cache == end() && varline_os) {
                 // not found in cache, found in OS env
@@ -210,15 +210,25 @@ namespace {
 
                 delete[] varline_os;
             }
+            else {
+                // found in cache, not in OS. Remove
+                auto* old = *it_cache;
+                m_env.erase(it_cache);
+                delete[] old;
+                it_cache = end();
+            }
 
             return it_cache;
         }
 
         [[nodiscard]]
-        char* varline_from_os(const char* key)
+        char* varline_from_os(ci_string_view key)
         {
-            auto wvalue = _wgetenv(to_utf16(key).get());
-            return wvalue ? new_varline(key, to_utf8(wvalue).get()) : nullptr;
+            wchar_t* wvalue;
+            _wdupenv_s(&wvalue, nullptr, to_utf16(key.data()).get());
+            char* varline = wvalue ? new_varline(key, to_utf8(wvalue).get()) : nullptr;
+            ::free(wvalue);
+            return varline;
         }
 
         [[nodiscard]]
