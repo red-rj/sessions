@@ -21,24 +21,38 @@ namespace {
     [[noreturn]]
     void throw_win_error(DWORD error = GetLastError())
     {
-        throw std::system_error(static_cast<int>(error), std::system_category());
+        std::error_code ec{ static_cast<int>(error), std::system_category() };
+        auto msg = "[sessions]: " + ec.message();
+        OutputDebugStringA(msg.c_str());
+        throw std::system_error(ec);
+    }
+
+    bool is_valid_utf8(const char* str) {
+        return MultiByteToWideChar(
+            CP_UTF8, 
+            MB_ERR_INVALID_CHARS, 
+            str, 
+            -1, 
+            nullptr, 
+            0) != 0;
     }
 
     auto narrow(wchar_t const* wstr, char* ptr = nullptr, int length = 0) {
         return WideCharToMultiByte(
-            CP_UTF8,
-            WC_ERR_INVALID_CHARS,
-            wstr,
+            CP_UTF8, 
+            WC_ERR_INVALID_CHARS, 
+            wstr, 
             -1,
-            ptr,
-            length,
-            nullptr,
+            ptr, 
+            length, 
+            nullptr, 
             nullptr);
     }
 
     auto wide(const char* nstr, wchar_t* ptr = nullptr, int lenght = 0) {
+        const int CP = is_valid_utf8(nstr) ? CP_UTF8 : CP_ACP;
         return MultiByteToWideChar(
-            CP_UTF8,
+            CP,
             MB_ERR_INVALID_CHARS,
             nstr,
             -1,
