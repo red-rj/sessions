@@ -97,7 +97,8 @@ int main()
     set_env("thug2song", "123456789");
     it2 = env.find("thug2song");
 
-    print(env);
+    rm_env("findme");
+    std::cout << "findme rm? " << (std::string_view)env["findme"] << '\n';
 
     return 0;
 }
