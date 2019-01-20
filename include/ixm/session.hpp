@@ -11,7 +11,7 @@ namespace ixm::session {
         class variable
         {
         public:
-            using path_iterator = detail::pathsep_iterator<char>;
+            using path_iterator = detail::pathsep_iterator;
         
             operator std::string_view() const noexcept;
             variable& operator = (std::string_view);

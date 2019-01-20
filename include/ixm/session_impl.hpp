@@ -18,7 +18,7 @@ namespace ixm::session::detail
         using pointer = value_type * ;
         using iterator_category = std::random_access_iterator_tag;
 
-        explicit charbuff_iterator(const char** buff = nullptr) : m_buff(buff)
+        explicit charbuff_iterator(const char** buff) : m_buff(buff)
         {}
 
         charbuff_iterator& operator ++ ()
@@ -76,10 +76,10 @@ namespace ixm::session::detail
             return !(*this == rhs);
         }
         bool operator < (const charbuff_iterator& rhs) const {
-            return rhs.m_buff - m_buff > 0;
+            return m_buff < rhs.m_buff;
         }
         bool operator > (const charbuff_iterator& rhs) const {
-            return rhs.m_buff < m_buff;
+            return m_buff > rhs.m_buff;
         }
         bool operator >= (const charbuff_iterator& rhs) const {
             return !(*this < rhs);
@@ -97,11 +97,10 @@ namespace ixm::session::detail
     };
 
 
-    template<typename CharT>
     class pathsep_iterator
     {
     public:
-        using value_type = std::basic_string_view<CharT>;
+        using value_type = std::basic_string_view<char>;
         using reference = value_type&;
         using difference_type = ptrdiff_t;
         using pointer = value_type *;
@@ -123,11 +122,6 @@ namespace ixm::session::detail
             return tmp;
         }
 
-        // pathsep_iterator& operator -- (int) {
-        //     next_sep(false);
-        //     return *this;
-        // }
-
         bool operator == (const pathsep_iterator& rhs) {
             return m_view == rhs.m_view;
         }
@@ -140,7 +134,7 @@ namespace ixm::session::detail
         }
 
     private:
-        void next_sep()
+        void next_sep() noexcept
         {
             if (m_offset == std::string::npos) {
                 m_view = {};
@@ -158,19 +152,14 @@ namespace ixm::session::detail
             m_view = m_var.substr(m_offset, pos-m_offset);
             m_offset = pos+1;
         }
-
-        // void prev_sep() {
-        //     ;
-        // }
     
         value_type m_view, m_var;
-        CharT Sep = 
+        static const char Sep = 
 #if defined(_WIN32)
         ';' ;
 #else
         ':';
 #endif // _WIN32
-        
         
         size_t m_offset = 0;
     };
