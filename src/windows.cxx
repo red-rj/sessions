@@ -210,7 +210,7 @@ namespace {
 
                 delete[] varline_os;
             }
-            else {
+            else if (it_cache != end()) {
                 // found in cache, not in OS. Remove
                 auto* old = *it_cache;
                 m_env.erase(it_cache);
@@ -218,6 +218,7 @@ namespace {
                 it_cache = end();
             }
 
+            assert(m_env.back() == nullptr);
             return it_cache;
         }
 
