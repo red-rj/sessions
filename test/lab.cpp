@@ -3,8 +3,60 @@
 
 using namespace ixm::session;
 
-void print(environment const&);
-void print(arguments const&);
+namespace
+{
+    void print(environment const& env)
+    {
+        int i = 0;
+        std::cout << "Environment (size: " << env.size() << "):\n";
+        for (auto e : env)
+        {
+            std::cout << ++i << ": " << e << '\n';
+        }
+    }
+
+    void print(arguments const& args)
+    {
+        int i = 0;
+        std::cout << "Arguments (size: " << args.size() << "):" "\n";
+        for (auto a : args)
+        {
+            std::cout << ++i << ": " << a << '\n';
+        }
+    }
+
+    std::string get_env(const char* key)
+    {
+#ifdef WIN32
+        char* buffer;
+        _dupenv_s(&buffer, nullptr, key);
+        std::string val = buffer;
+        ::free(buffer);
+        return val;
+#else
+        return getenv(key);
+#endif // WIN32
+    }
+
+    void set_env(const char* key, const char* value)
+    {
+#ifdef WIN32
+        _putenv_s(key, value);
+#else
+        setenv(key, value, true);
+#endif // WIN32
+    }
+
+    void rm_env(const char* key)
+    {
+#ifdef WIN32
+        _putenv_s(key, "");
+#else
+        unsetenv(key);
+#endif // WIN32
+    }
+
+}
 
 int main()
 {
@@ -13,7 +65,6 @@ int main()
 
     print(args);
     std::cout << '\n';
-    print(env);
 
     auto[path_begin, path_end] = env["PATH"].split();
 
@@ -28,13 +79,10 @@ int main()
     env["PROTOCOL"] = "DEFAULT";
     env["ERASE"] = "ME1234";
     
-#ifdef WIN32
-    _wputenv_s(L"thug2song", L"354125go");
-    _wputenv_s(L"findme", L"asddsa");
-#else
-    setenv("thug2song", "354125go", true);
-    setenv("findme", "asddsa", true);
-#endif // WIN32
+    // setting new variables outside the class
+    set_env("thug2song", "354125go");
+    set_env("findme", "asddsa");
+
 
     std::string_view song = env["thug2song"];
     std::cout << "\n" "song var: " << song << "\n\n";
@@ -44,29 +92,13 @@ int main()
 
     // erasing
     env.erase("ERASE");
-    env.erase("findme");
+    env.erase("nonesuch");
+
+    set_env("thug2song", "123456789");
+    it2 = env.find("thug2song");
 
     print(env);
 
     return 0;
 }
 
-void print(environment const& env)
-{
-    int i = 0;
-    std::cout << "Environment (size: " << env.size() << "):\n";
-    for (auto e : env)
-    {
-        std::cout << ++i << ": " << e << '\n';
-    }
-}
-
-void print(arguments const& args)
-{
-    int i = 0;
-    std::cout << "Arguments (size: " << args.size() << "):" "\n";
-    for (auto a : args)
-    {
-        std::cout << ++i << ": " << a << '\n';
-    }
-}

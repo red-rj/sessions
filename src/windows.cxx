@@ -128,9 +128,7 @@ namespace {
 
 
         auto data() noexcept { return m_env.data(); }
-
-        size_t size() const noexcept { return m_env.size() - 1; }
-
+        auto size() const noexcept { return m_env.size() - 1; }
         auto begin() noexcept { return m_env.begin(); }
         auto end() noexcept { return m_env.end() - 1; }
 
@@ -202,20 +200,15 @@ namespace {
             }
             else if (varline_os) {
                 // found in cache and in OS env
-                m_env.push_back(varline_os);
-                auto it_tmp = m_env.rbegin();
-                
-                ci_string_view var_cache = *it_cache, var_os = varline_os;
+                std::string_view var_cache = *it_cache, var_os = varline_os;
 
                 // compare values, sync if values differ
                 auto const offset = key.size() + 1;
                 if (var_cache.compare(offset, var_cache.size(), var_os, offset, var_os.size()) != 0) {
-                    std::iter_swap(it_cache, it_tmp);
+                    std::swap(*it_cache, varline_os);
                 }
 
-                auto* old = *it_tmp;
-                delete[] old;
-                m_env.pop_back();
+                delete[] varline_os;
             }
 
             return it_cache;
