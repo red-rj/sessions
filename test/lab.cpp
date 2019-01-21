@@ -28,9 +28,9 @@ namespace
     std::string get_env(const char* key)
     {
 #ifdef WIN32
-        char* buffer;
-        _dupenv_s(&buffer, nullptr, key);
-        std::string val = buffer;
+        char* buffer; size_t buffer_l;
+        _dupenv_s(&buffer, &buffer_l, key);
+        std::string val{buffer, buffer_l};
         ::free(buffer);
         return val;
 #else
@@ -64,20 +64,6 @@ auto& operator << (std::ostream& os, environment::variable const& var)
     return os << var.operator std::string_view();
 }
 
-void test_chars()
-{
-    environment env;
-    const auto data = "ÁáÉéÍíÓóÚúÇç";
-
-    setlocale(LC_ALL, "");
-
-    std::cout << "\n" "Char test:" "\n";
-    std::cout << "ref: " << data << '\n';
-
-    setlocale(LC_ALL, ".UTF-8");
-
-    std::cout << "env: " << env["CHAR_TEST"] << '\n';
-}
 
 int main()
 {
@@ -101,7 +87,7 @@ int main()
     env["DRUAGA1"] = "WEED";
     env["PROTOCOL"] = "DEFAULT";
     env["ERASE"] = "ME1234";
-    env["ACENTOS"] = "Atualização e Segurança";
+    env["ACENTOS"] = "ÃÃ¡Ã‰Ã©ÃÃ­Ã“Ã³ÃšÃºÃ‡Ã§";
     
     // setting new variables outside the class
     set_env("thug2song", "354125go");
@@ -126,8 +112,6 @@ int main()
 
     print(env);
 
-    test_chars();
-    
     return 0;
 }
 
