@@ -153,7 +153,7 @@ namespace {
             return it != end() ? *it + key.length() + 1 : nullptr;
         }
 
-        void setvar(ci_string_view key, ci_string_view value)
+        void setvar(ci_string_view key, std::string_view value)
         {
             auto it = getvarline(key);
             const char* vl = new_varline(key, value);
@@ -239,15 +239,16 @@ namespace {
         [[nodiscard]]
         char* varline_from_os(ci_string_view key)
         {
-            wchar_t* wvalue;
-            _wdupenv_s(&wvalue, nullptr, to_utf16(key.data()).get());
-            char* varline = wvalue ? new_varline(key, to_utf8(wvalue).get()) : nullptr;
+            wchar_t* wvalue; size_t wvalue_l;
+            _wdupenv_s(&wvalue, &wvalue_l, to_utf16(key.data()).get());
+            char* varline = wvalue ? new_varline(key, { to_utf8(wvalue).get(), wvalue_l }) : nullptr;
             ::free(wvalue);
+            
             return varline;
         }
 
         [[nodiscard]]
-        char* new_varline(ci_string_view key, ci_string_view value)
+        char* new_varline(ci_string_view key, std::string_view value)
         {
             const auto buffer_sz = key.size()+value.size()+2;
             auto buffer = new char[buffer_sz];
