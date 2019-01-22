@@ -49,7 +49,7 @@ namespace {
             nullptr);
     }
 
-    auto wide(const char* nstr, wchar_t* ptr = nullptr, int lenght = 0) {
+    auto wide(const char* nstr, wchar_t* ptr = nullptr, int length = 0) {
         const int CP = is_valid_utf8(nstr) ? CP_UTF8 : CP_ACP;
         return MultiByteToWideChar(
             CP,
@@ -57,7 +57,7 @@ namespace {
             nstr,
             -1,
             ptr,
-            lenght
+            length
         );
     }
 
