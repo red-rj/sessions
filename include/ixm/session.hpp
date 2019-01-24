@@ -13,7 +13,7 @@ namespace ixm::session {
         public:
             using path_iterator = detail::pathsep_iterator;
         
-            operator std::string_view() const noexcept;
+            operator std::string_view() const;
             variable& operator = (std::string_view);
             std::string_view key() const noexcept { return m_key; }
             std::pair<path_iterator, path_iterator> split () const;
@@ -23,9 +23,10 @@ namespace ixm::session {
             std::string m_key;
         };
 
-        using iterator = detail::charbuff_iterator;
         //using value_range = /* implementation-defined */;
         //using key_range = /* implementation-defined */;
+
+        using iterator = detail::charbuff_iterator;
         using value_type = variable;
         using size_type = size_t;
 
@@ -45,7 +46,7 @@ namespace ixm::session {
 
         template <class T, class = ConvertsToSV_Only<T>>
         variable operator [] (T const& k) const {
-            return operator[](k);
+            return variable(k);
         }
 
         variable operator [] (std::string const&) const noexcept;
@@ -53,7 +54,7 @@ namespace ixm::session {
         variable operator [] (char const*) const noexcept;
 
         template <class K, class = ConvertsToSV<K>>
-        iterator find(K const& key) const noexcept {
+        iterator find(K const& key) const {
             std::string keystr{key};
             int off;
             
@@ -64,7 +65,7 @@ namespace ixm::session {
             }
         }
 
-        bool contains(std::string_view) const noexcept;
+        bool contains(std::string_view) const;
 
         iterator cbegin() const noexcept;
         iterator cend() const noexcept;
@@ -79,14 +80,14 @@ namespace ixm::session {
         //key_range keys() const noexcept;
 
         template <class K, class = ConvertsToSV<K>>
-        void erase(K const& key) noexcept {
+        void erase(K const& key) {
             std::string keystr{key};
             internal_erase(keystr.c_str());
         }
 
     private:
-        void internal_erase(const char*) noexcept;
-        bool internal_find(const char* key, int& offset) const noexcept;
+        void internal_erase(const char*);
+        bool internal_find(const char* key, int& offset) const;
         char const** m_envp() const noexcept;
     };
 

@@ -5,7 +5,7 @@
 namespace ixm::session 
 {
     // env::variable
-    environment::variable::operator std::string_view() const noexcept
+    environment::variable::operator std::string_view() const
     {
         auto val = impl::get_env_var(m_key.c_str());
         
@@ -41,12 +41,12 @@ namespace ixm::session
         return variable{ str };
     }
 
-    auto environment::operator[] (const char*str) const noexcept -> variable
+    auto environment::operator[] (const char* str) const noexcept -> variable
     {
         return variable{ str };
     }
 
-    bool environment::contains(std::string_view key) const noexcept
+    bool environment::contains(std::string_view key) const
     {
         auto thingy = std::string(key);
         return impl::get_env_var(thingy.c_str()) != nullptr;
@@ -67,12 +67,12 @@ namespace ixm::session
         return impl::env_size();
     }
 
-    void environment::internal_erase(const char* k) noexcept
+    void environment::internal_erase(const char* k)
     {
         impl::rm_env_var(k);
     }
 
-    bool environment::internal_find(const char* key, int& offset) const noexcept
+    bool environment::internal_find(const char* key, int& offset) const
     {
         offset = impl::env_find(key);
         return offset != -1;

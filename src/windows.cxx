@@ -8,6 +8,7 @@
 #include <vector>
 #include <memory>
 #include <system_error>
+#include <mutex>
 
 #include <cstdlib>
 #include <cassert>
@@ -114,13 +115,9 @@ namespace {
     }
 
 
-    class environ_table
+    class environ_t
     {
-    public:
-
-        using iterator = std::vector<const char*>::iterator;
-    
-        environ_table()
+        environ_t()
         {
             // make sure _wenviron is initialized
             // https://docs.microsoft.com/en-us/cpp/c-runtime-library/environ-wenviron?view=vs-2017#remarks
@@ -146,12 +143,22 @@ namespace {
             
         }
 
-        environ_table(const environ_table&) = delete;
-        environ_table(environ_table&& other) = delete;
+    public:
 
-        ~environ_table()
+        using iterator = std::vector<const char*>::iterator;
+
+        environ_t(const environ_t&) = delete;
+        environ_t(environ_t&& other) = delete;
+
+        ~environ_t()
         {
             free_env();
+        }
+
+        static auto& instance() 
+        {
+            static auto e = environ_t();
+            return e;
         }
 
 
@@ -163,12 +170,16 @@ namespace {
 
         const char* getvar(ci_string_view key)
         {
+            std::lock_guard lock{m_mtx};
+            
             auto it = getvarline_sync(key);
             return it != end() ? *it + key.length() + 1 : nullptr;
         }
 
         void setvar(ci_string_view key, std::string_view value)
         {
+            std::lock_guard lock{m_mtx};
+
             auto it = getvarline(key);
             const char* vl = new_varline(key, value);
             
@@ -187,6 +198,8 @@ namespace {
 
         void rmvar(const char* key) 
         {
+            std::lock_guard lock{m_mtx};
+
             auto it = getvarline(key);
             if (it != end()) {
                 auto* old = *it;
@@ -200,6 +213,8 @@ namespace {
 
         int find_pos(const char* key)
         {
+            std::lock_guard lock{m_mtx};
+
             auto it = getvarline_sync(key);
             return it != end() ? it - begin() : -1;
         }
@@ -252,23 +267,15 @@ namespace {
         [[nodiscard]]
         char* varline_from_os(ci_string_view key)
         {
-            wchar_t* wvalue; size_t wvalue_l;
-            auto wkey = to_utf16(key.data());
-
-            errno_t ec = _wdupenv_s(&wvalue, &wvalue_l, wkey.get());
-            auto guard = std::unique_ptr<wchar_t[], c_deleter>(wvalue);
-            
-            if (ec == ENOMEM) {
-                // ...
-                throw std::runtime_error("oh no, no memory!");
-            }
-
             char* varline{};
+            auto wkey = to_utf16(key.data());
+            wchar_t* wvalue = _wgetenv(wkey.get());
+            
             if (wvalue) {
                 auto value = to_utf8(wvalue);
-                varline = new_varline(key, {value.get(), wvalue_l});
+                varline = new_varline(key, value.get());
             }
-            
+
             return varline;
         }
 
@@ -293,10 +300,10 @@ namespace {
             }
         }
 
-
+        std::mutex m_mtx;
         std::vector<char const*> m_env;
     
-    } environ_;
+    };
 
 } /* nameless namespace */
 
@@ -313,30 +320,30 @@ namespace impl {
     int argc() noexcept { return static_cast<int>(args_vector().size()) - 1; }
 
     char const** envp() noexcept {
-        return environ_.data();
+        return environ_t::instance().data();
     }
 
     int env_find(char const* key) {
-        return environ_.find_pos(key);
+        return environ_t::instance().find_pos(key);
     }
 
     size_t env_size() noexcept {
-        return environ_.size();
+        return environ_t::instance().size();
     }
 
     char const* get_env_var(char const* key)
     {
-        return environ_.getvar(key);
+        return environ_t::instance().getvar(key);
     }
 
     void set_env_var(const char* key, const char* value)
     {
-        environ_.setvar(key, value);
+        environ_t::instance().setvar(key, value);
     }
 
     void rm_env_var(const char* key)
     {
-        environ_.rmvar(key);
+        environ_t::instance().rmvar(key);
     }
 
 } /* namespace impl */

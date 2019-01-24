@@ -34,7 +34,7 @@ int argc () noexcept { return argc__; }
 
 char const** envp () noexcept { return (char const**)environ; }
 
-int env_find(char const* key) noexcept {
+int env_find(char const* key) {
   std::string_view keysv = key;
 
   for (int i = 0; environ[i]; i++)
@@ -57,15 +57,15 @@ size_t env_size() noexcept {
   return environ_size;
 }
 
-char const* get_env_var(char const* key) noexcept
+char const* get_env_var(char const* key)
 {
   return getenv(key);
 }
-void set_env_var(const char* key, const char* value) noexcept
+void set_env_var(const char* key, const char* value)
 {
-  setenv(key, value, 42);
+  setenv(key, value, true);
 }
-void rm_env_var(const char* key) noexcept
+void rm_env_var(const char* key)
 {
   unsetenv(key);
 }
