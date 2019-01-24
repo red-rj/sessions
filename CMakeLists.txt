@@ -13,5 +13,5 @@ target_sources(sessions PRIVATE
   $<$<PLATFORM_ID:Windows>:src/windows.cxx>
 )
 
-add_executable(lab test/lab.cpp)
-target_link_libraries(lab PRIVATE sessions)
+add_executable(tests test/test.cpp test/util.cpp)
+target_link_libraries(tests PRIVATE sessions)
