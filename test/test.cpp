@@ -25,6 +25,7 @@ TEST_CASE("Environment tests", "[environment]")
     rm_env("nonesuch");
 
     environment env;
+    CAPTURE(env.size());
 
     REQUIRE(env["Phasellus"] == "LoremIpsumDolor"sv);
     REQUIRE(env["thug2song"] == "354125go"sv);
@@ -32,7 +33,8 @@ TEST_CASE("Environment tests", "[environment]")
     std::array cases = {
         std::pair{"DRUAGA1"sv, "WEED"sv},
         std::pair{"PROTOCOL"sv, "DEFAULT"sv},
-        std::pair{"SERVER"sv, "127.0.0.1"sv}
+        std::pair{"SERVER"sv, "127.0.0.1"sv},
+        std::pair{"ACENTOS"sv, u8"ÁáÉéÍíÓóÚúÇç"sv}
     };
 
     for(auto[key, value] : cases)
@@ -64,6 +66,7 @@ TEST_CASE("Environment tests", "[environment]")
     SECTION("erasing variables")
     {
         env.erase("PROTOCOL");
+        CAPTURE(env.size());
         CHECK(env.find("PROTOCOL") == env.end());
         auto e = get_env("PROTOCOL");
         CHECK(e.empty());
@@ -74,6 +77,7 @@ TEST_CASE("Environment tests", "[environment]")
         set_env("Phasellus", "DolorLorem");
 
         CHECK(env.find("thug2song") == env.end());
+        CAPTURE(env.size());
         CHECK(env["Phasellus"] == "DolorLorem"sv);
     }
     SECTION("contains")

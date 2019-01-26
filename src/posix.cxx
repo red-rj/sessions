@@ -1,5 +1,7 @@
 #include "impl.hpp"
 #include <string_view>
+#include <mutex>
+
 #include <cstdlib>
 
 #if defined(__ELF__) and __ELF__
@@ -22,6 +24,9 @@ auto init = +[] (int argc, char const** argv, char const**) {
   if constexpr(SESSION_IMPL_ELF) { return 0; }
 };
 
+size_t environ_size__ {};
+std::mutex envmtx__;
+
 } /* nameless namespace */
 
 extern "C" char** environ;
@@ -35,6 +40,8 @@ int argc () noexcept { return argc__; }
 char const** envp () noexcept { return (char const**)environ; }
 
 int env_find(char const* key) {
+  std::lock_guard _{envmtx__};
+  
   std::string_view keysv = key;
 
   for (int i = 0; environ[i]; i++)
@@ -52,21 +59,32 @@ int env_find(char const* key) {
 }
 
 size_t env_size() noexcept {
-  size_t environ_size = 0;
-  while (environ[environ_size]) environ_size++;
-  return environ_size;
+  std::lock_guard _{envmtx__};
+
+  if (!environ[environ_size__])
+    return environ_size__;
+
+  for (environ_size__ = 0; environ[environ_size__]; environ_size__++);
+
+  return environ_size__;
 }
 
 char const* get_env_var(char const* key)
 {
+  std::lock_guard _{envmtx__};
+
   return getenv(key);
 }
 void set_env_var(const char* key, const char* value)
 {
+  std::lock_guard _{envmtx__};
+
   setenv(key, value, true);
 }
 void rm_env_var(const char* key)
 {
+  std::lock_guard _{envmtx__};
+
   unsetenv(key);
 }
 
