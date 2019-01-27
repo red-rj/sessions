@@ -3,7 +3,6 @@
 #endif // WIN32
 
 #include "util.hpp"
-#include <cstdlib>
 
 
 std::string get_env(const char* key)
