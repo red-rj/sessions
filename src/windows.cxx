@@ -20,10 +20,10 @@ namespace {
     using namespace ixm::session::detail;
 
     
-    struct c_deleter
+    struct hlocal_deleter
     {
-        void operator()(void* block) const noexcept {
-            ::free(block);
+        void operator()(HLOCAL block) const noexcept {
+            LocalFree(block);
         }
     };
     
@@ -36,36 +36,25 @@ namespace {
 
     bool is_valid_utf8(const char* str) {
         return MultiByteToWideChar(
-            CP_UTF8, 
-            MB_ERR_INVALID_CHARS, 
-            str, 
-            -1, 
-            nullptr, 
-            0) != 0;
+            CP_UTF8, MB_ERR_INVALID_CHARS, 
+            str, -1, 
+            nullptr, 0) != 0;
     }
 
     auto narrow(wchar_t const* wstr, char* ptr = nullptr, int length = 0) {
         return WideCharToMultiByte(
-            CP_UTF8, 
-            WC_ERR_INVALID_CHARS, 
-            wstr, 
-            -1,
-            ptr, 
-            length, 
-            nullptr, 
-            nullptr);
+            CP_UTF8, 0, 
+            wstr, -1,
+            ptr, length, 
+            nullptr, nullptr);
     }
 
     auto wide(const char* nstr, wchar_t* ptr = nullptr, int length = 0) {
         const int CP = is_valid_utf8(nstr) ? CP_UTF8 : CP_ACP;
         return MultiByteToWideChar(
-            CP,
-            MB_ERR_INVALID_CHARS,
-            nstr,
-            -1,
-            ptr,
-            length
-        );
+            CP, 0,
+            nstr, -1,
+            ptr, length);
     }
 
     auto to_utf8(wchar_t const* wstr) {
@@ -92,7 +81,9 @@ namespace {
 
     auto initialize_args() {
         int argc;
-        auto* wargv = CommandLineToArgvW(GetCommandLineW(), &argc);
+        auto wargv = std::unique_ptr<LPWSTR[], hlocal_deleter>{
+            CommandLineToArgvW(GetCommandLineW(), &argc)
+        };
 
         if (!wargv)
             throw_win_error();
@@ -103,8 +94,6 @@ namespace {
         {
             vec[i] = to_utf8(wargv[i]).release();
         }
-
-        LocalFree(wargv);
 
         return vec;
     }
@@ -148,7 +137,7 @@ namespace {
         using iterator = std::vector<const char*>::iterator;
 
         environ_t(const environ_t&) = delete;
-        environ_t(environ_t&& other) = delete;
+        environ_t(environ_t&&) = delete;
 
         ~environ_t()
         {
