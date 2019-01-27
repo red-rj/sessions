@@ -11,4 +11,4 @@ Tested on Windows 10 and Kubuntu 18.04
 
 ## ToDo
 - Implement envrionment ranges
-- ...
+- posix implementation assumes utf8 encoding w/o checking

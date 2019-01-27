@@ -13,5 +13,9 @@ target_sources(sessions PRIVATE
   $<$<PLATFORM_ID:Windows>:src/windows.cxx>
 )
 
+# tests
 add_executable(tests test/test.cpp test/util.cpp)
 target_link_libraries(tests PRIVATE sessions)
+if(WIN32)
+  target_compile_definitions(tests PRIVATE UNICODE)
+endif()

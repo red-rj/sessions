@@ -1,10 +1,16 @@
-#define CATCH_CONFIG_MAIN
+#define CATCH_CONFIG_RUNNER
 #include "catch.hpp"
+
+#if defined(WIN32)
+#include "slimwindows.h"
+#endif // WIN32
+
 
 #include "ixm/session.hpp"
 #include "util.hpp"
 #include <iostream>
 #include <array>
+#include <vector>
 #include <utility>
 
 
@@ -98,4 +104,62 @@ TEST_CASE("Environment tests", "[environment]")
             INFO(*it);
         }
     }
+}
+
+std::vector<std::string> cmdargs;
+
+TEST_CASE("Arguments tests", "[arguments]")
+{
+    arguments args;
+    
+    REQUIRE(args.size() == cmdargs.size());
+
+    for (size_t i = 0; i < args.size(); i++)
+    {
+        CAPTURE(args[i], cmdargs[i]);
+        CHECK(args[i] == cmdargs[i]);
+    }
+}
+
+
+// entry point
+#if defined(WIN32)
+int wmain(int argc, wchar_t* argv[]) {
+#else
+int main(int argc, const char* argv[]) {
+#endif // WIN32
+    using namespace Catch::clara;
+
+    for (int i = 0; i < argc; i++)
+    {
+#if defined(WIN32)
+        std::wstring_view warg = argv[i];
+        std::string arg;
+        size_t arg_l = WideCharToMultiByte(CP_UTF8, 0, warg.data(), warg.size(), nullptr, 0, nullptr, nullptr);
+        arg.resize(arg_l);
+        WideCharToMultiByte(CP_UTF8, 0, warg.data(), warg.size(), arg.data(), arg.size(), nullptr, nullptr);
+
+        cmdargs.push_back(arg);
+#else
+        cmdargs.push_back(argv[i]);
+#endif // WIN32
+    }
+
+    setlocale(LC_ALL, ".UTF-8");
+
+    Catch::Session session;
+
+    // we already captured the arguments, but we need this so catch doesn't
+    // error out due to unknown arguments
+    std::string dummy;
+    auto cli = session.cli()
+    | Opt(dummy, "test arguments")["--args"];
+
+    session.cli(cli);
+
+    int rc = session.applyCommandLine(argc, argv);
+    if (rc != 0)
+        return rc;
+
+    return session.run();
 }
