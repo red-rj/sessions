@@ -9,91 +9,99 @@
 
 namespace ixm::session::detail
 {
-    class charbuff_iterator
+    template<typename T>
+    class ptrarray_iterator
     {
+        static_assert(std::is_pointer_v<T>, "T must be a ptr type");
     public:
-        using value_type = const char*;
+        using value_type = T;
         using reference = value_type&;
+        using pointer = value_type*;
         using difference_type = ptrdiff_t;
-        using pointer = value_type * ;
         using iterator_category = std::random_access_iterator_tag;
 
-        explicit charbuff_iterator(const char** buff) : m_buff(buff)
+        explicit ptrarray_iterator(pointer buff) : m_buff(buff)
         {}
 
-        charbuff_iterator& operator ++ ()
+        auto& operator ++ ()
         {
             m_buff++;
             return *this;
         }
-        charbuff_iterator operator ++ (int) {
-            auto tmp = charbuff_iterator(*this);
-            operator++();
+        auto operator ++ (int)
+        {
+            auto tmp = ptrarray_iterator(*this);
+            this->operator++();
             return tmp;
         }
 
-        charbuff_iterator& operator -- ()
+        auto& operator -- ()
         {
             m_buff--;
             return *this;
         }
-        charbuff_iterator operator -- (int) {
-            auto tmp = charbuff_iterator(*this);
-            operator--();
+        auto operator -- (int)
+        {
+            auto tmp = ptrarray_iterator(*this);
+            this->operator--();
             return tmp;
         }
 
-        value_type operator [] (difference_type n) {
+        auto operator [] (difference_type n) -> value_type 
+        {
             return m_buff[n];
         }
 
-        charbuff_iterator& operator += (difference_type n) {
+        auto& operator += (difference_type n)
+        {
             m_buff += n;
             return *this;
         }
-        charbuff_iterator& operator -= (difference_type n) {
+        auto& operator -= (difference_type n)
+        {
             m_buff -= n;
             return *this;
         }
 
-        charbuff_iterator operator + (difference_type n) {
-            auto tmp = charbuff_iterator(*this);
+        auto operator + (difference_type n)
+        {
+            auto tmp = ptrarray_iterator(*this);
             return tmp += n;
         }
 
-        charbuff_iterator operator - (difference_type n) {
-            auto tmp = charbuff_iterator(*this);
+        auto operator - (difference_type n)
+        {
+            auto tmp = ptrarray_iterator(*this);
             return tmp -= n;
         }
-        difference_type operator - (const charbuff_iterator& rhs) {
+        auto operator - (const ptrarray_iterator& rhs) -> difference_type
+        {
             return m_buff - rhs.m_buff;
         }
 
-        bool operator == (const charbuff_iterator& rhs) const {
+        bool operator == (const ptrarray_iterator& rhs) const {
             return m_buff == rhs.m_buff;
         }
-        bool operator != (const charbuff_iterator& rhs) const {
+        bool operator != (const ptrarray_iterator& rhs) const {
             return !(*this == rhs);
         }
-        bool operator < (const charbuff_iterator& rhs) const {
+        bool operator < (const ptrarray_iterator& rhs) const {
             return m_buff < rhs.m_buff;
         }
-        bool operator > (const charbuff_iterator& rhs) const {
+        bool operator > (const ptrarray_iterator& rhs) const {
             return m_buff > rhs.m_buff;
         }
-        bool operator >= (const charbuff_iterator& rhs) const {
+        bool operator >= (const ptrarray_iterator& rhs) const {
             return !(*this < rhs);
         }
-        bool operator <= (const charbuff_iterator& rhs) const {
+        bool operator <= (const ptrarray_iterator& rhs) const {
             return !(*this > rhs);
         }
 
-        reference operator * () {
-            return *m_buff;
-        }
+        auto operator * () { return *m_buff; }
 
     private:
-        pointer m_buff = nullptr;
+        pointer m_buff;
     };
 
 

@@ -33,7 +33,7 @@ namespace ixm::session
     // env
     auto environment::operator[] (const std::string& str) const noexcept -> variable
     {
-        return operator[](str.c_str());
+        return variable{ str };
     }
 
     auto environment::operator[] (std::string_view str) const -> variable
