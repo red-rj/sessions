@@ -26,7 +26,7 @@ namespace ixm::session {
         //using value_range = /* implementation-defined */;
         //using key_range = /* implementation-defined */;
 
-        using iterator = detail::charbuff_iterator;
+        using iterator = detail::ptrarray_iterator<const char*>;
         using value_type = variable;
         using size_type = size_t;
 
@@ -96,7 +96,7 @@ namespace ixm::session {
     class arguments
     {
     public:
-        using iterator = detail::charbuff_iterator;
+        using iterator = detail::ptrarray_iterator<char const* const>;
         using reverse_iterator = std::reverse_iterator<iterator>;
         using value_type = std::string_view;
         using index_type = size_t;
