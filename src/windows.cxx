@@ -176,8 +176,7 @@ namespace {
                 it = m_env.insert(end(), vl);
             }
             else {
-                const char* old = *it;
-                *it = vl;
+                auto* old = std::exchange(*it, vl);
                 delete[] old;
             }
 
@@ -234,18 +233,21 @@ namespace {
                 // found in cache and in OS env
                 std::string_view var_cache = *it_cache, var_os = varline_os.get();
 
-                // compare values, sync if values differ
+                // skip key=
                 auto const offset = key.size() + 1;
-                if (var_cache.compare(offset, var_cache.size(), var_os, offset, var_os.size()) != 0) {
+                var_cache.remove_prefix(offset);
+                var_os.remove_prefix(offset);
+
+                // sync if values differ
+                if (var_cache != var_os) {
                     auto* old = std::exchange(*it_cache, varline_os.release());
                     varline_os.reset(old);
                 }
             }
             else if (it_cache != end()) {
                 // found in cache, not in OS. Remove
-                auto* old = *it_cache;
+                varline_os.reset(*it_cache);
                 m_env.erase(it_cache);
-                delete[] old;
                 it_cache = end();
             }
 
