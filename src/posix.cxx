@@ -24,7 +24,6 @@ auto init = +[] (int argc, char const** argv, char const**) {
   if constexpr(SESSION_IMPL_ELF) { return 0; }
 };
 
-size_t environ_size__ {};
 std::mutex envmtx__;
 
 } /* nameless namespace */
@@ -61,12 +60,9 @@ int env_find(char const* key) {
 size_t env_size() noexcept {
   std::lock_guard _{envmtx__};
 
-  if (!environ[environ_size__])
-    return environ_size__;
-
-  for (environ_size__ = 0; environ[environ_size__]; environ_size__++);
-
-  return environ_size__;
+  size_t size;
+  for (size = 0; environ[size]; size++);
+  return size;
 }
 
 char const* get_env_var(char const* key)

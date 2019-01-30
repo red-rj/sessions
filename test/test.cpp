@@ -31,7 +31,6 @@ TEST_CASE("Environment tests", "[environment]")
     rm_env("nonesuch");
 
     environment env;
-    CAPTURE(env.size());
 
     REQUIRE(env["Phasellus"] == "LoremIpsumDolor"sv);
     REQUIRE(env["thug2song"] == "354125go"sv);
@@ -47,6 +46,9 @@ TEST_CASE("Environment tests", "[environment]")
     {
         env[key] = value;
     }
+
+    const auto env_start_l = env.size();
+    CAPTURE(env_start_l);
 
     SECTION("finding variables using operator[]")
     {
@@ -72,8 +74,8 @@ TEST_CASE("Environment tests", "[environment]")
     SECTION("erasing variables")
     {
         env.erase("PROTOCOL");
-        CAPTURE(env.size());
         CHECK(env.find("PROTOCOL") == env.end());
+        CHECK(env.size() == env_start_l - 1);
         auto e = get_env("PROTOCOL");
         CHECK(e.empty());
     }
@@ -83,7 +85,7 @@ TEST_CASE("Environment tests", "[environment]")
         set_env("Phasellus", "DolorLorem");
 
         CHECK(env.find("thug2song") == env.end());
-        CAPTURE(env.size());
+        CHECK(env.size() == env_start_l - 1);
         CHECK(env["Phasellus"] == "DolorLorem"sv);
     }
     SECTION("contains")
