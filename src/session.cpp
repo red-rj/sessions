@@ -7,13 +7,9 @@ namespace ixm::session
     // env::variable
     environment::variable::operator std::string_view() const
     {
-        auto val = impl::get_env_var(m_key.c_str());
+        auto* val = impl::get_env_var(m_key.c_str());
         
-        if (val) {
-            return val;
-        } else {
-            return {};
-        }
+        if (val) return val; else return {};
     }
     
     auto environment::variable::operator=(std::string_view value) -> variable&
@@ -31,7 +27,7 @@ namespace ixm::session
 
 
     // env
-    auto environment::operator[] (const std::string& str) const noexcept -> variable
+    auto environment::operator[] (const std::string& str) const -> variable
     {
         return variable{ str };
     }
@@ -41,7 +37,7 @@ namespace ixm::session
         return variable{ str };
     }
 
-    auto environment::operator[] (const char* str) const noexcept -> variable
+    auto environment::operator[] (const char* str) const -> variable
     {
         return variable{ str };
     }
@@ -49,7 +45,7 @@ namespace ixm::session
     bool environment::contains(std::string_view key) const
     {
         auto thingy = std::string(key);
-        return impl::get_env_var(thingy.c_str()) != nullptr;
+        return impl::env_find(thingy.c_str()) != -1;
     }
 
     auto environment::cbegin() const noexcept -> iterator

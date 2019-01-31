@@ -225,30 +225,36 @@ namespace {
             auto it_cache = getvarline(key);
             auto varline_os = std::unique_ptr<const char[]>{ varline_from_os(key) };
 
-            if (it_cache == end() && varline_os) {
+            if (it_cache == end() && varline_os)
+            {
                 // not found in cache, found in OS env
                 it_cache = m_env.insert(end(), varline_os.release());
             }
-            else if (varline_os) {
-                // found in cache and in OS env
-                std::string_view var_cache = *it_cache, var_os = varline_os.get();
+            else if (it_cache != end())
+            {
+                if (varline_os)
+                {
+                    // found in both
+                    std::string_view var_cache = *it_cache, var_os = varline_os.get();
 
-                // skip key=
-                auto const offset = key.size() + 1;
-                var_cache.remove_prefix(offset);
-                var_os.remove_prefix(offset);
+                    // skip key=
+                    auto const offset = key.size() + 1;
+                    var_cache.remove_prefix(offset);
+                    var_os.remove_prefix(offset);
 
-                // sync if values differ
-                if (var_cache != var_os) {
-                    auto* old = std::exchange(*it_cache, varline_os.release());
-                    varline_os.reset(old);
+                    // sync if values differ
+                    if (var_cache != var_os) {
+                        auto* old = std::exchange(*it_cache, varline_os.release());
+                        varline_os.reset(old);
+                    }
                 }
-            }
-            else if (it_cache != end()) {
-                // found in cache, not in OS. Remove
-                varline_os.reset(*it_cache);
-                m_env.erase(it_cache);
-                it_cache = end();
+                else
+                {
+                    // found in cache, not in OS. Remove
+                    varline_os.reset(*it_cache);
+                    m_env.erase(it_cache);
+                    it_cache = end();
+                }
             }
 
             assert(m_env.back() == nullptr);

@@ -49,9 +49,9 @@ namespace ixm::session {
             return variable(k);
         }
 
-        variable operator [] (std::string const&) const noexcept;
+        variable operator [] (std::string const&) const;
         variable operator [] (std::string_view) const;
-        variable operator [] (char const*) const noexcept;
+        variable operator [] (char const*) const;
 
         template <class K, class = ConvertsToSV<K>>
         iterator find(K const& key) const {
