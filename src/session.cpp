@@ -21,7 +21,7 @@ namespace ixm::session
 
     auto environment::variable::split() const -> std::pair<path_iterator, path_iterator>
     {
-        auto value = this->operator std::string_view();
+        std::string_view value = *this;
         return { path_iterator{value}, path_iterator{} };
     }
 
@@ -108,7 +108,6 @@ namespace ixm::session
         return iterator{argv() + argc()};
     }
 
-
     const char** arguments::argv() const noexcept
     {
         return impl::argv();
@@ -117,5 +116,26 @@ namespace ixm::session
     int arguments::argc() const noexcept
     {
         return impl::argc();
+    }
+
+
+    // detail
+    void detail::pathsep_iterator::next_sep() noexcept
+    {
+        if (m_offset == std::string::npos) {
+            m_view = {};
+            return;
+        }
+
+        auto pos = m_var.find(impl::path_sep, m_offset);
+
+        if (pos == std::string::npos) {
+            m_view = m_var.substr(m_offset, pos);
+            m_offset = pos;
+            return;
+        }
+
+        m_view = m_var.substr(m_offset, pos - m_offset);
+        m_offset = pos + 1;
     }
 }
