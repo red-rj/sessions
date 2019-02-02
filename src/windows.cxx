@@ -19,14 +19,6 @@
 namespace {
     using namespace ixm::session::detail;
 
-    
-    struct hlocal_deleter
-    {
-        void operator()(HLOCAL block) const noexcept {
-            LocalFree(block);
-        }
-    };
-    
 
     [[noreturn]]
     void throw_win_error(DWORD error = GetLastError())
@@ -81,18 +73,29 @@ namespace {
 
     auto initialize_args() {
         int argc;
-        auto wargv = std::unique_ptr<LPWSTR[], hlocal_deleter>{
-            CommandLineToArgvW(GetCommandLineW(), &argc)
+        auto wargv = std::unique_ptr<LPWSTR[], decltype(LocalFree)*>{
+            CommandLineToArgvW(GetCommandLineW(), &argc),
+            LocalFree
         };
 
         if (!wargv)
             throw_win_error();
 
-        auto vec = std::vector<char const*>(argc+1, nullptr);
+        std::vector<char const*> vec;
 
-        for (int i = 0; i < argc; i++)
+        try
         {
-            vec[i] = to_utf8(wargv[i]).release();
+            vec.resize(argc + 1);
+
+            for (int i = 0; i < argc; i++)
+            {
+                vec[i] = to_utf8(wargv[i]).release();
+            }
+        }
+        catch (const std::exception&)
+        {
+            for (auto* p : vec) delete[] p;
+            std::throw_with_nested(std::runtime_error("Failed to create arguments"));
         }
 
         return vec;
@@ -264,16 +267,15 @@ namespace {
         [[nodiscard]]
         char* varline_from_os(ci_string_view key)
         {
-            char* varline{};
             auto wkey = to_utf16(key.data());
             wchar_t* wvalue = _wgetenv(wkey.get());
             
             if (wvalue) {
                 auto value = to_utf8(wvalue);
-                varline = new_varline(key, value.get());
+                return new_varline(key, value.get());
             }
 
-            return varline;
+            return nullptr;
         }
 
         [[nodiscard]]
