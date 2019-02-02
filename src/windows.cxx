@@ -49,7 +49,7 @@ namespace {
             ptr, length);
     }
 
-    auto to_utf8(wchar_t const* wstr) {
+    auto to_utf8(const wchar_t* wstr) {
         auto length = narrow(wstr);
         auto ptr = std::make_unique<char[]>(length);
         auto result = narrow(wstr, ptr.get(), length);
@@ -344,5 +344,7 @@ namespace impl {
     {
         environ_t::instance().rmvar(key);
     }
+
+    const char path_sep = ';';
 
 } /* namespace impl */

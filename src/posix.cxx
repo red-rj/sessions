@@ -1,8 +1,8 @@
-#include "impl.hpp"
 #include <string_view>
 #include <mutex>
-
 #include <cstdlib>
+
+#include "impl.hpp"
 
 #if defined(__ELF__) and __ELF__
   #define SESSION_IMPL_SECTION ".init_array"
@@ -83,5 +83,7 @@ void rm_env_var(const char* key)
 
   unsetenv(key);
 }
+
+const char path_sep = ':';
 
 } /* namespace impl */

@@ -16,6 +16,8 @@ char const* get_env_var(char const*);
 void set_env_var(const char*, const char*);
 void rm_env_var(const char*);
 
+extern const char path_sep;
+
 } /* namespace impl */
 
 #endif /* SESSION_SRC_IMPL_HPP */

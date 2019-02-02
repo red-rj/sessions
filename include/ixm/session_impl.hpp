@@ -142,33 +142,9 @@ namespace ixm::session::detail
         }
 
     private:
-        void next_sep() noexcept
-        {
-            if (m_offset == std::string::npos) {
-                m_view = {};
-                return;
-            }
-
-            auto pos = m_var.find(Sep, m_offset);
-            
-            if (pos == std::string::npos) {
-                m_view = m_var.substr(m_offset, pos);
-                m_offset = pos;
-                return;
-            }
-            
-            m_view = m_var.substr(m_offset, pos-m_offset);
-            m_offset = pos+1;
-        }
+        void next_sep() noexcept;
     
         value_type m_view, m_var;
-        static const char Sep = 
-#if defined(_WIN32)
-        ';' ;
-#else
-        ':';
-#endif // _WIN32
-        
         size_t m_offset = 0;
     };
 
