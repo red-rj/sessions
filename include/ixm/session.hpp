@@ -35,8 +35,7 @@ namespace ixm::session {
         using ConvertsToSV_Only = std::enable_if_t<
             std::conjunction_v<
                 std::is_convertible<const T&, std::string_view>, 
-                std::negation<std::is_convertible<const T&, const char*>
-                >
+                std::negation<std::is_convertible<const T&, const char*>>
             >
         >;
 
