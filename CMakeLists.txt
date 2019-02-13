@@ -18,5 +18,5 @@ add_executable(tests test/test.cpp test/util.cpp)
 target_link_libraries(tests PRIVATE sessions)
 
 if(MSVC)
-  add_compile_definitions(UNICODE, _UNICODE)
+  add_compile_definitions(UNICODE _UNICODE)
 endif()
