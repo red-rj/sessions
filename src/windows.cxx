@@ -119,13 +119,16 @@ namespace {
 
             try
             {
-                for (wchar_t** wenv = _wenviron; *wenv; wenv++) 
-                {
-                    // we own the converted strings
-                    m_env.push_back(to_utf8(*wenv).release());
-                }
+                wchar_t** wenv = _wenviron;
+                size_t wenv_l = 0;
+                for (; wenv[wenv_l]; wenv_l++);
 
-                m_env.emplace_back(); // terminating null
+                m_env.resize(wenv_l + 1); // +1 for terminating null
+
+                std::transform(wenv, wenv + wenv_l, m_env.begin(), [](wchar_t* envstr) {
+                    // we own the converted strings
+                    return to_utf8(envstr).release();
+                });
             }
             catch(const std::exception&)
             {

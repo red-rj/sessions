@@ -126,7 +126,7 @@ TEST_CASE("Arguments tests", "[arguments]")
 
 // entry point
 #if defined(WIN32)
-int wmain(int argc, wchar_t* argv[]) {
+int wmain(int argc, const wchar_t* argv[]) {
 #else
 int main(int argc, const char* argv[]) {
 #endif // WIN32
