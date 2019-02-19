@@ -48,6 +48,18 @@ namespace {
         }
     };
 
+    std::string make_envstr(std::string_view k, std::string_view v)
+    {
+        std::string es;
+        es.reserve(k.size() + v.size() + 2);
+        es += k; es += '='; es += v;
+        return es;
+    }
+
+
+    // storage for envrion_cache
+    std::vector<std::string> myenv;
+
 } /* nameless namespace */
 
 
@@ -59,12 +71,13 @@ namespace impl {
 
     const char path_sep = ':';
 
+
     environ_cache::environ_cache()
     {
         try
         {
             size_t envsize = osenv_size(environ);
-            m_env.insert(m_env.end(), environ, environ + envsize + 1);
+            myenv.insert(myenv.end(), environ, environ + envsize);
         }
         catch (const std::exception&)
         {
@@ -78,6 +91,21 @@ namespace impl {
         //for (auto* p : m_env) delete[] p;
     }
 
+    auto environ_cache::begin() noexcept -> iterator
+    {
+        return myenv.begin();
+    }
+    auto environ_cache::end() noexcept -> iterator
+    {
+        return myenv.end();
+    }
+
+    size_t environ_cache::size() const noexcept
+    {
+        return myenv.size();
+    }
+
+
     auto environ_cache::find(std::string_view key) -> iterator
     {
         std::lock_guard _{ m_mtx };
@@ -85,29 +113,39 @@ namespace impl {
         return getenvstr_sync(key);
     }
 
+    bool environ_cache::contains(std::string_view key)
+    {
+        return find(key) != end();
+    }
+
     const char* environ_cache::getvar(std::string_view key)
     {
         std::lock_guard _{ m_mtx };
 
         auto it = getenvstr_sync(key);
-        return it != end() ? *it + key.length() + 1 : nullptr;
+        if (it != end()) {
+            auto& envstr = *it;
+            return envstr.c_str() + key.size() + 1;
+        }
+
+        return nullptr;
     }
 
     void environ_cache::setvar(std::string_view key, std::string_view value)
     {
         std::lock_guard _{ m_mtx };
 
-        setenv(key.data(), value.data(), true);
-
         auto it = getenvstr(key);
-        int offset = osenv_find_pos(key.data());
+        auto envstr = make_envstr(key, value);
 
         if (it != end()) {
-            *it = environ[offset];
+            *it = std::move(envstr);
         }
         else {
-            it = m_env.insert(end(), environ[offset]);
+            myenv.push_back(std::move(envstr));
         }
+
+        setenv(key.data(), value.data(), true);
     }
 
     void environ_cache::rmvar(std::string_view key)
@@ -116,7 +154,7 @@ namespace impl {
 
         auto it = getenvstr(key);
         if (it != end()) {
-            m_env.erase(it);
+            myenv.erase(it);
         }
 
         unsetenv(key.data());
@@ -141,7 +179,7 @@ namespace impl {
         if (it_cache == end() && envstr_os)
         {
             // not found in cache, found in OS env
-            it_cache = m_env.insert(end(), envstr_os);
+            it_cache = myenv.insert(end(), envstr_os);
         }
         else if (it_cache != end())
         {
@@ -163,7 +201,7 @@ namespace impl {
             else
             {
                 // found in cache, not in OS. Remove
-                m_env.erase(it_cache);
+                myenv.erase(it_cache);
                 it_cache = end();
             }
         }

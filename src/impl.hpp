@@ -1,7 +1,6 @@
 #ifndef SESSION_SRC_IMPL_HPP
 #define SESSION_SRC_IMPL_HPP
 
-#include <algorithm>
 #include <vector>
 #include <string_view>
 #include <mutex>
@@ -19,25 +18,25 @@ extern const char path_sep;
 
 struct environ_cache
 {
-    using iterator = std::vector<const char*>::iterator;
-    using const_iterator = std::vector<const char*>::const_iterator;
+    using value_type = const char*;
+    // struct iterator;
+    using iterator = struct env_iterator;
 
     environ_cache();
-    environ_cache(environ_cache&& other)
-        : m_env(std::exchange(other.m_env, {}))
-    {}
+    environ_cache(environ_cache&& other);
     ~environ_cache() noexcept;
 
     environ_cache(const environ_cache&) = delete;
 
-    iterator begin() noexcept { return m_env.begin(); }
-    iterator end() noexcept { return m_env.end()-1; }
+    iterator begin() noexcept;
+    iterator end() noexcept;
 
-    size_t size() const noexcept { return m_env.size()-1; }
+    size_t size() const noexcept;
 
     iterator find(std::string_view);
+    bool contains(std::string_view);
 
-    const char* getvar(std::string_view);
+    value_type getvar(std::string_view);
     void setvar(std::string_view, std::string_view);
     void rmvar(std::string_view);
 
@@ -47,7 +46,7 @@ private:
     iterator getenvstr_sync(std::string_view key);
 
     std::mutex m_mtx;
-    std::vector<const char*> m_env;
+    // std::vector<value_type> m_env;
 };
 
 int osenv_find_pos(const char*);
@@ -59,18 +58,22 @@ inline size_t osenv_size(T** envptr) {
     return size;
 }
 
-[[nodiscard]]
-inline char* new_envstr(std::string_view key, std::string_view value)
+// env_iterator definition
+#if defined(WIN32)
+struct env_iterator : public std::vector<const char*>::iterator
 {
-    const auto buffer_l = key.size() + value.size() + 2;
-    auto buffer = new char[buffer_l];
-    key.copy(buffer, key.size());
-    buffer[key.size()] = '=';
-    value.copy(buffer + key.size() + 1, value.size());
-    buffer[buffer_l - 1] = 0;
+    using base_t = std::vector<const char*>::iterator;
+    using base_t::base_t;
+};
+#elif defined(_POSIX_C_SOURCE)
+#include <string>
 
-    return buffer;
-}
+struct env_iterator : public std::vector<std::string>::iterator
+{
+    using base_t = std::vector<std::string>::iterator;
+    using base_t::base_t;
+};
+#endif // WIN32 or _POSIX_C_SOURCE
 
 
 } /* namespace impl */
