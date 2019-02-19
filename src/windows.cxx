@@ -125,6 +125,22 @@ namespace {
         }
     };
 
+    [[nodiscard]]
+    char* new_envstr(std::string_view key, std::string_view value)
+    {
+        const auto buffer_l = key.size() + value.size() + 2;
+        auto buffer = new char[buffer_l];
+        key.copy(buffer, key.size());
+        buffer[key.size()] = '=';
+        value.copy(buffer + key.size() + 1, value.size());
+        buffer[buffer_l - 1] = 0;
+
+        return buffer;
+    }
+
+    // storage for envrion_cache
+    std::vector<const char*> myenv;
+
 } /* nameless namespace */
 
 namespace impl {
@@ -159,9 +175,9 @@ namespace impl
             wchar_t** wenv = _wenviron;
             size_t wenv_l = osenv_size(wenv);
 
-            m_env.resize(wenv_l + 1); // +1 for terminating null
+            myenv.resize(wenv_l);
 
-            std::transform(wenv, wenv + wenv_l, m_env.begin(), [](wchar_t* envstr) {
+            std::transform(wenv, wenv + wenv_l, myenv.begin(), [](wchar_t* envstr) {
                 // we own the converted strings
                 return to_utf8(envstr).release();
             });
@@ -175,7 +191,16 @@ namespace impl
 
     environ_cache::~environ_cache() noexcept
     {
-        for (auto* p : m_env) delete[] p;
+        for (auto* p : myenv) delete[] p;
+    }
+
+    auto environ_cache::begin() noexcept -> iterator
+    {
+        return myenv.begin();
+    }
+    auto environ_cache::end() noexcept -> iterator
+    {
+        return myenv.end();
     }
 
     auto environ_cache::find(std::string_view key) -> iterator
@@ -183,6 +208,11 @@ namespace impl
         std::lock_guard _{ m_mtx };
 
         return getenvstr_sync(key);
+    }
+
+    bool environ_cache::contains(std::string_view key)
+    {
+        return find(key) != end();
     }
 
     const char* environ_cache::getvar(std::string_view key)
@@ -201,7 +231,7 @@ namespace impl
         const char* vl = new_envstr(key, value);
 
         if (it == end()) {
-            it = m_env.insert(end(), vl);
+            myenv.push_back(vl);
         }
         else {
             auto* old = std::exchange(*it, vl);
@@ -220,7 +250,7 @@ namespace impl
         if (it != end()) {
             auto* old = *it;
             delete[] old;
-            m_env.erase(it);
+            myenv.erase(it);
         }
 
         auto wkey = to_utf16(key.data());
@@ -246,7 +276,7 @@ namespace impl
         if (it_cache == end() && envstr_os)
         {
             // not found in cache, found in OS env
-            it_cache = m_env.insert(end(), envstr_os.release());
+            it_cache = myenv.insert(end(), envstr_os.release());
         }
         else if (it_cache != end())
         {
@@ -270,12 +300,11 @@ namespace impl
             {
                 // found in cache, not in OS. Remove
                 envstr_os.reset(*it_cache);
-                m_env.erase(it_cache);
+                myenv.erase(it_cache);
                 it_cache = end();
             }
         }
 
-        assert(m_env.back() == nullptr);
         return it_cache;
     }
 

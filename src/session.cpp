@@ -2,12 +2,18 @@
 #include "impl.hpp"
 
 
+
+static auto& envcache() {
+    static impl::environ_cache e;
+    return e;
+}
+
 namespace ixm::session 
 {
     // env::variable
     environment::variable::operator std::string_view() const
     {
-        auto* val = impl::get_env_var(m_key.c_str());
+        auto* val = envcache().getvar(m_key);
         
         if (val) return val; else return {};
     }
@@ -15,7 +21,7 @@ namespace ixm::session
     auto environment::variable::operator=(std::string_view value) -> variable&
     {
         std::string val { value };
-        impl::set_env_var(m_key.c_str(), val.c_str());
+        envcache().setvar(m_key, val);
         return *this;
     }
 
@@ -42,39 +48,38 @@ namespace ixm::session
         return variable{ str };
     }
 
-    bool environment::contains(std::string_view key) const
+    bool environment::contains(std::string_view k) const
     {
-        auto thingy = std::string(key);
-        return impl::env_find(thingy.c_str()) != -1;
+        auto key = std::string(k);
+        return envcache().contains(key);
     }
 
     auto environment::cbegin() const noexcept -> iterator
     {
-        return iterator{ m_envp() };
+        return envcache().begin();
     }
 
     auto environment::cend() const noexcept -> iterator
     {
-        return iterator{ m_envp() + size()};
+        return envcache().end();
     }
 
     auto environment::size() const noexcept -> size_type
     {
-        return impl::env_size();
+        return envcache().size();
     }
 
     void environment::internal_erase(const char* k)
     {
-        impl::rm_env_var(k);
+        envcache().rmvar(k);
     }
 
     bool environment::internal_find(const char* key, int& offset) const
     {
-        offset = impl::env_find(key);
+        auto it = envcache().find(key);
+        offset = it - envcache().begin();
         return offset != -1;
     }
-
-    char const** environment::m_envp() const noexcept { return impl::envp(); }
 
 
 
