@@ -8,6 +8,7 @@
 #include <cstring>
 
 #include "impl.hpp"
+#include "ixm/session_envcache.hpp"
 
 #if defined(__ELF__) and __ELF__
     #define SESSION_IMPL_SECTION ".init_array"
@@ -56,10 +57,6 @@ namespace {
         return es;
     }
 
-
-    // storage for envrion_cache
-    std::vector<std::string> myenv;
-
 } /* nameless namespace */
 
 
@@ -71,6 +68,23 @@ namespace impl {
 
     const char path_sep = ':';
 
+    int osenv_find_pos(const char* k)
+    {
+        auto predicate = find_envstr(k);
+
+        for (int i = 0; environ[i]; i++)
+        {
+            if (predicate(environ[i])) return i;
+        }
+
+        return -1;
+    }
+
+} /* namespace impl */
+
+namespace ixm::session::detail
+{
+    using namespace impl;
 
     environ_cache::environ_cache()
     {
@@ -209,17 +223,4 @@ namespace impl {
         return it_cache;
     }
 
-
-    int osenv_find_pos(const char* k)
-    {
-        auto predicate = find_envstr(k);
-
-        for (int i = 0; environ[i]; i++)
-        {
-            if (predicate(environ[i])) return i;
-        }
-
-        return -1;
-    }
-
-} /* namespace impl */
+}

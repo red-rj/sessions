@@ -2,6 +2,7 @@
 #define IXM_SESSION_HPP
 
 #include "session_impl.hpp"
+#include "session_envcache.hpp"
 
 namespace ixm::session {
 
@@ -26,7 +27,7 @@ namespace ixm::session {
         //using value_range = /* implementation-defined */;
         //using key_range = /* implementation-defined */;
 
-        using iterator = detail::ptrarray_iterator<const char*>;
+        using iterator = detail::environ_cache::iterator;
         using value_type = variable;
         using size_type = size_t;
 
@@ -55,13 +56,7 @@ namespace ixm::session {
         template <class K, class = ConvertsToSV<K>>
         iterator find(K const& key) const {
             std::string keystr{key};
-            int off;
-            
-            if (internal_find(keystr.c_str(), off)) {
-                return iterator{m_envp() + off};
-            } else {
-                return cend();
-            }
+            return cache.find(keystr);
         }
 
         bool contains(std::string_view) const;
@@ -81,13 +76,11 @@ namespace ixm::session {
         template <class K, class = ConvertsToSV<K>>
         void erase(K const& key) {
             std::string keystr{key};
-            internal_erase(keystr.c_str());
+            cache.rmvar(keystr);
         }
 
     private:
-        void internal_erase(const char*);
-        bool internal_find(const char* key, int& offset) const;
-        char const** m_envp() const noexcept;
+        static detail::environ_cache cache;
     };
 
 

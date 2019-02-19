@@ -15,6 +15,7 @@
 
 #include "impl.hpp"
 #include "ixm/session_impl.hpp"
+#include "ixm/session_envcache.hpp"
 
 namespace {
     using namespace ixm::session::detail;
@@ -138,9 +139,6 @@ namespace {
         return buffer;
     }
 
-    // storage for envrion_cache
-    std::vector<const char*> myenv;
-
 } /* nameless namespace */
 
 namespace impl {
@@ -158,10 +156,28 @@ namespace impl {
 
     const char path_sep = ';';
 
+
+    int osenv_find_pos(const char* k)
+    {
+        auto** wenvp = _wenviron;
+        auto wkey = to_utf16(k);
+
+        auto predicate = find_envstr<wchar_t>(wkey.get());
+
+        for (int i = 0; wenvp[i]; i++)
+        {
+            if (predicate(wenvp[i])) return i;
+        }
+
+        return -1;
+    }
+
 } /* namespace impl */
 
-namespace impl
+namespace ixm::session::detail
 {
+    using namespace impl;
+    
     environ_cache::environ_cache()
     {
         // make sure _wenviron is initialized
@@ -202,6 +218,8 @@ namespace impl
     {
         return myenv.end();
     }
+
+    size_t environ_cache::size() const noexcept { return myenv.size(); }
 
     auto environ_cache::find(std::string_view key) -> iterator
     {
@@ -309,19 +327,5 @@ namespace impl
     }
 
 
-    int osenv_find_pos(const char* k)
-    {
-        auto** wenvp = _wenviron;
-        auto wkey = to_utf16(k);
-
-        auto predicate = find_envstr<wchar_t>(wkey.get());
-
-        for (int i = 0; wenvp[i]; i++)
-        {
-            if (predicate(wenvp[i])) return i;
-        }
-
-        return -1;
-    }
 
 }
