@@ -106,205 +106,23 @@ namespace {
         return value;
     }
 
-
-    class environ_t
+    template<typename T>
+    struct find_envstr
     {
-        environ_t()
+        using ci_tstring_view = std::basic_string_view<T, ci_char_traits<T>>;
+        ci_tstring_view key;
+
+        explicit find_envstr(T* k) : key(k) {}
+        explicit find_envstr(ci_tstring_view k) : key(k) {}
+        explicit find_envstr(std::basic_string_view<T> k) : key(k.data(), k.size()) {}
+
+        bool operator() (ci_tstring_view entry) noexcept
         {
-            // make sure _wenviron is initialized
-            // https://docs.microsoft.com/en-us/cpp/c-runtime-library/environ-wenviron?view=vs-2017#remarks
-            if (!_wenviron) {
-                _wgetenv(L"initpls");
-            }
-
-            try
-            {
-                wchar_t** wenv = _wenviron;
-                size_t wenv_l = 0;
-                for (; wenv[wenv_l]; wenv_l++);
-
-                m_env.resize(wenv_l + 1); // +1 for terminating null
-
-                std::transform(wenv, wenv + wenv_l, m_env.begin(), [](wchar_t* envstr) {
-                    // we own the converted strings
-                    return to_utf8(envstr).release();
-                });
-            }
-            catch(const std::exception&)
-            {
-                free_env();
-                std::throw_with_nested(std::runtime_error("Failed to create environment"));
-            }
-            
+            return
+                entry.length() > key.length() &&
+                entry[key.length()] == '=' &&
+                entry.compare(0, key.size(), key) == 0;
         }
-
-    public:
-
-        using iterator = std::vector<const char*>::iterator;
-
-        environ_t(const environ_t&) = delete;
-        environ_t(environ_t&&) = delete;
-
-        ~environ_t()
-        {
-            free_env();
-        }
-
-        static auto& instance() 
-        {
-            static auto e = environ_t();
-            return e;
-        }
-
-
-        auto data() noexcept { return m_env.data(); }
-        auto size() const noexcept { return m_env.size() - 1; }
-        auto begin() noexcept { return m_env.begin(); }
-        auto end() noexcept { return m_env.end() - 1; }
-
-
-        const char* getvar(ci_string_view key)
-        {
-            std::lock_guard lock{m_mtx};
-            
-            auto it = getvarline_sync(key);
-            return it != end() ? *it + key.length() + 1 : nullptr;
-        }
-
-        void setvar(ci_string_view key, std::string_view value)
-        {
-            std::lock_guard lock{m_mtx};
-
-            auto it = getvarline(key);
-            const char* vl = new_varline(key, value);
-            
-            if (it == end()) {
-                it = m_env.insert(end(), vl);
-            }
-            else {
-                auto* old = std::exchange(*it, vl);
-                delete[] old;
-            }
-
-            auto wvarline = to_utf16(vl);
-            _wputenv(wvarline.get());
-        }
-
-        void rmvar(const char* key) 
-        {
-            std::lock_guard lock{m_mtx};
-
-            auto it = getvarline(key);
-            if (it != end()) {
-                auto* old = *it;
-                delete[] old;
-                m_env.erase(it);
-            }
-
-            auto wkey = to_utf16(key);
-            _wputenv_s(wkey.get(), L"");
-        }
-
-        int find_pos(const char* key)
-        {
-            std::lock_guard lock{m_mtx};
-
-            auto it = getvarline_sync(key);
-            return it != end() ? it - begin() : -1;
-        }
-
-    private:
-
-        iterator getvarline(ci_string_view key) noexcept
-        {
-            return std::find_if(begin(), end(), 
-            [&](ci_string_view entry){
-                return 
-                    entry.length() > key.length() &&
-                    entry[key.length()] == '=' &&
-                    entry.compare(0, key.size(), key) == 0;
-            });
-        }
-
-        iterator getvarline_sync(ci_string_view key)
-        {
-            auto it_cache = getvarline(key);
-            auto varline_os = std::unique_ptr<const char[]>{ varline_from_os(key) };
-
-            if (it_cache == end() && varline_os)
-            {
-                // not found in cache, found in OS env
-                it_cache = m_env.insert(end(), varline_os.release());
-            }
-            else if (it_cache != end())
-            {
-                if (varline_os)
-                {
-                    // found in both
-                    std::string_view var_cache = *it_cache, var_os = varline_os.get();
-
-                    // skip key=
-                    auto const offset = key.size() + 1;
-                    var_cache.remove_prefix(offset);
-                    var_os.remove_prefix(offset);
-
-                    // sync if values differ
-                    if (var_cache != var_os) {
-                        auto* old = std::exchange(*it_cache, varline_os.release());
-                        varline_os.reset(old);
-                    }
-                }
-                else
-                {
-                    // found in cache, not in OS. Remove
-                    varline_os.reset(*it_cache);
-                    m_env.erase(it_cache);
-                    it_cache = end();
-                }
-            }
-
-            assert(m_env.back() == nullptr);
-            return it_cache;
-        }
-
-        [[nodiscard]]
-        char* varline_from_os(ci_string_view key)
-        {
-            auto wkey = to_utf16(key.data());
-            wchar_t* wvalue = _wgetenv(wkey.get());
-            
-            if (wvalue) {
-                auto value = to_utf8(wvalue);
-                return new_varline(key, value.get());
-            }
-
-            return nullptr;
-        }
-
-        [[nodiscard]]
-        char* new_varline(ci_string_view key, std::string_view value)
-        {
-            const auto buffer_sz = key.size()+value.size()+2;
-            auto buffer = new char[buffer_sz];
-            key.copy(buffer, key.size());
-            buffer[key.size()] = '=';
-            value.copy(buffer + key.size() + 1, value.size());
-            buffer[buffer_sz-1] = 0;
-
-            return buffer;
-        }
-
-        void free_env() noexcept
-        {
-            // delete converted items
-            for (auto elem : m_env) {
-                delete[] elem;
-            }
-        }
-
-        std::mutex m_mtx;
-        std::vector<char const*> m_env;
-    
     };
 
 } /* nameless namespace */
@@ -321,33 +139,160 @@ namespace impl {
 
     int argc() noexcept { return static_cast<int>(args_vector().size()) - 1; }
 
-    char const** envp() noexcept {
-        return environ_t::instance().data();
-    }
-
-    int env_find(char const* key) {
-        return environ_t::instance().find_pos(key);
-    }
-
-    size_t env_size() noexcept {
-        return environ_t::instance().size();
-    }
-
-    char const* get_env_var(char const* key)
-    {
-        return environ_t::instance().getvar(key);
-    }
-
-    void set_env_var(const char* key, const char* value)
-    {
-        environ_t::instance().setvar(key, value);
-    }
-
-    void rm_env_var(const char* key)
-    {
-        environ_t::instance().rmvar(key);
-    }
 
     const char path_sep = ';';
 
 } /* namespace impl */
+
+namespace impl
+{
+    environ_cache::environ_cache()
+    {
+        // make sure _wenviron is initialized
+        // https://docs.microsoft.com/en-us/cpp/c-runtime-library/environ-wenviron?view=vs-2017#remarks
+        if (!_wenviron) {
+            _wgetenv(L"initpls");
+        }
+
+        try
+        {
+            wchar_t** wenv = _wenviron;
+            size_t wenv_l = osenv_size(wenv);
+
+            m_env.resize(wenv_l + 1); // +1 for terminating null
+
+            std::transform(wenv, wenv + wenv_l, m_env.begin(), [](wchar_t* envstr) {
+                // we own the converted strings
+                return to_utf8(envstr).release();
+            });
+        }
+        catch (const std::exception&)
+        {
+            this->~environ_cache();
+            std::throw_with_nested(std::runtime_error("Failed to create environment"));
+        }
+    }
+
+    environ_cache::~environ_cache() noexcept
+    {
+        for (auto* p : m_env) delete[] p;
+    }
+
+    auto environ_cache::find(std::string_view key) -> iterator
+    {
+        std::lock_guard _{ m_mtx };
+
+        return getenvstr_sync(key);
+    }
+
+    const char* environ_cache::getvar(std::string_view key)
+    {
+        std::lock_guard _{ m_mtx };
+
+        auto it = getenvstr_sync(key);
+        return it != end() ? *it + key.length() + 1 : nullptr;
+    }
+
+    void environ_cache::setvar(std::string_view key, std::string_view value)
+    {
+        std::lock_guard _{ m_mtx };
+        
+        auto it = getenvstr(key);
+        const char* vl = new_envstr(key, value);
+
+        if (it == end()) {
+            it = m_env.insert(end(), vl);
+        }
+        else {
+            auto* old = std::exchange(*it, vl);
+            delete[] old;
+        }
+
+        auto wvarline = to_utf16(vl);
+        _wputenv(wvarline.get());
+    }
+
+    void environ_cache::rmvar(std::string_view key)
+    {
+        std::lock_guard _{ m_mtx };
+        
+        auto it = getenvstr(key);
+        if (it != end()) {
+            auto* old = *it;
+            delete[] old;
+            m_env.erase(it);
+        }
+
+        auto wkey = to_utf16(key.data());
+        _wputenv_s(wkey.get(), L"");
+    }
+
+
+    auto environ_cache::getenvstr(std::string_view key) noexcept -> iterator
+    {
+        return std::find_if(begin(), end(), find_envstr(key));
+    }
+
+    auto environ_cache::getenvstr_sync(std::string_view key) -> iterator
+    {
+        auto it_cache = getenvstr(key);
+        std::unique_ptr<const char[]> envstr_os;
+
+        int offset = osenv_find_pos(key.data());
+        if (offset != -1) {
+            envstr_os = to_utf8(_wenviron[offset]);
+        }
+
+        if (it_cache == end() && envstr_os)
+        {
+            // not found in cache, found in OS env
+            it_cache = m_env.insert(end(), envstr_os.release());
+        }
+        else if (it_cache != end())
+        {
+            if (envstr_os)
+            {
+                // found in both
+                std::string_view var_cache = *it_cache, var_os = envstr_os.get();
+
+                // skip key=
+                auto const offset = key.size() + 1;
+                var_cache.remove_prefix(offset);
+                var_os.remove_prefix(offset);
+
+                // sync if values differ
+                if (var_cache != var_os) {
+                    auto* old = std::exchange(*it_cache, envstr_os.release());
+                    envstr_os.reset(old);
+                }
+            }
+            else
+            {
+                // found in cache, not in OS. Remove
+                envstr_os.reset(*it_cache);
+                m_env.erase(it_cache);
+                it_cache = end();
+            }
+        }
+
+        assert(m_env.back() == nullptr);
+        return it_cache;
+    }
+
+
+    int osenv_find_pos(const char* k)
+    {
+        auto** wenvp = _wenviron;
+        auto wkey = to_utf16(k);
+
+        auto predicate = find_envstr<wchar_t>(wkey.get());
+
+        for (int i = 0; wenvp[i]; i++)
+        {
+            if (predicate(wenvp[i])) return i;
+        }
+
+        return -1;
+    }
+
+}

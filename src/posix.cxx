@@ -33,13 +33,11 @@ namespace {
         if constexpr (SESSION_IMPL_ELF) { return 0; }
     };
 
-    std::mutex envmtx__;
-
-    struct find_key_pred
+    struct find_envstr
     {
         std::string_view key;
 
-        explicit find_key_pred(std::string_view k) : key(k) {}
+        explicit find_envstr(std::string_view k) : key(k) {}
 
         bool operator() (std::string_view entry) const noexcept
         {
@@ -50,66 +48,6 @@ namespace {
         }
     };
 
-    auto& env_cache()
-    {
-        static auto envcache = [] {
-            std::vector<std::string> vec;
-
-            size_t envsize = 0;
-            for (; environ[envsize]; envsize++);
-
-            vec.insert(vec.end(), environ, environ + envsize);
-
-            return vec;
-        }();
-        return envcache;
-    }
-
-    int env_find_offset(std::string_view key)
-    {
-        auto pred = find_key_pred{ key };
-
-        for (int i = 0; environ[i]; i++)
-        {
-            if (pred(environ[i]))
-                return i;
-        }
-
-        return -1;
-    }
-
-    void env_sync_key(std::string_view key)
-    {
-        auto it_cache = std::find_if(env_cache().begin(), env_cache().end(), find_key_pred{ key });
-
-        const int offs = env_find_offset(key);
-        char** it_os = offs != -1 ? environ + offs : nullptr;
-
-        if (it_cache == env_cache().end() && it_os)
-        {
-            env_cache().push_back(*it_os);
-        }
-        else if (it_cache != env_cache().end())
-        {
-            if (it_os)
-            {
-                std::string_view var_cache = *it_cache, var_os = *it_os;
-
-                auto const offset = key.size() + 1;
-                var_cache.remove_prefix(offset);
-                var_os.remove_prefix(offset);
-
-                if (var_cache != var_os) {
-                    *it_cache = *it_os;
-                }
-            }
-            else
-            {
-                env_cache().erase(it_cache);
-            }
-        }
-    }
-
 } /* nameless namespace */
 
 
@@ -119,58 +57,131 @@ namespace impl {
     char const** argv() noexcept { return argv__; }
     int argc() noexcept { return argc__; }
 
-    char const** envp() noexcept { return (char const**)environ; }
-
-    int env_find(char const* key) {
-        std::lock_guard _{ envmtx__ };
-        std::string_view keysv = key;
-
-        env_sync_key(keysv);
-        return env_find_offset(keysv);
-    }
-
-    size_t env_size() noexcept {
-        return env_cache().size();
-    }
-
-    char const* get_env_var(char const* key)
-    {
-        std::lock_guard _{ envmtx__ };
-        env_sync_key(key);
-
-        return getenv(key);
-    }
-    void set_env_var(const char* key, const char* value)
-    {
-        std::lock_guard _{ envmtx__ };
-
-        auto it_cache = std::find_if(env_cache().begin(), env_cache().end(), find_key_pred{ key });
-
-        if (it_cache == env_cache().end())
-        {
-            env_cache().push_back(key + "="s + value);
-        }
-        else
-        {
-            auto& envstr = *it_cache;
-            envstr.replace(strlen(key) + 1, envstr.size(), value);
-        }
-
-        setenv(key, value, true);
-    }
-    void rm_env_var(const char* key)
-    {
-        std::lock_guard _{ envmtx__ };
-
-        auto it_cache = std::find_if(env_cache().begin(), env_cache().end(), find_key_pred{ key });
-        if (it_cache != env_cache().end())
-        {
-            env_cache().erase(it_cache);
-        }
-
-        unsetenv(key);
-    }
-
     const char path_sep = ':';
+
+    environ_cache::environ_cache()
+    {
+        try
+        {
+            size_t envsize = osenv_size(environ);
+            m_env.insert(m_env.end(), environ, environ + envsize + 1);
+        }
+        catch (const std::exception&)
+        {
+            //this->~environ_cache();
+            std::throw_with_nested(std::runtime_error("Failed to create environment"));
+        }
+    }
+
+    environ_cache::~environ_cache() noexcept
+    {
+        //for (auto* p : m_env) delete[] p;
+    }
+
+    auto environ_cache::find(std::string_view key) -> iterator
+    {
+        std::lock_guard _{ m_mtx };
+
+        return getenvstr_sync(key);
+    }
+
+    const char* environ_cache::getvar(std::string_view key)
+    {
+        std::lock_guard _{ m_mtx };
+
+        auto it = getenvstr_sync(key);
+        return it != end() ? *it + key.length() + 1 : nullptr;
+    }
+
+    void environ_cache::setvar(std::string_view key, std::string_view value)
+    {
+        std::lock_guard _{ m_mtx };
+
+        setenv(key.data(), value.data(), true);
+
+        auto it = getenvstr(key);
+        int offset = osenv_find_pos(key.data());
+
+        if (it != end()) {
+            *it = environ[offset];
+        }
+        else {
+            it = m_env.insert(end(), environ[offset]);
+        }
+    }
+
+    void environ_cache::rmvar(std::string_view key)
+    {
+        std::lock_guard _{ m_mtx };
+
+        auto it = getenvstr(key);
+        if (it != end()) {
+            m_env.erase(it);
+        }
+
+        unsetenv(key.data());
+    }
+
+
+    auto environ_cache::getenvstr(std::string_view key) noexcept -> iterator
+    {
+        return std::find_if(begin(), end(), find_envstr(key));
+    }
+
+    auto environ_cache::getenvstr_sync(std::string_view key) -> iterator
+    {
+        auto it_cache = getenvstr(key);
+        const char* envstr_os = nullptr;
+
+        int offset = osenv_find_pos(key.data());
+        if (offset != -1) {
+            envstr_os = environ[offset];
+        }
+
+        if (it_cache == end() && envstr_os)
+        {
+            // not found in cache, found in OS env
+            it_cache = m_env.insert(end(), envstr_os);
+        }
+        else if (it_cache != end())
+        {
+            if (envstr_os)
+            {
+                // found in both
+                std::string_view var_cache = *it_cache, var_os = envstr_os;
+
+                // skip key=
+                auto const offset = key.size() + 1;
+                var_cache.remove_prefix(offset);
+                var_os.remove_prefix(offset);
+
+                // sync if values differ
+                if (var_cache != var_os) {
+                    *it_cache = envstr_os;
+                }
+            }
+            else
+            {
+                // found in cache, not in OS. Remove
+                m_env.erase(it_cache);
+                it_cache = end();
+            }
+        }
+
+        return it_cache;
+    }
+
+
+    int osenv_find_pos(const char* k)
+    {
+        auto predicate = find_envstr(k);
+
+        for (int i = 0; environ[i]; i++)
+        {
+            if (predicate(environ[i])) return i;
+        }
+
+        return -1;
+    }
 
 } /* namespace impl */
