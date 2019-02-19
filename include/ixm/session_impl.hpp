@@ -104,7 +104,6 @@ namespace ixm::session::detail
         pointer m_buff;
     };
 
-
     class pathsep_iterator
     {
     public:
@@ -148,17 +147,25 @@ namespace ixm::session::detail
         size_t m_offset = 0;
     };
 
-    struct ci_char_traits : public std::char_traits<char> {
+
+    template<class T>
+    struct ci_char_traits : public std::char_traits<T> {
+        using typename std::char_traits<T>::char_type;
+
         static char to_upper(char ch) {
             return toupper((unsigned char)ch);
         }
-        static bool eq(char c1, char c2) {
+        static wchar_t to_upper(wchar_t ch) {
+            return towupper(ch);
+        }
+
+        static bool eq(char_type c1, char_type c2) {
             return to_upper(c1) == to_upper(c2);
         }
-        static bool lt(char c1, char c2) {
+        static bool lt(char_type c1, char_type c2) {
             return to_upper(c1) < to_upper(c2);
         }
-        static int compare(const char* s1, const char* s2, size_t n) {
+        static int compare(const char_type* s1, const char_type* s2, size_t n) {
             while (n-- != 0) {
                 if (to_upper(*s1) < to_upper(*s2)) return -1;
                 if (to_upper(*s1) > to_upper(*s2)) return 1;
@@ -166,7 +173,7 @@ namespace ixm::session::detail
             }
             return 0;
         }
-        static const char* find(const char* s, int n, char a) {
+        static const char_type* find(const char_type* s, int n, char_type a) {
             auto const ua(to_upper(a));
             while (n-- != 0)
             {
@@ -178,8 +185,9 @@ namespace ixm::session::detail
         }
     };
 
-    using ci_string_view = std::basic_string_view<char, ci_char_traits>;
-    using ci_string = std::basic_string<char, ci_char_traits>;
+
+    using ci_string_view = std::basic_string_view<char, ci_char_traits<char>>;
+    using ci_wstring_view = std::basic_string_view<wchar_t, ci_char_traits<wchar_t>>;
 
 } // ixm::session::detail
 
