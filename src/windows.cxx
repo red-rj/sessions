@@ -225,12 +225,12 @@ namespace ixm::session::detail
     {
         std::lock_guard _{ m_mtx };
 
-        return getenvstr_sync(key);
+        return getenvstr(key);
     }
 
     bool environ_cache::contains(std::string_view key)
     {
-        return find(key) != end();
+        return getvar(key) != nullptr;
     }
 
     const char* environ_cache::getvar(std::string_view key)
