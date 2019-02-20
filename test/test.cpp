@@ -84,11 +84,11 @@ TEST_CASE("Environment tests", "[environment]")
         rm_env("thug2song");
         set_env("Phasellus", "DolorLorem");
 
-        CHECK(env.find("thug2song") == env.end());
-        auto it = env.find("thug2song");
-        CHECK(it == env.end());
+        // find() does not sync
+        CHECK_FALSE(env.find("thug2song") == env.end());
 
         CHECK(env["Phasellus"] == "DolorLorem"sv);
+        CHECK(env["thug2song"] == ""sv);
         CHECK(env.size() == env_start_l - 1);
     }
     SECTION("contains")
