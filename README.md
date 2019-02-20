@@ -4,9 +4,11 @@ This is an implementation of WG21 P1275's Desert Sessions API - By Pedro Oliva R
 
 Tested on Windows 10 and Kubuntu 18.04
 
-## Aims and goals:
+Feel free to open an issue or contact me if you want to share some feedback. :)
 
-- Be UTF8 safe, specially on Windows
+## Features:
+
+- UTF8 safe storage on Windows
 - ...
 
 ## ToDo
