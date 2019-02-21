@@ -34,21 +34,6 @@ namespace {
         if constexpr (SESSION_IMPL_ELF) { return 0; }
     };
 
-    struct find_envstr
-    {
-        std::string_view key;
-
-        explicit find_envstr(std::string_view k) : key(k) {}
-
-        bool operator() (std::string_view entry) const noexcept
-        {
-            return
-                entry.length() > key.length() &&
-                entry[key.length()] == '=' &&
-                entry.compare(0, key.size(), key) == 0;
-        }
-    };
-
     std::string make_envstr(std::string_view k, std::string_view v)
     {
         std::string es;
@@ -70,7 +55,7 @@ namespace impl {
 
     int osenv_find_pos(const char* k)
     {
-        auto predicate = find_envstr(k);
+        auto predicate = envstr_finder<char>(k);
 
         for (int i = 0; environ[i]; i++)
         {
@@ -112,6 +97,15 @@ namespace ixm::session::detail
     auto environ_cache::end() noexcept -> iterator
     {
         return myenv.end();
+    }
+
+    auto environ_cache::cbegin() noexcept -> const_iterator
+    {
+        return myenv.cbegin();
+    }
+    auto environ_cache::cend() noexcept -> const_iterator
+    {
+        return myenv.cend();
     }
 
     size_t environ_cache::size() const noexcept
@@ -177,7 +171,7 @@ namespace ixm::session::detail
 
     auto environ_cache::getenvstr(std::string_view key) noexcept -> iterator
     {
-        return std::find_if(begin(), end(), find_envstr(key));
+        return std::find_if(begin(), end(), envstr_finder<char>(key));
     }
 
     auto environ_cache::getenvstr_sync(std::string_view key) -> iterator

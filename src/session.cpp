@@ -48,21 +48,6 @@ namespace ixm::session
         return cache.contains(key);
     }
 
-    auto environment::cbegin() const noexcept -> iterator
-    {
-        return cache.begin();
-    }
-
-    auto environment::cend() const noexcept -> iterator
-    {
-        return cache.end();
-    }
-
-    auto environment::size() const noexcept -> size_type
-    {
-        return cache.size();
-    }
-
     detail::environ_cache environment::cache;
 
 
