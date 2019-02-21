@@ -80,14 +80,12 @@ namespace ixm::session::detail
         }
         catch (const std::exception&)
         {
-            //this->~environ_cache();
             std::throw_with_nested(std::runtime_error("Failed to create environment"));
         }
     }
 
     environ_cache::~environ_cache() noexcept
     {
-        //for (auto* p : m_env) delete[] p;
     }
 
     auto environ_cache::begin() noexcept -> iterator
@@ -99,11 +97,11 @@ namespace ixm::session::detail
         return myenv.end();
     }
 
-    auto environ_cache::cbegin() noexcept -> const_iterator
+    auto environ_cache::cbegin() const noexcept -> const_iterator
     {
         return myenv.cbegin();
     }
-    auto environ_cache::cend() noexcept -> const_iterator
+    auto environ_cache::cend() const noexcept -> const_iterator
     {
         return myenv.cend();
     }
@@ -114,7 +112,7 @@ namespace ixm::session::detail
     }
 
 
-    auto environ_cache::find(std::string_view key) -> iterator
+    auto environ_cache::find(std::string_view key) noexcept -> iterator
     {
         std::lock_guard _{ m_mtx };
 
@@ -123,20 +121,20 @@ namespace ixm::session::detail
 
     bool environ_cache::contains(std::string_view key)
     {
-        return getvar(key) != nullptr;
+        return !getvar(key).empty();
     }
 
-    const char* environ_cache::getvar(std::string_view key)
+    std::string_view environ_cache::getvar(std::string_view key)
     {
         std::lock_guard _{ m_mtx };
 
         auto it = getenvstr_sync(key);
         if (it != end()) {
-            auto& envstr = *it;
-            return envstr.c_str() + key.size() + 1;
+            std::string_view envstr = *it;
+            return envstr.substr(key.size() + 1);
         }
 
-        return nullptr;
+        return {};
     }
 
     void environ_cache::setvar(std::string_view key, std::string_view value)

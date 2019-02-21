@@ -202,18 +202,18 @@ namespace ixm::session::detail
         return myenv.end();
     }
 
-    auto environ_cache::cbegin() noexcept -> const_iterator
+    auto environ_cache::cbegin() const noexcept -> const_iterator
     {
         return myenv.cbegin();
     }
-    auto environ_cache::cend() noexcept -> const_iterator
+    auto environ_cache::cend() const noexcept -> const_iterator
     {
         return myenv.cend();
     }
 
     size_t environ_cache::size() const noexcept { return myenv.size(); }
 
-    auto environ_cache::find(std::string_view key) -> iterator
+    auto environ_cache::find(std::string_view key) noexcept -> iterator
     {
         std::lock_guard _{ m_mtx };
 
@@ -222,15 +222,20 @@ namespace ixm::session::detail
 
     bool environ_cache::contains(std::string_view key)
     {
-        return getvar(key) != nullptr;
+        return !getvar(key).empty();
     }
 
-    const char* environ_cache::getvar(std::string_view key)
+    std::string_view environ_cache::getvar(std::string_view key)
     {
         std::lock_guard _{ m_mtx };
 
         auto it = getenvstr_sync(key);
-        return it != end() ? *it + key.length() + 1 : nullptr;
+        if (it != end()) {
+            std::string_view envstr = *it;
+            return envstr.substr(key.size() + 1);
+        }
+
+        return {};
     }
 
     void environ_cache::setvar(std::string_view key, std::string_view value)

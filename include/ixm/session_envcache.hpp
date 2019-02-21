@@ -33,15 +33,15 @@ namespace ixm::session::detail
 
         iterator begin() noexcept;
         iterator end() noexcept;
-        const_iterator cbegin() noexcept;
-        const_iterator cend() noexcept;
+        const_iterator cbegin() const noexcept;
+        const_iterator cend() const noexcept;
 
         size_t size() const noexcept;
 
-        iterator find(std::string_view);
+        iterator find(std::string_view) noexcept;
         bool contains(std::string_view);
 
-        const char* getvar(std::string_view);
+        std::string_view getvar(std::string_view);
         void setvar(std::string_view, std::string_view);
         void rmvar(std::string_view);
 
