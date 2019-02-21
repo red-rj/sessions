@@ -107,24 +107,6 @@ namespace {
         return value;
     }
 
-    template<typename T>
-    struct find_envstr
-    {
-        using ci_tstring_view = std::basic_string_view<T, ci_char_traits<T>>;
-        ci_tstring_view key;
-
-        explicit find_envstr(T* k) : key(k) {}
-        explicit find_envstr(ci_tstring_view k) : key(k) {}
-        explicit find_envstr(std::basic_string_view<T> k) : key(k.data(), k.size()) {}
-
-        bool operator() (ci_tstring_view entry) noexcept
-        {
-            return
-                entry.length() > key.length() &&
-                entry[key.length()] == '=' &&
-                entry.compare(0, key.size(), key) == 0;
-        }
-    };
 
     [[nodiscard]]
     char* new_envstr(std::string_view key, std::string_view value)
@@ -157,12 +139,13 @@ namespace impl {
     const char path_sep = ';';
 
 
+
     int osenv_find_pos(const char* k)
     {
         auto** wenvp = _wenviron;
         auto wkey = to_utf16(k);
 
-        auto predicate = find_envstr<wchar_t>(wkey.get());
+        auto predicate = ci_envstr_finder<wchar_t>(wkey.get());
 
         for (int i = 0; wenvp[i]; i++)
         {
@@ -219,6 +202,15 @@ namespace ixm::session::detail
         return myenv.end();
     }
 
+    auto environ_cache::cbegin() noexcept -> const_iterator
+    {
+        return myenv.cbegin();
+    }
+    auto environ_cache::cend() noexcept -> const_iterator
+    {
+        return myenv.cend();
+    }
+
     size_t environ_cache::size() const noexcept { return myenv.size(); }
 
     auto environ_cache::find(std::string_view key) -> iterator
@@ -257,7 +249,10 @@ namespace ixm::session::detail
         }
 
         auto wvarline = to_utf16(vl);
-        _wputenv(wvarline.get());
+        wvarline[key.size()] = L'\0';
+        
+        auto wkey = wvarline.get(), wvalue = wvarline.get() + key.size() + 1;
+        _wputenv_s(wkey, wvalue);
     }
 
     void environ_cache::rmvar(std::string_view key)
@@ -278,7 +273,7 @@ namespace ixm::session::detail
 
     auto environ_cache::getenvstr(std::string_view key) noexcept -> iterator
     {
-        return std::find_if(begin(), end(), find_envstr(key));
+        return std::find_if(begin(), end(), ci_envstr_finder<char>(key.data(), key.size()));
     }
 
     auto environ_cache::getenvstr_sync(std::string_view key) -> iterator
@@ -286,9 +281,9 @@ namespace ixm::session::detail
         auto it_cache = getenvstr(key);
         std::unique_ptr<const char[]> envstr_os;
 
-        int offset = osenv_find_pos(key.data());
-        if (offset != -1) {
-            envstr_os = to_utf8(_wenviron[offset]);
+        int pos = osenv_find_pos(key.data());
+        if (pos != -1) {
+            envstr_os = to_utf8(_wenviron[pos]);
         }
 
         if (it_cache == end() && envstr_os)

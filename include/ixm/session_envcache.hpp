@@ -6,10 +6,17 @@
 #include <string_view>
 #include <mutex>
 
+
+namespace ixm::session {
+    class environment;
+}
+
 namespace ixm::session::detail
 {
-    struct environ_cache
+    class environ_cache
     {
+        friend environment;
+
 #if defined(WIN32)
         using vector_t = std::vector<const char*>;
 #elif defined(_POSIX_C_SOURCE)
@@ -17,15 +24,17 @@ namespace ixm::session::detail
 #endif // WIN32
 
         using iterator = vector_t::iterator;
+        using const_iterator = vector_t::const_iterator;
 
         environ_cache();
-        environ_cache(environ_cache&& other);
         ~environ_cache() noexcept;
 
         environ_cache(const environ_cache&) = delete;
 
         iterator begin() noexcept;
         iterator end() noexcept;
+        const_iterator cbegin() noexcept;
+        const_iterator cend() noexcept;
 
         size_t size() const noexcept;
 
@@ -36,7 +45,6 @@ namespace ixm::session::detail
         void setvar(std::string_view, std::string_view);
         void rmvar(std::string_view);
 
-    private:
 
         iterator getenvstr(std::string_view key) noexcept;
         iterator getenvstr_sync(std::string_view key);

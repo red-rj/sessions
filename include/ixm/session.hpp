@@ -28,6 +28,7 @@ namespace ixm::session {
         //using key_range = /* implementation-defined */;
 
         using iterator = detail::environ_cache::iterator;
+        using const_iterator = detail::environ_cache::const_iterator;
         using value_type = variable;
         using size_type = size_t;
 
@@ -61,13 +62,13 @@ namespace ixm::session {
 
         bool contains(std::string_view) const;
 
-        iterator cbegin() const noexcept;
-        iterator cend() const noexcept;
+        const_iterator cbegin() const noexcept { return cache.cbegin(); }
+        const_iterator cend() const noexcept { return cache.cend(); }
 
-        iterator begin() const noexcept { return cbegin(); }
-        iterator end() const noexcept { return cend(); }
+        iterator begin() const noexcept { return cache.begin(); }
+        iterator end() const noexcept { return cache.end(); }
 
-        size_type size() const noexcept;
+        size_type size() const noexcept { return cache.size(); }
         bool empty() const noexcept { return size() == 0; }
 
         //value_range values() const noexcept;
