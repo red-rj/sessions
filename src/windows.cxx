@@ -14,11 +14,11 @@
 #include <cassert>
 
 #include "impl.hpp"
-#include "ixm/session_impl.hpp"
-#include "ixm/session_envcache.hpp"
+#include "red/session_impl.hpp"
+#include "red/session_envcache.hpp"
 
 namespace {
-    using namespace ixm::session::detail;
+    using namespace red::session::detail;
 
 
     [[noreturn]]
@@ -157,7 +157,7 @@ namespace impl {
 
 } /* namespace impl */
 
-namespace ixm::session::detail
+namespace red::session::detail
 {
     using namespace impl;
     

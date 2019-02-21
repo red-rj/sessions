@@ -6,7 +6,7 @@
 #endif // WIN32
 
 
-#include "ixm/session.hpp"
+#include "red/session.hpp"
 #include "util.hpp"
 #include <iostream>
 #include <array>
@@ -14,7 +14,7 @@
 #include <utility>
 
 
-using namespace ixm::session;
+using namespace red::session;
 using namespace std::literals;
 
 

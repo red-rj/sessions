@@ -8,7 +8,7 @@
 #include <cstring>
 
 #include "impl.hpp"
-#include "ixm/session_envcache.hpp"
+#include "red/session_envcache.hpp"
 
 #if defined(__ELF__) and __ELF__
     #define SESSION_IMPL_SECTION ".init_array"
@@ -67,7 +67,7 @@ namespace impl {
 
 } /* namespace impl */
 
-namespace ixm::session::detail
+namespace red::session::detail
 {
     using namespace impl;
 

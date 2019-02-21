@@ -4,7 +4,7 @@
 #include <cstddef>
 
 
-namespace ixm::session::detail {
+namespace red::session::detail {
     template<typename T>
     struct ci_char_traits;
 }
@@ -52,7 +52,7 @@ template<typename T>
 using envstr_finder = envstr_finder_base<std::char_traits<T>>;
 
 template<typename T>
-using ci_envstr_finder = envstr_finder_base<ixm::session::detail::ci_char_traits<T>>;
+using ci_envstr_finder = envstr_finder_base<red::session::detail::ci_char_traits<T>>;
 
 } /* namespace impl */
 

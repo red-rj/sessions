@@ -1,8 +1,8 @@
-#include "ixm/session.hpp"
+#include "red/session.hpp"
 #include "impl.hpp"
 
 
-namespace ixm::session 
+namespace red::session 
 {
     // env::variable
     environment::variable::operator std::string_view() const

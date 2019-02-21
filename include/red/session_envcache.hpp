@@ -1,5 +1,5 @@
-#if !defined(IXM_SESSION_ENVCACHE_HPP)
-#define IXM_SESSION_ENVCACHE_HPP
+#if !defined(RED_SESSION_ENVCACHE_HPP)
+#define RED_SESSION_ENVCACHE_HPP
 
 #include <vector>
 #include <string>
@@ -7,11 +7,11 @@
 #include <mutex>
 
 
-namespace ixm::session {
+namespace red::session {
     class environment;
 }
 
-namespace ixm::session::detail
+namespace red::session::detail
 {
     class environ_cache
     {
@@ -53,7 +53,7 @@ namespace ixm::session::detail
         vector_t myenv;
     };
 
-} // ixm::session::detail
+} // red::session::detail
 
 
-#endif // IXM_SESSION_ENVCACHE
+#endif // RED_SESSION_ENVCACHE

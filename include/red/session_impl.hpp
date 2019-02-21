@@ -1,5 +1,5 @@
-#ifndef IXM_SESSION_IMPL_HPP
-#define IXM_SESSION_IMPL_HPP
+#ifndef RED_SESSION_IMPL_HPP
+#define RED_SESSION_IMPL_HPP
 
 #include <type_traits>
 #include <iterator>
@@ -7,7 +7,7 @@
 #include <string_view>
 #include <utility>
 
-namespace ixm::session::detail
+namespace red::session::detail
 {
     template<typename T>
     class ptrarray_iterator
@@ -189,7 +189,7 @@ namespace ixm::session::detail
     using ci_string_view = std::basic_string_view<char, ci_char_traits<char>>;
     using ci_wstring_view = std::basic_string_view<wchar_t, ci_char_traits<wchar_t>>;
 
-} // ixm::session::detail
+} // red::session::detail
 
 
 #endif

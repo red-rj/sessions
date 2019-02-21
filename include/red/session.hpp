@@ -1,10 +1,10 @@
-#ifndef IXM_SESSION_HPP
-#define IXM_SESSION_HPP
+#ifndef RED_SESSION_HPP
+#define RED_SESSION_HPP
 
 #include "session_impl.hpp"
 #include "session_envcache.hpp"
 
-namespace ixm::session {
+namespace red::session {
 
     class environment
     {
@@ -117,6 +117,6 @@ namespace ixm::session {
         [[nodiscard]] int argc() const noexcept;
     };
 
-} /* namespace ixm::session */
+} /* namespace red::session */
     
-#endif /* IXM_SESSION_HPP */
+#endif /* RED_SESSION_HPP */
