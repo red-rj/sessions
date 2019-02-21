@@ -7,9 +7,7 @@ namespace ixm::session
     // env::variable
     environment::variable::operator std::string_view() const
     {
-        auto* val = cache.getvar(m_key);
-        
-        if (val) return val; else return {};
+        return cache.getvar(m_key);
     }
     
     auto environment::variable::operator=(std::string_view value) -> variable&

@@ -28,7 +28,6 @@ inline size_t osenv_size(T** envptr) {
 }
 
 
-
 template<typename CharTraits>
 struct envstr_finder_base
 {
@@ -38,7 +37,6 @@ struct envstr_finder_base
     StrView key;
 
     explicit envstr_finder_base(StrView k) : key(k) {}
-    explicit envstr_finder_base(const char_type* ptr) : key(ptr) {}
     envstr_finder_base(const char_type* ptr, size_t len) : key(ptr, len) {}
 
     bool operator() (StrView entry) noexcept

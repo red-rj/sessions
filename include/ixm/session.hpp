@@ -34,7 +34,7 @@ namespace ixm::session {
 
 
         template <class T>
-        using ConvertsToSV_Only = std::enable_if_t<
+        using Is_Strview = std::enable_if_t<
             std::conjunction_v<
                 std::is_convertible<const T&, std::string_view>, 
                 std::negation<std::is_convertible<const T&, const char*>>
@@ -42,10 +42,10 @@ namespace ixm::session {
         >;
 
         template <class T>
-        using ConvertsToSV = std::enable_if_t<std::is_convertible_v<const T&, std::string_view>>;
+        using Is_Strview_Convertable = std::enable_if_t<std::is_convertible_v<const T&, std::string_view>>;
 
 
-        template <class T, class = ConvertsToSV_Only<T>>
+        template <class T, class = Is_Strview<T>>
         variable operator [] (T const& k) const {
             return variable(k);
         }
@@ -54,8 +54,8 @@ namespace ixm::session {
         variable operator [] (std::string_view) const;
         variable operator [] (char const*) const;
 
-        template <class K, class = ConvertsToSV<K>>
-        iterator find(K const& key) const {
+        template <class K, class = Is_Strview_Convertable<K>>
+        iterator find(K const& key) const noexcept {
             std::string keystr{key};
             return cache.find(keystr);
         }
@@ -74,7 +74,7 @@ namespace ixm::session {
         //value_range values() const noexcept;
         //key_range keys() const noexcept;
 
-        template <class K, class = ConvertsToSV<K>>
+        template <class K, class = Is_Strview_Convertable<K>>
         void erase(K const& key) {
             std::string keystr{key};
             cache.rmvar(keystr);
