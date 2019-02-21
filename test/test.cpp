@@ -2,7 +2,7 @@
 #include "catch.hpp"
 
 #if defined(WIN32)
-#include "slimwindows.h"
+#include "win32.hpp"
 #endif // WIN32
 
 
@@ -65,7 +65,6 @@ TEST_CASE("Environment tests", "[environment]")
         for(auto c : cases)
         {
             auto it = env.find(c.first);
-            INFO(*it);
             CHECK(it != env.end());
         }
 

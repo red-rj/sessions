@@ -1,7 +1,6 @@
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
 #define _CRT_SECURE_NO_WARNINGS
-#include <Windows.h>
+
+#include "win32.hpp"
 #include <shellapi.h>
 
 #include <algorithm>
@@ -17,9 +16,10 @@
 #include "red/session_impl.hpp"
 #include "red/session_envcache.hpp"
 
-namespace {
-    using namespace red::session::detail;
 
+using namespace red::session::detail;
+
+namespace {
 
     [[noreturn]]
     void throw_win_error(DWORD error = GetLastError())

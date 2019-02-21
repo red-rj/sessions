@@ -1,6 +1,6 @@
 #pragma once
 
-// slimwindows.h - windows.h + all defines
+// win32.hpp - windows.h + all defines
 // ---------------------------------------------------------------------------
 
 // If defined, the following flags inhibit definition of the indicated items.
@@ -47,7 +47,7 @@
 
 #define NOUSER // - All USER defines and routines
 
-#define NONLS // - All NLS defines and routines
+// #define NONLS // - All NLS defines and routines
 
 #define NOMB // - MB_* and MessageBox()
 
