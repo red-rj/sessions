@@ -60,13 +60,13 @@ namespace red::session {
 
         bool contains(std::string_view) const;
 
-        const_iterator cbegin() const noexcept { return cache.cbegin(); }
-        const_iterator cend() const noexcept { return cache.cend(); }
+        const_iterator cbegin() const noexcept { return cache.myenv.cbegin(); }
+        const_iterator cend() const noexcept { return cache.myenv.cend(); }
 
-        iterator begin() const noexcept { return cache.begin(); }
-        iterator end() const noexcept { return cache.end(); }
+        iterator begin() const noexcept { return cache.myenv.begin(); }
+        iterator end() const noexcept { return cache.myenv.end(); }
 
-        size_type size() const noexcept { return cache.size(); }
+        size_type size() const noexcept { return cache.myenv.size(); }
         bool empty() const noexcept { return size() == 0; }
 
         //value_range values() const noexcept;

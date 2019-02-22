@@ -203,7 +203,7 @@ namespace red::session::detail
         std::lock_guard _{ m_mtx };
 
         auto it = getenvstr_sync(key);
-        if (it != end()) {
+        if (it != myenv.end()) {
             std::string_view envstr = *it;
             return envstr.substr(key.size() + 1);
         }
@@ -218,7 +218,7 @@ namespace red::session::detail
         auto it = getenvstr(key);
         const char* vl = new_envstr(key, value);
 
-        if (it == end()) {
+        if (it == myenv.end()) {
             myenv.push_back(vl);
         }
         else {
@@ -238,7 +238,7 @@ namespace red::session::detail
         std::lock_guard _{ m_mtx };
         
         auto it = getenvstr(key);
-        if (it != end()) {
+        if (it != myenv.end()) {
             auto* old = *it;
             delete[] old;
             myenv.erase(it);
@@ -251,7 +251,7 @@ namespace red::session::detail
 
     auto environ_cache::getenvstr(std::string_view key) noexcept -> iterator
     {
-        return std::find_if(begin(), end(), ci_envstr_finder<char>(key.data(), key.size()));
+        return std::find_if(myenv.begin(), myenv.end(), ci_envstr_finder<char>(key.data(), key.size()));
     }
 
     auto environ_cache::getenvstr_sync(std::string_view key) -> iterator
@@ -264,12 +264,12 @@ namespace red::session::detail
             envstr_os = to_utf8(_wenviron[pos]);
         }
 
-        if (it_cache == end() && envstr_os)
+        if (it_cache == myenv.end() && envstr_os)
         {
             // not found in cache, found in OS env
-            it_cache = myenv.insert(end(), envstr_os.release());
+            it_cache = myenv.insert(myenv.end(), envstr_os.release());
         }
-        else if (it_cache != end())
+        else if (it_cache != myenv.end())
         {
             if (envstr_os)
             {
@@ -292,7 +292,7 @@ namespace red::session::detail
                 // found in cache, not in OS. Remove
                 envstr_os.reset(*it_cache);
                 myenv.erase(it_cache);
-                it_cache = end();
+                it_cache = myenv.end();
             }
         }
 

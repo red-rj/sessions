@@ -31,59 +31,36 @@ namespace detail
 
         environ_cache(const environ_cache&) = delete;
 
-        iterator begin() noexcept;
-        iterator end() noexcept;
-        const_iterator cbegin() const noexcept;
-        const_iterator cend() const noexcept;
-
-        size_t size() const noexcept;
-
-        iterator find(std::string_view) noexcept;
-        bool contains(std::string_view) const;
-
+        // locking methods
+        
+        // cache and os
         std::string_view getvar(std::string_view);
         void setvar(std::string_view, std::string_view);
         void rmvar(std::string_view);
 
+        // cache only
+        iterator find(std::string_view) noexcept;
+        bool contains(std::string_view) const;
 
-        iterator getenvstr(std::string_view key) noexcept;
-        iterator getenvstr_sync(std::string_view key);
 
+        // non locking methods
+
+        // cache only
+        iterator getenvstr(std::string_view) noexcept;
+
+        // cache and os
+        iterator getenvstr_sync(std::string_view);
+
+        // members
         std::mutex m_mtx;
         vector_t myenv;
     };
-
-
-    inline auto environ_cache::begin() noexcept -> iterator
-    {
-        return myenv.begin();
-    }
-    inline auto environ_cache::end() noexcept -> iterator
-    {
-        return myenv.end();
-    }
-
-    inline auto environ_cache::cbegin() const noexcept -> const_iterator
-    {
-        return myenv.cbegin();
-    }
-    inline auto environ_cache::cend() const noexcept -> const_iterator
-    {
-        return myenv.cend();
-    }
-
-    inline size_t environ_cache::size() const noexcept
-    {
-        return myenv.size();
-    }
 
     inline auto environ_cache::find(std::string_view key) noexcept -> iterator
     {
         std::lock_guard _{ m_mtx };
         return getenvstr(key);
     }
-
-
 } // detail
 
 } // red::session

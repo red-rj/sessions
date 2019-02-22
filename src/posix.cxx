@@ -98,7 +98,7 @@ namespace red::session::detail
         std::lock_guard _{ m_mtx };
 
         auto it = getenvstr_sync(key);
-        if (it != end()) {
+        if (it != myenv.end()) {
             std::string_view envstr = *it;
             return envstr.substr(key.size() + 1);
         }
@@ -113,7 +113,7 @@ namespace red::session::detail
         auto it = getenvstr(key);
         auto envstr = make_envstr(key, value);
 
-        if (it != end()) {
+        if (it != myenv.end()) {
             *it = std::move(envstr);
         }
         else {
@@ -128,7 +128,7 @@ namespace red::session::detail
         std::lock_guard _{ m_mtx };
 
         auto it = getenvstr(key);
-        if (it != end()) {
+        if (it != myenv.end()) {
             myenv.erase(it);
         }
 
@@ -138,7 +138,7 @@ namespace red::session::detail
 
     auto environ_cache::getenvstr(std::string_view key) noexcept -> iterator
     {
-        return std::find_if(begin(), end(), envstr_finder<char>(key));
+        return std::find_if(myenv.begin(), myenv.end(), envstr_finder<char>(key));
     }
 
     auto environ_cache::getenvstr_sync(std::string_view key) -> iterator
@@ -151,12 +151,12 @@ namespace red::session::detail
             envstr_os = environ[offset];
         }
 
-        if (it_cache == end() && envstr_os)
+        if (it_cache == myenv.end() && envstr_os)
         {
             // not found in cache, found in OS env
-            it_cache = myenv.insert(end(), envstr_os);
+            it_cache = myenv.insert(myenv.end(), envstr_os);
         }
-        else if (it_cache != end())
+        else if (it_cache != myenv.end())
         {
             if (envstr_os)
             {
@@ -177,7 +177,7 @@ namespace red::session::detail
             {
                 // found in cache, not in OS. Remove
                 myenv.erase(it_cache);
-                it_cache = end();
+                it_cache = myenv.end();
             }
         }
 
