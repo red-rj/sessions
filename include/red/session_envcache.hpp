@@ -7,11 +7,11 @@
 #include <mutex>
 
 
-namespace red::session {
+namespace red::session
+{
     class environment;
-}
 
-namespace red::session::detail
+namespace detail
 {
     class environ_cache
     {
@@ -53,7 +53,44 @@ namespace red::session::detail
         vector_t myenv;
     };
 
-} // red::session::detail
 
+    inline auto environ_cache::begin() noexcept -> iterator
+    {
+        return myenv.begin();
+    }
+    inline auto environ_cache::end() noexcept -> iterator
+    {
+        return myenv.end();
+    }
+
+    inline auto environ_cache::cbegin() const noexcept -> const_iterator
+    {
+        return myenv.cbegin();
+    }
+    inline auto environ_cache::cend() const noexcept -> const_iterator
+    {
+        return myenv.cend();
+    }
+
+    inline size_t environ_cache::size() const noexcept
+    {
+        return myenv.size();
+    }
+
+    inline auto environ_cache::find(std::string_view key) noexcept -> iterator
+    {
+        std::lock_guard _{ m_mtx };
+        return getenvstr(key);
+    }
+
+    inline bool environ_cache::contains(std::string_view key)
+    {
+        return !getvar(key).empty();
+    }
+
+
+} // detail
+
+} // red::session
 
 #endif // RED_SESSION_ENVCACHE

@@ -193,37 +193,6 @@ namespace red::session::detail
         for (auto* p : myenv) delete[] p;
     }
 
-    auto environ_cache::begin() noexcept -> iterator
-    {
-        return myenv.begin();
-    }
-    auto environ_cache::end() noexcept -> iterator
-    {
-        return myenv.end();
-    }
-
-    auto environ_cache::cbegin() const noexcept -> const_iterator
-    {
-        return myenv.cbegin();
-    }
-    auto environ_cache::cend() const noexcept -> const_iterator
-    {
-        return myenv.cend();
-    }
-
-    size_t environ_cache::size() const noexcept { return myenv.size(); }
-
-    auto environ_cache::find(std::string_view key) noexcept -> iterator
-    {
-        std::lock_guard _{ m_mtx };
-
-        return getenvstr(key);
-    }
-
-    bool environ_cache::contains(std::string_view key)
-    {
-        return !getvar(key).empty();
-    }
 
     std::string_view environ_cache::getvar(std::string_view key)
     {
