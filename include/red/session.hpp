@@ -46,9 +46,7 @@ namespace red::session {
 
 
         template <class T, class = Is_Strview<T>>
-        variable operator [] (T const& k) const {
-            return variable(k);
-        }
+        variable operator [] (T const& k) const { return variable(k); }
 
         variable operator [] (std::string const&) const;
         variable operator [] (std::string_view) const;

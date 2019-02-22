@@ -193,6 +193,10 @@ namespace red::session::detail
         for (auto* p : myenv) delete[] p;
     }
 
+    bool environ_cache::contains(std::string_view key) const
+    {
+        return osenv_find_pos(key.data()) != -1;
+    }
 
     std::string_view environ_cache::getvar(std::string_view key)
     {
@@ -295,6 +299,5 @@ namespace red::session::detail
         return it_cache;
     }
 
-
-
 }
+

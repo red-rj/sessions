@@ -88,6 +88,10 @@ namespace red::session::detail
     {
     }
 
+    bool environ_cache::contains(std::string_view key) const
+    {
+        return osenv_find_pos(key.data()) != -1;
+    }
 
     std::string_view environ_cache::getvar(std::string_view key)
     {

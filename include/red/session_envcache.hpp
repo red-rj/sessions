@@ -39,7 +39,7 @@ namespace detail
         size_t size() const noexcept;
 
         iterator find(std::string_view) noexcept;
-        bool contains(std::string_view);
+        bool contains(std::string_view) const;
 
         std::string_view getvar(std::string_view);
         void setvar(std::string_view, std::string_view);
@@ -81,11 +81,6 @@ namespace detail
     {
         std::lock_guard _{ m_mtx };
         return getenvstr(key);
-    }
-
-    inline bool environ_cache::contains(std::string_view key)
-    {
-        return !getvar(key).empty();
     }
 
 
