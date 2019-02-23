@@ -26,44 +26,34 @@ namespace {
         throw std::system_error(static_cast<int>(error), std::system_category());
     }
 
-    bool is_valid_utf8(const char* str) {
+    bool is_valid_utf8(const char* str, int str_l = -1) {
         return MultiByteToWideChar(
             CP_UTF8, MB_ERR_INVALID_CHARS, 
-            str, -1, 
+            str, str_l, 
             nullptr, 0) != 0;
     }
 
-    auto narrow(wchar_t const* wstr, char* ptr = nullptr, int length = 0) {
+    auto narrow(wchar_t const* wstr, int wstr_l = -1, char* ptr = nullptr, int length = 0) {
         return WideCharToMultiByte(
             CP_UTF8, 0, 
-            wstr, -1,
+            wstr, wstr_l,
             ptr, length, 
             nullptr, nullptr);
     }
 
-    auto wide(const char* nstr, wchar_t* ptr = nullptr, int length = 0) {
-        const int CP = is_valid_utf8(nstr) ? CP_UTF8 : CP_ACP;
+    auto wide(const char* nstr, int nstr_l = -1, wchar_t* ptr = nullptr, int length = 0) {
+        const int CP = is_valid_utf8(nstr, nstr_l) ? CP_UTF8 : CP_ACP;
         return MultiByteToWideChar(
             CP, 0,
-            nstr, -1,
+            nstr, nstr_l,
             ptr, length);
     }
-
-    auto to_utf8_ptr(const wchar_t* wstr) {
-        auto length = narrow(wstr);
-        auto ptr = std::make_unique<char[]>(length);
-        auto result = narrow(wstr, ptr.get(), length);
-
-        if (result == 0)
-            throw_win_error();
-
-        return ptr;
-    }
 	
-	std::string to_utf8(const wchar_t* wstr) {
-		auto length = narrow(wstr);
-		auto str8 = std::string(length-1, '*');
-		auto result = narrow(wstr, str8.data(), length);
+
+	std::string to_utf8(std::wstring_view wstr) {
+		auto length = narrow(wstr.data(), wstr.size());
+		auto str8 = std::string(length, '*');
+		auto result = narrow(wstr.data(), wstr.size(), str8.data(), length);
 
 		if (result == 0)
 			throw_win_error();
@@ -71,10 +61,10 @@ namespace {
 		return str8;
 	}
 
-	std::wstring to_utf16(const char* nstr) {
-		auto length = wide(nstr);
-		auto str16 = std::wstring(length-1, L'*');
-		auto result = wide(nstr, str16.data(), length);
+	std::wstring to_utf16(std::string_view nstr) {
+		auto length = wide(nstr.data(), nstr.size());
+		auto str16 = std::wstring(length, L'*');
+		auto result = wide(nstr.data(), nstr.size(), str16.data(), length);
 
 		if (result == 0)
 			throw_win_error();
@@ -96,12 +86,22 @@ namespace {
 
         try
         {
-            vec.resize(argc + 1);
+            vec.reserve(argc + 1);
 
             for (int i = 0; i < argc; i++)
             {
-                vec[i] = to_utf8_ptr(wargv[i]).release();
+				auto length = narrow(wargv[i]);
+				char* ptr = new char[length];
+				vec.push_back(ptr);
+			
+				auto result = narrow(wargv[i], -1, ptr, length);
+
+				if (result == 0) {
+					throw_win_error();
+				}
             }
+
+			vec.emplace_back();
         }
         catch (const std::exception&)
         {
@@ -221,7 +221,7 @@ namespace red::session::detail
 			*it = vl;
         }
 
-        auto wvarline = to_utf16(vl.c_str());
+        auto wvarline = to_utf16(vl);
         wvarline[key.size()] = L'\0';
         
         auto wkey = wvarline.c_str(), wvalue = wvarline.c_str() + key.size() + 1;
@@ -237,7 +237,7 @@ namespace red::session::detail
             myenv.erase(it);
         }
 
-        auto wkey = to_utf16(key.data());
+        auto wkey = to_utf16(key);
         _wputenv_s(wkey.c_str(), L"");
     }
 

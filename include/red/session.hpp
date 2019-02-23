@@ -66,7 +66,7 @@ namespace red::session {
         iterator end() const noexcept { return cache.myenv.end(); }
 
         size_type size() const noexcept { return cache.myenv.size(); }
-        bool empty() const noexcept { return size() == 0; }
+		[[nodiscard]] bool empty() const noexcept { return cache.myenv.empty(); }
 
         //value_range values() const noexcept;
         //key_range keys() const noexcept;
