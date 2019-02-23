@@ -49,7 +49,7 @@ namespace {
             ptr, length);
     }
 
-    auto to_utf8(const wchar_t* wstr) {
+    auto to_utf8_ptr(const wchar_t* wstr) {
         auto length = narrow(wstr);
         auto ptr = std::make_unique<char[]>(length);
         auto result = narrow(wstr, ptr.get(), length);
@@ -59,17 +59,28 @@ namespace {
 
         return ptr;
     }
+	
+	std::string to_utf8(const wchar_t* wstr) {
+		auto length = narrow(wstr);
+		auto str8 = std::string(length-1, '*');
+		auto result = narrow(wstr, str8.data(), length);
 
-    auto to_utf16(const char* nstr) {
-        auto length = wide(nstr);
-        auto ptr = std::make_unique<wchar_t[]>(length);
-        auto result = wide(nstr, ptr.get(), length);
-        
-        if (result == 0)
-            throw_win_error();
+		if (result == 0)
+			throw_win_error();
 
-        return ptr;
-    }
+		return str8;
+	}
+
+	std::wstring to_utf16(const char* nstr) {
+		auto length = wide(nstr);
+		auto str16 = std::wstring(length-1, L'*');
+		auto result = wide(nstr, str16.data(), length);
+
+		if (result == 0)
+			throw_win_error();
+
+		return str16;
+	}
 
     auto initialize_args() {
         int argc;
@@ -89,7 +100,7 @@ namespace {
 
             for (int i = 0; i < argc; i++)
             {
-                vec[i] = to_utf8(wargv[i]).release();
+                vec[i] = to_utf8_ptr(wargv[i]).release();
             }
         }
         catch (const std::exception&)
@@ -104,20 +115,6 @@ namespace {
     auto& args_vector() {
         static auto value = initialize_args();
         return value;
-    }
-
-
-    [[nodiscard]]
-    char* new_envstr(std::string_view key, std::string_view value)
-    {
-        const auto buffer_l = key.size() + value.size() + 2;
-        auto buffer = new char[buffer_l];
-        key.copy(buffer, key.size());
-        buffer[key.size()] = '=';
-        value.copy(buffer + key.size() + 1, value.size());
-        buffer[buffer_l - 1] = 0;
-
-        return buffer;
     }
 
 } /* nameless namespace */
@@ -144,7 +141,7 @@ namespace impl {
         auto** wenvp = _wenviron;
         auto wkey = to_utf16(k);
 
-        auto predicate = ci_envstr_finder<wchar_t>(wkey.get());
+        auto predicate = ci_envstr_finder<wchar_t>(wkey);
 
         for (int i = 0; wenvp[i]; i++)
         {
@@ -173,23 +170,23 @@ namespace red::session::detail
             wchar_t** wenv = _wenviron;
             size_t wenv_l = osenv_size(wenv);
 
-            myenv.resize(wenv_l);
+            myenv.reserve(wenv_l);
 
-            std::transform(wenv, wenv + wenv_l, myenv.begin(), [](wchar_t* envstr) {
-                // we own the converted strings
-                return to_utf8(envstr).release();
+            std::transform(wenv, wenv + wenv_l, std::back_inserter(myenv), 
+			[](wchar_t* envstr) {
+                return to_utf8(envstr);
             });
         }
         catch (const std::exception&)
         {
-            this->~environ_cache();
+            //this->~environ_cache();
             std::throw_with_nested(std::runtime_error("Failed to create environment"));
         }
     }
 
     environ_cache::~environ_cache() noexcept
     {
-        for (auto* p : myenv) delete[] p;
+        //for (auto* p : myenv) delete[] p;
     }
 
     bool environ_cache::contains(std::string_view key) const
@@ -215,20 +212,19 @@ namespace red::session::detail
         std::lock_guard _{ m_mtx };
         
         auto it = getenvstr(key);
-        const char* vl = new_envstr(key, value);
+        auto vl = make_envstr(key, value);
 
         if (it == myenv.end()) {
             myenv.push_back(vl);
         }
         else {
-            auto* old = std::exchange(*it, vl);
-            delete[] old;
+			*it = vl;
         }
 
-        auto wvarline = to_utf16(vl);
+        auto wvarline = to_utf16(vl.c_str());
         wvarline[key.size()] = L'\0';
         
-        auto wkey = wvarline.get(), wvalue = wvarline.get() + key.size() + 1;
+        auto wkey = wvarline.c_str(), wvalue = wvarline.c_str() + key.size() + 1;
         _wputenv_s(wkey, wvalue);
     }
 
@@ -238,42 +234,40 @@ namespace red::session::detail
         
         auto it = getenvstr(key);
         if (it != myenv.end()) {
-            auto* old = *it;
-            delete[] old;
             myenv.erase(it);
         }
 
         auto wkey = to_utf16(key.data());
-        _wputenv_s(wkey.get(), L"");
+        _wputenv_s(wkey.c_str(), L"");
     }
 
 
     auto environ_cache::getenvstr(std::string_view key) noexcept -> iterator
     {
-        return std::find_if(myenv.begin(), myenv.end(), ci_envstr_finder<char>(key.data(), key.size()));
+        return std::find_if(myenv.begin(), myenv.end(), ci_envstr_finder<char>(key));
     }
 
     auto environ_cache::getenvstr_sync(std::string_view key) -> iterator
     {
         auto it_cache = getenvstr(key);
-        std::unique_ptr<const char[]> envstr_os;
+        std::string envstr_os;
 
         int pos = osenv_find_pos(key.data());
         if (pos != -1) {
             envstr_os = to_utf8(_wenviron[pos]);
         }
 
-        if (it_cache == myenv.end() && envstr_os)
+        if (it_cache == myenv.end() && !envstr_os.empty())
         {
             // not found in cache, found in OS env
-            it_cache = myenv.insert(myenv.end(), envstr_os.release());
+            it_cache = myenv.insert(myenv.end(), envstr_os);
         }
         else if (it_cache != myenv.end())
         {
-            if (envstr_os)
+            if (!envstr_os.empty())
             {
                 // found in both
-                std::string_view var_cache = *it_cache, var_os = envstr_os.get();
+                std::string_view var_cache = *it_cache, var_os = envstr_os;
 
                 // skip key=
                 auto const offset = key.size() + 1;
@@ -282,14 +276,12 @@ namespace red::session::detail
 
                 // sync if values differ
                 if (var_cache != var_os) {
-                    auto* old = std::exchange(*it_cache, envstr_os.release());
-                    envstr_os.reset(old);
+					*it_cache = envstr_os;
                 }
             }
             else
             {
                 // found in cache, not in OS. Remove
-                envstr_os.reset(*it_cache);
                 myenv.erase(it_cache);
                 it_cache = myenv.end();
             }

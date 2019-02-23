@@ -34,14 +34,6 @@ namespace {
         if constexpr (SESSION_IMPL_ELF) { return 0; }
     };
 
-    std::string make_envstr(std::string_view k, std::string_view v)
-    {
-        std::string es;
-        es.reserve(k.size() + v.size() + 2);
-        es += k; es += '='; es += v;
-        return es;
-    }
-
 } /* nameless namespace */
 
 

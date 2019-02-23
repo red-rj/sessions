@@ -3,7 +3,6 @@
 
 #include <cstddef>
 
-
 namespace red::session::detail {
     template<typename T>
     struct ci_char_traits;
@@ -34,10 +33,20 @@ struct envstr_finder_base
     using char_type = typename CharTraits::char_type;
     using StrView = std::basic_string_view<char_type, CharTraits>;
 
+	template <class T>
+	using Is_Other_Strview = std::enable_if_t<
+		std::conjunction_v<
+			std::negation<std::is_convertible<const T&, const char_type*>>,
+			std::negation<std::is_convertible<const T&, StrView>>
+		>
+	>;
+
     StrView key;
 
     explicit envstr_finder_base(StrView k) : key(k) {}
-    envstr_finder_base(const char_type* ptr, size_t len) : key(ptr, len) {}
+
+	template<class T, class = Is_Other_Strview<T>>
+	explicit envstr_finder_base(const T& k) : key(k.data(), k.size()) {}
 
     bool operator() (StrView entry) noexcept
     {
@@ -46,6 +55,12 @@ struct envstr_finder_base
             entry[key.length()] == '=' &&
             entry.compare(0, key.size(), key) == 0;
     }
+
+	template<class T, class = Is_Other_Strview<T>>
+	bool operator() (const T& v) noexcept {
+		return this->operator()(StrView(v.data(), v.size()));
+	}
+
 };
 
 template<typename T>
@@ -53,6 +68,15 @@ using envstr_finder = envstr_finder_base<std::char_traits<T>>;
 
 template<typename T>
 using ci_envstr_finder = envstr_finder_base<red::session::detail::ci_char_traits<T>>;
+
+inline std::string make_envstr(std::string_view k, std::string_view v)
+{
+	std::string es;
+	es.reserve(k.size() + v.size() + 2);
+	es += k; es += '='; es += v;
+	return es;
+}
+
 
 } /* namespace impl */
 

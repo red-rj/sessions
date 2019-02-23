@@ -1,11 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(sessions)
 
-set(HEADERS include/red/session.hpp include/red/session_impl.hpp include/red/session_envcache.hpp src/impl.hpp)
-if(WIN32)
-  set(HEADERS ${HEADERS} src/win32.hpp)
-endif()
-
+set(HEADERS include/red/session.hpp include/red/session_impl.hpp src/impl.hpp)
 
 add_library(sessions ${HEADERS} src/session.cpp)
 target_sources(sessions PRIVATE
