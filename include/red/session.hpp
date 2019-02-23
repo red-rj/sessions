@@ -2,7 +2,6 @@
 #define RED_SESSION_HPP
 
 #include "session_impl.hpp"
-#include "session_envcache.hpp"
 
 namespace red::session {
 
@@ -42,7 +41,7 @@ namespace red::session {
         >;
 
         template <class T>
-        using Is_Strview_Convertable = std::enable_if_t<std::is_convertible_v<const T&, std::string_view>>;
+        using Is_Strview_Convertible = std::enable_if_t<std::is_convertible_v<const T&, std::string_view>>;
 
 
         template <class T, class = Is_Strview<T>>
@@ -52,7 +51,7 @@ namespace red::session {
         variable operator [] (std::string_view) const;
         variable operator [] (char const*) const;
 
-        template <class K, class = Is_Strview_Convertable<K>>
+        template <class K, class = Is_Strview_Convertible<K>>
         iterator find(K const& key) const noexcept {
             std::string keystr{key};
             return cache.find(keystr);
@@ -72,7 +71,7 @@ namespace red::session {
         //value_range values() const noexcept;
         //key_range keys() const noexcept;
 
-        template <class K, class = Is_Strview_Convertable<K>>
+        template <class K, class = Is_Strview_Convertible<K>>
         void erase(K const& key) {
             std::string keystr{key};
             cache.rmvar(keystr);

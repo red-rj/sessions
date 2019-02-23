@@ -14,7 +14,6 @@
 
 #include "impl.hpp"
 #include "red/session_impl.hpp"
-#include "red/session_envcache.hpp"
 
 
 using namespace red::session::detail;

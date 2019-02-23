@@ -6,10 +6,16 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
+#include <mutex>
 
-namespace red::session::detail
+namespace red::session
 {
-    template<typename T>
+	class environment;
+
+namespace detail
+{
+	template<typename T>
     class ptrarray_iterator
     {
         static_assert(std::is_pointer_v<T>, "T must be a ptr type");
@@ -187,9 +193,62 @@ namespace red::session::detail
 
 
     using ci_string_view = std::basic_string_view<char, ci_char_traits<char>>;
+	using ci_string = std::basic_string<char, ci_char_traits<char>>;
+
     using ci_wstring_view = std::basic_string_view<wchar_t, ci_char_traits<wchar_t>>;
+    using ci_wstring = std::basic_string<wchar_t, ci_char_traits<wchar_t>>;
 
-} // red::session::detail
 
+
+	class environ_cache
+	{
+		friend environment;
+
+#if defined(WIN32)
+		using vector_t = std::vector<std::string>;
+#elif defined(_POSIX_C_SOURCE)
+		using vector_t = std::vector<std::string>;
+#endif // WIN32
+
+		using iterator = vector_t::iterator;
+		using const_iterator = vector_t::const_iterator;
+
+		environ_cache();
+		~environ_cache() noexcept;
+
+		environ_cache(const environ_cache&) = delete;
+
+		// cache and os, lock
+		std::string_view getvar(std::string_view);
+		void setvar(std::string_view, std::string_view);
+		void rmvar(std::string_view);
+
+		// cache only, lock
+		iterator find(std::string_view) noexcept;
+
+		// os only, no lock
+		bool contains(std::string_view) const;
+
+
+		// cache only, no lock
+		iterator getenvstr(std::string_view) noexcept;
+
+		// cache and os, no lock
+		iterator getenvstr_sync(std::string_view);
+
+		// members
+		std::mutex m_mtx;
+		vector_t myenv;
+	};
+
+	inline auto environ_cache::find(std::string_view key) noexcept -> iterator
+	{
+		std::lock_guard _{ m_mtx };
+		return getenvstr(key);
+	}
+
+} // detail
+
+} // red::session
 
 #endif

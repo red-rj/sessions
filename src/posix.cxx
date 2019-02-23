@@ -8,7 +8,7 @@
 #include <cstring>
 
 #include "impl.hpp"
-#include "red/session_envcache.hpp"
+#include "red/session_impl.hpp"
 
 #if defined(__ELF__) and __ELF__
     #define SESSION_IMPL_SECTION ".init_array"
