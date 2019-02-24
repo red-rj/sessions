@@ -9,6 +9,7 @@
 #include <vector>
 #include <mutex>
 
+
 namespace red::session
 {
 	class environment;
@@ -154,12 +155,13 @@ namespace detail
     };
 
 
+
     template<class T>
     struct ci_char_traits : public std::char_traits<T> {
         using typename std::char_traits<T>::char_type;
 
         static char to_upper(char ch) {
-            return toupper((unsigned char)ch);
+            return static_cast<char>(toupper(static_cast<unsigned char>(ch)));
         }
         static wchar_t to_upper(wchar_t ch) {
             return towupper(ch);
@@ -190,7 +192,6 @@ namespace detail
             return nullptr;
         }
     };
-
 
     using ci_string_view = std::basic_string_view<char, ci_char_traits<char>>;
 	using ci_string = std::basic_string<char, ci_char_traits<char>>;

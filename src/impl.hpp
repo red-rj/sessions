@@ -72,7 +72,7 @@ using ci_envstr_finder = envstr_finder_base<red::session::detail::ci_char_traits
 inline std::string make_envstr(std::string_view k, std::string_view v)
 {
 	std::string es;
-	es.reserve(k.size() + v.size() + 2);
+	es.reserve(k.size() + v.size() + 1);
 	es += k; es += '='; es += v;
 	return es;
 }
