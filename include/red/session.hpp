@@ -26,8 +26,7 @@ namespace red::session {
         //using value_range = /* implementation-defined */;
         //using key_range = /* implementation-defined */;
 
-        using iterator = detail::environ_cache::iterator;
-        using const_iterator = detail::environ_cache::const_iterator;
+        using iterator = detail::environ_cache::const_iterator;
         using value_type = variable;
         using size_type = size_t;
 
@@ -59,11 +58,11 @@ namespace red::session {
 
         bool contains(std::string_view) const;
 
-        const_iterator cbegin() const noexcept { return cache.myenv.cbegin(); }
-        const_iterator cend() const noexcept { return cache.myenv.cend(); }
+        iterator cbegin() const noexcept { return cache.myenv.cbegin(); }
+        iterator cend() const noexcept { return cache.myenv.cend(); }
 
-        iterator begin() const noexcept { return cache.myenv.begin(); }
-        iterator end() const noexcept { return cache.myenv.end(); }
+        iterator begin() const noexcept { return cbegin(); }
+        iterator end() const noexcept { return cend(); }
 
         size_type size() const noexcept { return cache.myenv.size(); }
 		[[nodiscard]] bool empty() const noexcept { return cache.myenv.empty(); }

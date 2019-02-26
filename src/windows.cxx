@@ -241,6 +241,10 @@ namespace red::session::detail
         _wputenv_s(wkey.c_str(), L"");
     }
 
+	auto environ_cache::find(std::string_view key) const noexcept -> const_iterator
+	{
+		return std::find_if(myenv.cbegin(), myenv.cend(), ci_envstr_finder<char>(key));
+	}
 
     auto environ_cache::getenvstr(std::string_view key) noexcept -> iterator
     {

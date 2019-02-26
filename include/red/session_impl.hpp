@@ -224,8 +224,8 @@ namespace detail
 		void setvar(std::string_view, std::string_view);
 		void rmvar(std::string_view);
 
-		// cache only, lock
-		iterator find(std::string_view) noexcept;
+		// cache only, no lock
+		const_iterator find(std::string_view) const noexcept;
 
 		// os only, no lock
 		bool contains(std::string_view) const;
@@ -242,11 +242,6 @@ namespace detail
 		vector_t myenv;
 	};
 
-	inline auto environ_cache::find(std::string_view key) noexcept -> iterator
-	{
-		std::lock_guard _{ m_mtx };
-		return getenvstr(key);
-	}
 
 } // detail
 

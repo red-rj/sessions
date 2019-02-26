@@ -119,6 +119,10 @@ namespace red::session::detail
         unsetenv(key.data());
     }
 
+	auto environ_cache::find(std::string_view key) const noexcept -> const_iterator
+	{
+		return std::find_if(myenv.cbegin(), myenv.cend(), envstr_finder<char>(key));
+	}
 
     auto environ_cache::getenvstr(std::string_view key) noexcept -> iterator
     {
