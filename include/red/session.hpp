@@ -13,10 +13,19 @@ namespace red::session {
         public:
             using path_iterator = detail::pathsep_iterator;
         
-            operator std::string_view() const;
-            variable& operator = (std::string_view);
+            operator std::string_view() const { return this->value(); }
+            variable& operator = (std::string_view value) {
+                std::string val { value };
+                cache.setvar(m_key, val);
+                return *this;
+            }
             std::string_view key() const noexcept { return m_key; }
-            std::pair<path_iterator, path_iterator> split () const;
+            std::string_view value() const { return cache.getvar(m_key); }
+            std::pair<path_iterator, path_iterator> split () const
+            {
+                std::string_view value = *this;
+                return { path_iterator{value}, path_iterator{} };
+            }
 
             explicit variable(std::string_view key_) : m_key(key_) {}
         private:
@@ -46,9 +55,9 @@ namespace red::session {
         template <class T, class = Is_Strview<T>>
         variable operator [] (T const& k) const { return variable(k); }
 
-        variable operator [] (std::string const&) const;
-        variable operator [] (std::string_view) const;
-        variable operator [] (char const*) const;
+        variable operator [] (std::string const& k) const { return variable(k); }
+        variable operator [] (std::string_view k) const { return variable(k); }
+        variable operator [] (char const* k) const { return variable(k); }
 
         template <class K, class = Is_Strview_Convertible<K>>
         iterator find(K const& key) const noexcept {
@@ -56,7 +65,11 @@ namespace red::session {
             return cache.find(keystr);
         }
 
-        bool contains(std::string_view) const;
+        bool contains(std::string_view k) const {
+            auto key = std::string(k);
+            return cache.contains(key);
+        }
+
 
         iterator cbegin() const noexcept { return cache.myenv.cbegin(); }
         iterator cend() const noexcept { return cache.myenv.cend(); }

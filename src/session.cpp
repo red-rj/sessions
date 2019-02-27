@@ -4,48 +4,6 @@
 
 namespace red::session 
 {
-    // env::variable
-    environment::variable::operator std::string_view() const
-    {
-        return cache.getvar(m_key);
-    }
-    
-    auto environment::variable::operator=(std::string_view value) -> variable&
-    {
-        std::string val { value };
-        cache.setvar(m_key, val);
-        return *this;
-    }
-
-    auto environment::variable::split() const -> std::pair<path_iterator, path_iterator>
-    {
-        std::string_view value = *this;
-        return { path_iterator{value}, path_iterator{} };
-    }
-
-
-    // env
-    auto environment::operator[] (const std::string& str) const -> variable
-    {
-        return variable{ str };
-    }
-
-    auto environment::operator[] (std::string_view str) const -> variable
-    {
-        return variable{ str };
-    }
-
-    auto environment::operator[] (const char* str) const -> variable
-    {
-        return variable{ str };
-    }
-
-    bool environment::contains(std::string_view k) const
-    {
-        auto key = std::string(k);
-        return cache.contains(key);
-    }
-
     detail::environ_cache environment::cache;
 
 

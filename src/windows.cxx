@@ -16,8 +16,6 @@
 #include "red/session_impl.hpp"
 
 
-using namespace red::session::detail;
-
 namespace {
 
     [[noreturn]]
