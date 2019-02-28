@@ -205,11 +205,7 @@ namespace detail
 	{
 		friend environment;
 
-#if defined(WIN32)
 		using vector_t = std::vector<std::string>;
-#elif defined(_POSIX_C_SOURCE)
-		using vector_t = std::vector<std::string>;
-#endif // WIN32
 
 		using iterator = vector_t::iterator;
 		using const_iterator = vector_t::const_iterator;
