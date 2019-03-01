@@ -134,9 +134,9 @@ namespace red::session::detail
         auto it_cache = getenvstr(key);
         const char* envstr_os = nullptr;
 
-        int offset = osenv_find_pos(key.data());
-        if (offset != -1) {
-            envstr_os = environ[offset];
+        int pos = osenv_find_pos(key.data());
+        if (pos != -1) {
+            envstr_os = environ[pos];
         }
 
         if (it_cache == myenv.end() && envstr_os)
@@ -149,7 +149,7 @@ namespace red::session::detail
             if (envstr_os)
             {
                 // found in both
-                std::string_view var_cache = *it_cache, var_os = envstr_os;
+                std::string_view var_cache = *it_cache, envstr_view = envstr_os, var_os = envstr_view;
 
                 // skip key=
                 auto const offset = key.size() + 1;
@@ -158,7 +158,7 @@ namespace red::session::detail
 
                 // sync if values differ
                 if (var_cache != var_os) {
-                    *it_cache = envstr_os;
+                    *it_cache = envstr_view;
                 }
             }
             else
