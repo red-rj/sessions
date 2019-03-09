@@ -15,14 +15,12 @@ namespace red::session {
         
             operator std::string_view() const { return this->value(); }
             variable& operator = (std::string_view value) {
-                std::string val { value };
-                cache.setvar(m_key, val);
+                cache.setvar(m_key, std::string{value});
                 return *this;
             }
             std::string_view key() const noexcept { return m_key; }
             std::string_view value() const { return cache.getvar(m_key); }
-            std::pair<path_iterator, path_iterator> split () const
-            {
+            std::pair<path_iterator, path_iterator> split () const {
                 std::string_view value = *this;
                 return { path_iterator{value}, path_iterator{} };
             }
@@ -61,13 +59,11 @@ namespace red::session {
 
         template <class K, class = Is_Strview_Convertible<K>>
         iterator find(K const& key) const noexcept {
-            std::string keystr{key};
-            return cache.find(keystr);
+            return cache.find(std::string{key});
         }
 
-        bool contains(std::string_view k) const {
-            auto key = std::string(k);
-            return cache.contains(key);
+        bool contains(std::string_view key) const {
+            return cache.contains(std::string{key});
         }
 
 
@@ -85,8 +81,7 @@ namespace red::session {
 
         template <class K, class = Is_Strview_Convertible<K>>
         void erase(K const& key) {
-            std::string keystr{key};
-            cache.rmvar(keystr);
+            cache.rmvar(std::string{key});
         }
 
     private:

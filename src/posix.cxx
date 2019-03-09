@@ -72,12 +72,12 @@ namespace red::session::detail
     {
     }
 
-    bool environ_cache::contains(std::string_view key) const
+    bool environ_cache::contains(const std::string& key) const
     {
         return osenv_find_pos(key.data()) != -1;
     }
 
-    std::string_view environ_cache::getvar(std::string_view key)
+    std::string_view environ_cache::getvar(const std::string& key)
     {
         std::lock_guard _{ m_mtx };
 
@@ -90,7 +90,7 @@ namespace red::session::detail
         return {};
     }
 
-    void environ_cache::setvar(std::string_view key, std::string_view value)
+    void environ_cache::setvar(const std::string& key, const std::string& value)
     {
         std::lock_guard _{ m_mtx };
 
@@ -107,7 +107,7 @@ namespace red::session::detail
         setenv(key.data(), value.data(), true);
     }
 
-    void environ_cache::rmvar(std::string_view key)
+    void environ_cache::rmvar(const std::string& key)
     {
         std::lock_guard _{ m_mtx };
 
@@ -119,7 +119,7 @@ namespace red::session::detail
         unsetenv(key.data());
     }
 
-	auto environ_cache::find(std::string_view key) const noexcept -> const_iterator
+	auto environ_cache::find(const std::string& key) const noexcept -> const_iterator
 	{
 		return std::find_if(myenv.cbegin(), myenv.cend(), envstr_finder<char>(key));
 	}

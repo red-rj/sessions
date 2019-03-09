@@ -155,7 +155,6 @@ namespace detail
     };
 
 
-
     template<class T>
     struct ci_char_traits : public std::char_traits<T> {
         using typename std::char_traits<T>::char_type;
@@ -193,13 +192,6 @@ namespace detail
         }
     };
 
-    using ci_string_view = std::basic_string_view<char, ci_char_traits<char>>;
-	using ci_string = std::basic_string<char, ci_char_traits<char>>;
-
-    using ci_wstring_view = std::basic_string_view<wchar_t, ci_char_traits<wchar_t>>;
-    using ci_wstring = std::basic_string<wchar_t, ci_char_traits<wchar_t>>;
-
-
 
 	class environ_cache
 	{
@@ -216,15 +208,15 @@ namespace detail
 		environ_cache(const environ_cache&) = delete;
 
 		// cache and os, lock
-		std::string_view getvar(std::string_view);
-		void setvar(std::string_view, std::string_view);
-		void rmvar(std::string_view);
+		std::string_view getvar(const std::string&);
+		void setvar(const std::string&, const std::string&);
+		void rmvar(const std::string&);
 
 		// cache only, no lock
-		const_iterator find(std::string_view) const noexcept;
+		const_iterator find(const std::string&) const noexcept;
 
 		// os only, no lock
-		bool contains(std::string_view) const;
+		bool contains(const std::string&) const;
 
 
 		// cache only, no lock
