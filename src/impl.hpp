@@ -4,8 +4,42 @@
 #include <cstddef>
 
 namespace red::session::detail {
-    template<typename T>
-    struct ci_char_traits;
+    template<class T>
+    struct ci_char_traits : public std::char_traits<T> {
+        using typename std::char_traits<T>::char_type;
+
+        static char to_upper(char ch) {
+            return static_cast<char>(toupper(static_cast<unsigned char>(ch)));
+        }
+        static wchar_t to_upper(wchar_t ch) {
+            return towupper(ch);
+        }
+
+        static bool eq(char_type c1, char_type c2) {
+            return to_upper(c1) == to_upper(c2);
+        }
+        static bool lt(char_type c1, char_type c2) {
+            return to_upper(c1) < to_upper(c2);
+        }
+        static int compare(const char_type* s1, const char_type* s2, size_t n) {
+            while (n-- != 0) {
+                if (to_upper(*s1) < to_upper(*s2)) return -1;
+                if (to_upper(*s1) > to_upper(*s2)) return 1;
+                ++s1; ++s2;
+            }
+            return 0;
+        }
+        static const char_type* find(const char_type* s, int n, char_type a) {
+            auto const ua(to_upper(a));
+            while (n-- != 0)
+            {
+                if (to_upper(*s) == ua)
+                    return s;
+                s++;
+            }
+            return nullptr;
+        }
+    };
 }
 
 namespace impl {
