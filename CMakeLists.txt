@@ -11,11 +11,15 @@ target_sources(sessions PRIVATE
 target_include_directories(sessions PUBLIC include)
 target_compile_features(sessions PUBLIC cxx_std_17)
 
-# tests
-add_executable(tests test/test.cpp test/util.cpp)
-target_link_libraries(tests PRIVATE sessions)
-target_include_directories(tests PRIVATE src)
+# submodules
+add_subdirectory(3rd-party/ranges-v3)
+add_subdirectory(3rd-party/utf8cpp)
 
 if(WIN32)
   add_compile_definitions(UNICODE _UNICODE)
 endif()
+
+# tests
+add_executable(tests test/test.cpp test/util.cpp)
+target_link_libraries(tests PRIVATE sessions)
+target_include_directories(tests PRIVATE src)

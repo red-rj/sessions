@@ -1,0 +1,6 @@
+[submodule "ranges"]
+	path = 3rd-party/ranges
+	url = https://github.com/ericniebler/range-v3.git
+[submodule "utf8cpp"]
+	path = 3rd-party/utf8cpp
+	url = https://github.com/nemtrif/utfcpp.git

@@ -3,8 +3,7 @@ Red Sessions is an implementation of the proposed P1275's Desert Sessions API - 
 
 ## Features:
 - Access program arguments and environment variables anywhere in a safe, easy way.
-- UTF8 safe storage on Windows
-- ...
+- UTF8 safe storage
 
 ## Overview
 What's in the package?
@@ -64,4 +63,4 @@ if (env.contains("myvar")) {
 
 ## ToDo
 - Implement envrionment ranges
-- posix implementation assumes utf8 encoding w/o checking
+- enforce utf-8 storage on non windows platforms
