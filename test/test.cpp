@@ -5,17 +5,17 @@
 #include "win32.hpp"
 #endif // WIN32
 
-
-#include "red/session.hpp"
-#include "util.hpp"
 #include <iostream>
 #include <array>
 #include <vector>
 #include <utility>
-
+#include "red/session.hpp"
+#include "util.hpp"
+#include "range/v3/view.hpp"
 
 using namespace red::session;
 using namespace std::literals;
+using namespace ranges;
 
 
 auto& operator << (std::ostream& os, environment::variable const& var)
@@ -107,6 +107,20 @@ TEST_CASE("Environment tests", "[environment]")
         {
             INFO(*it);
         }
+    }
+    SECTION("validate ranges")
+    {
+        for (std::string_view k : env.keys() | view::take(10))
+        {
+            INFO(k);
+            REQUIRE(k.find('=') == std::string::npos);
+        }
+        for (std::string_view v : env.values() | view::take(10))
+        {
+            INFO(v);
+            REQUIRE(v.find('=') == std::string::npos);
+        }
+        
     }
 }
 

@@ -3,7 +3,7 @@
 
 #include "session_impl.hpp"
 #include "range/v3/core.hpp"
-#include "range/v3/view.hpp"
+#include "range/v3/view/transform.hpp"
 
 namespace red::session {
 
@@ -33,9 +33,6 @@ namespace red::session {
         private:
             std::string m_key;
         };
-
-        using value_range = ranges::transform_view<ranges::ref_view<detail::environ_cache::vector_t>, line_elem_fn>;
-        using key_range = value_range;
 
         using iterator = detail::environ_cache::const_iterator;
         using value_type = variable;
@@ -85,12 +82,18 @@ namespace red::session {
             cache.rmvar(std::string{key});
         }
 
-        value_range values() const noexcept {
-            return ranges::transform_view(cache.myenv, line_elem_fn{false});
+        auto values() const noexcept {
+            namespace view = ranges::view;
+            return cache.myenv | view::transform(line_elem_fn{false});
         }
-        key_range keys() const noexcept {
-            return ranges::transform_view(cache.myenv, line_elem_fn{true});
+        auto keys() const noexcept {
+            namespace view = ranges::view;
+            return cache.myenv | view::transform(line_elem_fn{true});
         }
+
+        // ????
+        // using value_range = void;
+        // using key_range = void;
 
 
     private:
@@ -101,7 +104,7 @@ namespace red::session {
 
             std::string_view operator()(std::string_view line) const noexcept {
                 auto eq = line.find('=');
-                return getkey ? line.substr(0, eq) : line.substr(eq);
+                return getkey ? line.substr(0, eq) : line.substr(eq+1);
             }
         };
     };
