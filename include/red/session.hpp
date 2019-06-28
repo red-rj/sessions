@@ -2,11 +2,15 @@
 #define RED_SESSION_HPP
 
 #include "session_impl.hpp"
+#include "range/v3/core.hpp"
+#include "range/v3/view.hpp"
 
 namespace red::session {
 
     class environment
     {
+        struct line_elem_fn;
+        
     public:
         class variable
         {
@@ -30,8 +34,8 @@ namespace red::session {
             std::string m_key;
         };
 
-        //using value_range = /* implementation-defined */;
-        //using key_range = /* implementation-defined */;
+        using value_range = ranges::transform_view<ranges::ref_view<detail::environ_cache::vector_t>, line_elem_fn>;
+        using key_range = value_range;
 
         using iterator = detail::environ_cache::const_iterator;
         using value_type = variable;
@@ -76,16 +80,30 @@ namespace red::session {
         size_type size() const noexcept { return cache.myenv.size(); }
 		[[nodiscard]] bool empty() const noexcept { return cache.myenv.empty(); }
 
-        //value_range values() const noexcept;
-        //key_range keys() const noexcept;
-
         template <class K, class = Is_Strview_Convertible<K>>
         void erase(K const& key) {
             cache.rmvar(std::string{key});
         }
 
+        value_range values() const noexcept {
+            return ranges::transform_view(cache.myenv, line_elem_fn{false});
+        }
+        key_range keys() const noexcept {
+            return ranges::transform_view(cache.myenv, line_elem_fn{true});
+        }
+
+
     private:
         static detail::environ_cache cache;
+
+        struct line_elem_fn {
+            bool getkey;
+
+            std::string_view operator()(std::string_view line) const noexcept {
+                auto eq = line.find('=');
+                return getkey ? line.substr(0, eq) : line.substr(eq);
+            }
+        };
     };
 
 
