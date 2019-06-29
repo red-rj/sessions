@@ -9,8 +9,8 @@ namespace red::session {
 
     class environment
     {
-        struct line_elem_fn;
-        
+        static detail::environ_cache cache;
+
     public:
         class variable
         {
@@ -82,23 +82,7 @@ namespace red::session {
             cache.rmvar(std::string{key});
         }
 
-        auto values() const noexcept {
-            namespace view = ranges::view;
-            return cache.myenv | view::transform(line_elem_fn{false});
-        }
-        auto keys() const noexcept {
-            namespace view = ranges::view;
-            return cache.myenv | view::transform(line_elem_fn{true});
-        }
-
-        // ????
-        // using value_range = void;
-        // using key_range = void;
-
-
     private:
-        static detail::environ_cache cache;
-
         struct line_elem_fn {
             bool getkey;
 
@@ -107,8 +91,21 @@ namespace red::session {
                 return getkey ? line.substr(0, eq) : line.substr(eq+1);
             }
         };
-    };
 
+    public:
+        // I feel like there's a better way to get the type... But it does work
+        using key_range = ranges::transform_view<ranges::ref_view<detail::environ_cache::vector_t>, line_elem_fn>;
+        using value_range = key_range;
+
+        key_range values() const noexcept {
+            using namespace ranges;
+            return cache.myenv | view::transform(line_elem_fn{ false });
+        }
+        value_range keys() const noexcept {
+            using namespace ranges;
+            return cache.myenv | view::transform(line_elem_fn{ true });
+        }
+    };
 
 
     class arguments
