@@ -1,6 +1,5 @@
 #include <string>
 #include <string_view>
-#include <mutex>
 #include <algorithm>
 #include <vector>
 
@@ -72,14 +71,15 @@ namespace red::session::detail
     {
     }
 
-    bool environ_cache::contains(const std::string& key) const
+    bool environ_cache::contains(std::string_view k) const
     {
+        std::string key{ k };
         return osenv_find_pos(key.data()) != -1;
     }
 
-    std::string_view environ_cache::getvar(const std::string& key)
+    std::string_view environ_cache::getvar(std::string_view key)
     {
-        std::lock_guard _{ m_mtx };
+        std::lock_guard _{ env_mtx };
 
         auto it = getenvstr_sync(key);
         if (it != myenv.end()) {
@@ -90,26 +90,30 @@ namespace red::session::detail
         return {};
     }
 
-    void environ_cache::setvar(const std::string& key, const std::string& value)
+    void environ_cache::setvar(std::string_view key, std::string_view value)
     {
-        std::lock_guard _{ m_mtx };
+        std::lock_guard _{ env_mtx };
 
         auto it = getenvstr(key);
         auto envstr = make_envstr(key, value);
 
         if (it != myenv.end()) {
-            *it = std::move(envstr);
+            *it = envstr;
         }
         else {
-            myenv.push_back(std::move(envstr));
+            myenv.push_back(envstr);
         }
 
-        setenv(key.data(), value.data(), true);
+        envstr[key.size()] = '\0';
+        auto cval = envstr.c_str() + key.size() + 1;
+
+        setenv(envstr.c_str(), cval, true);
     }
 
-    void environ_cache::rmvar(const std::string& key)
+    void environ_cache::rmvar(std::string_view k)
     {
-        std::lock_guard _{ m_mtx };
+        std::lock_guard _{ env_mtx };
+        auto key = std::string(k);
 
         auto it = getenvstr(key);
         if (it != myenv.end()) {
@@ -119,7 +123,7 @@ namespace red::session::detail
         unsetenv(key.data());
     }
 
-	auto environ_cache::find(const std::string& key) const noexcept -> const_iterator
+	auto environ_cache::find(std::string_view key) const noexcept -> const_iterator
 	{
 		return std::find_if(myenv.cbegin(), myenv.cend(), envstr_finder<char>(key));
 	}

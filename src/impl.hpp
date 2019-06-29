@@ -2,6 +2,7 @@
 #define SESSION_SRC_IMPL_HPP
 
 #include <cstddef>
+#include <mutex>
 
 namespace red::session::detail {
     template<class T>
@@ -111,6 +112,7 @@ inline std::string make_envstr(std::string_view k, std::string_view v)
 	return es;
 }
 
+static std::mutex env_mtx;
 
 } /* namespace impl */
 

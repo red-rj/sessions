@@ -19,7 +19,7 @@ namespace red::session {
         
             operator std::string_view() const { return this->value(); }
             variable& operator = (std::string_view value) {
-                cache.setvar(m_key, std::string{value});
+                cache.setvar(m_key, value);
                 return *this;
             }
             std::string_view key() const noexcept { return m_key; }
@@ -60,11 +60,11 @@ namespace red::session {
 
         template <class K, class = Is_Strview_Convertible<K>>
         iterator find(K const& key) const noexcept {
-            return cache.find(std::string{key});
+            return cache.find(key);
         }
 
         bool contains(std::string_view key) const {
-            return cache.contains(std::string{key});
+            return cache.contains(key);
         }
 
 
@@ -79,7 +79,7 @@ namespace red::session {
 
         template <class K, class = Is_Strview_Convertible<K>>
         void erase(K const& key) {
-            cache.rmvar(std::string{key});
+            cache.rmvar(key);
         }
 
     private:
@@ -111,7 +111,7 @@ namespace red::session {
     class arguments
     {
     public:
-        using iterator = detail::ptrarray_iterator<char const* const>;
+        using iterator = char const* const*;
         using reverse_iterator = std::reverse_iterator<iterator>;
         using value_type = std::string_view;
         using index_type = size_t;

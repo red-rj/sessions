@@ -7,10 +7,8 @@
 #include <vector>
 #include <memory>
 #include <system_error>
-#include <mutex>
 
 #include <cstdlib>
-#include <cassert>
 
 #include "impl.hpp"
 #include "red/session_impl.hpp"
@@ -187,14 +185,16 @@ namespace red::session::detail
         //for (auto* p : myenv) delete[] p;
     }
 
-    bool environ_cache::contains(const std::string& key) const
+    bool environ_cache::contains(std::string_view k) const
     {
+        std::string key{ k };
         return osenv_find_pos(key.data()) != -1;
     }
 
-    std::string_view environ_cache::getvar(const std::string& key)
+    std::string_view environ_cache::getvar(std::string_view k)
     {
-        std::lock_guard _{ m_mtx };
+        std::lock_guard _{ env_mtx };
+        auto key = std::string(k);
 
         auto it = getenvstr_sync(key);
         if (it != myenv.end()) {
@@ -205,9 +205,9 @@ namespace red::session::detail
         return {};
     }
 
-    void environ_cache::setvar(const std::string& key, const std::string& value)
+    void environ_cache::setvar(std::string_view key, std::string_view value)
     {
-        std::lock_guard _{ m_mtx };
+        std::lock_guard _{ env_mtx };
         
         auto it = getenvstr(key);
         auto vl = make_envstr(key, value);
@@ -226,9 +226,9 @@ namespace red::session::detail
         _wputenv_s(wkey, wvalue);
     }
 
-    void environ_cache::rmvar(const std::string& key)
+    void environ_cache::rmvar(std::string_view key)
     {
-        std::lock_guard _{ m_mtx };
+        std::lock_guard _{ env_mtx };
         
         auto it = getenvstr(key);
         if (it != myenv.end()) {
@@ -239,7 +239,7 @@ namespace red::session::detail
         _wputenv_s(wkey.c_str(), L"");
     }
 
-	auto environ_cache::find(const std::string& key) const noexcept -> const_iterator
+	auto environ_cache::find(std::string_view key) const noexcept -> const_iterator
 	{
 		return std::find_if(myenv.cbegin(), myenv.cend(), ci_envstr_finder<char>(key));
 	}
