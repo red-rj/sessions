@@ -9,7 +9,7 @@ Red Sessions is an implementation of the proposed P1275's Desert Sessions API - 
 What's in the package?
 
 - `arguments` is an _immutable_ wrapper around the old `argv` pointer, it's elements are the same for the lifetime of the application, behaves like a `std::vector<T> const`.
-- `environment` is and an _associative conteiner_ like class, it let's you get and set environment variables like getting and setting keys in a `std::map`!
+- `environment` is and an _associative container_ like class, it let's you get and set environment variables like getting and setting keys in a `std::map`!
 
 Both are empty classes and can be freely constructed around.
 
@@ -19,7 +19,7 @@ Feel free to open an issue or contact me if you want to share some feedback. :)
 
 ## How to use
 ### Arguments
-It's as simple as creating an instance and using it like a conteiner.
+It's as simple as creating an instance and using it like a container.
 
 ```cpp
 #include "red/session.hpp"
@@ -62,5 +62,5 @@ if (env.contains("myvar")) {
 ```
 
 ## ToDo
-- Implement envrionment ranges
+- ~~Implement environment ranges~~
 - enforce utf-8 storage on non windows platforms
