@@ -16,7 +16,6 @@ target_compile_features(sessions PUBLIC cxx_std_17)
 
 # submodules
 add_subdirectory(3rd-party/ranges)
-# add_subdirectory(3rd-party/utf8cpp)
 
 target_link_libraries(sessions PUBLIC range-v3)
 
