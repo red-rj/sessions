@@ -110,12 +110,12 @@ TEST_CASE("Environment tests", "[environment]")
     }
     SECTION("validate ranges")
     {
-        for (std::string_view k : env.keys() | view::take(10))
+        for (std::string_view k : env.keys() | views::take(10))
         {
             INFO(k);
             REQUIRE(k.find('=') == std::string::npos);
         }
-        for (std::string_view v : env.values() | view::take(10))
+        for (std::string_view v : env.values() | views::take(10))
         {
             INFO(v);
             REQUIRE(v.find('=') == std::string::npos);

@@ -98,12 +98,10 @@ namespace red::session {
         using value_range = key_range;
 
         key_range values() const noexcept {
-            using namespace ranges;
-            return cache.myenv | view::transform(line_elem_fn{ false });
+            return ranges::views::transform(cache.myenv, line_elem_fn{ false });
         }
         value_range keys() const noexcept {
-            using namespace ranges;
-            return cache.myenv | view::transform(line_elem_fn{ true });
+            return ranges::views::transform(cache.myenv, line_elem_fn{ true });
         }
     };
 
@@ -138,6 +136,10 @@ namespace red::session {
         [[nodiscard]] const char** argv() const noexcept;
         [[nodiscard]] int argc() const noexcept;
     };
+
+#if defined(SESSION_NOEXTENTIONS)
+    void init_args(int argc, const char** argv);
+#endif
 
 } /* namespace red::session */
     

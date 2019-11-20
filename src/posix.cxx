@@ -17,15 +17,21 @@ namespace {
     char const** argv__{ };
     int argc__{ };
 
+} /* nameless namespace */
+
+namespace red::session
+{
+#ifndef SESSION_NOEXTENTIONS
     // https://gcc.gnu.org/onlinedocs/gcc-8.3.0/gcc/Common-Function-Attributes.html#index-constructor-function-attribute
     // https://stackoverflow.com/a/37012337
     [[gnu::constructor]]
-    void init(int argc, const char** argv) {
+#endif
+    void init_args(int argc, const char** argv) {
         argc__ = argc;
         argv__ = argv;
     }
+} // namespace red::session
 
-} /* nameless namespace */
 
 
 namespace impl {
