@@ -1,16 +1,21 @@
 #ifndef RED_SESSION_HPP
 #define RED_SESSION_HPP
 
-#include "session_impl.hpp"
-#include "range/v3/core.hpp"
+#include <type_traits>
+#include <string_view>
+
 #include "range/v3/view/transform.hpp"
 
 namespace red::session {
 
+namespace detail
+{
+    class pathsep_iterator;
+} // namespace detail
+
+
     class environment
     {
-        static detail::environ_cache cache;
-
     public:
         class variable
         {
@@ -18,23 +23,17 @@ namespace red::session {
             using path_iterator = detail::pathsep_iterator;
         
             operator std::string_view() const { return this->value(); }
-            variable& operator = (std::string_view value) {
-                cache.setvar(m_key, value);
-                return *this;
-            }
+            variable& operator = (std::string_view value);
             std::string_view key() const noexcept { return m_key; }
-            std::string_view value() const { return cache.getvar(m_key); }
-            std::pair<path_iterator, path_iterator> split () const {
-                std::string_view value = *this;
-                return { path_iterator{value}, path_iterator{} };
-            }
+            std::string_view value() const;
+            std::pair<path_iterator, path_iterator> split () const;
 
             explicit variable(std::string_view key_) : m_key(key_) {}
         private:
             std::string m_key;
         };
 
-        using iterator = detail::environ_cache::const_iterator;
+        using iterator = std::string const**;
         using value_type = variable;
         using size_type = size_t;
 
@@ -82,27 +81,19 @@ namespace red::session {
             cache.rmvar(key);
         }
 
-    private:
-        struct line_elem_fn {
-            bool getkey;
-
-            std::string_view operator()(std::string_view line) const noexcept {
-                auto eq = line.find('=');
-                return getkey ? line.substr(0, eq) : line.substr(eq+1);
-            }
-        };
-
-    public:
-        // I feel like there's a better way to get the type... But it does work
-        using key_range = ranges::transform_view<ranges::ref_view<detail::environ_cache::vector_t>, line_elem_fn>;
-        using value_range = key_range;
-
-        key_range values() const noexcept {
-            return ranges::views::transform(cache.myenv, line_elem_fn{ false });
+        auto values() const noexcept {
+            using namespace ranges;
+            return cache.myenv | views::transform([](std::string_view envline) {
+                return envline.substr(envline.find('=')+1);
+            });
         }
-        value_range keys() const noexcept {
-            return ranges::views::transform(cache.myenv, line_elem_fn{ true });
+        auto keys() const noexcept {
+            using namespace ranges;
+            return cache.myenv | views::transform([](std::string_view envline) {
+                return envline.substr(0, envline.find('='));
+            });
         }
+
     };
 
 

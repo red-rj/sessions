@@ -4,9 +4,6 @@
 
 namespace red::session 
 {
-    detail::environ_cache environment::cache;
-
-
     // args
     auto arguments::operator [] (arguments::index_type idx) const noexcept -> value_type
     {
