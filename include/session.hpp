@@ -4,39 +4,69 @@
 #include <type_traits>
 #include <string_view>
 
-#include "range/v3/view/transform.hpp"
+#include <range/v3/view/transform.hpp>
+#include <range/v3/view/subrange.hpp>
+#include <range/v3/view/delimit.hpp>
+#include <range/v3/view/facade.hpp>
 
 namespace red::session {
 
 namespace detail
 {
     class pathsep_iterator;
+
+    template<class T>
+    class c_ptrptr_range : public ranges::view_facade<c_ptrptr_range>
+    {
+    private:
+        friend ranges::range_access;
+        T** ptr = nullptr;
+        T const* read() const { return *ptr; }
+        bool equal(ranges::default_sentinel_t) const { return *ptr == nullptr; }
+        void next() { ++ptr; }
+    public:
+        c_ptrptr_range() = default;
+        explicit c_ptrptr_range(T** p) : ptr(p) {}
+    };
+    
 } // namespace detail
 
 
     class environment
     {
+        static char** env() noexcept;
+        static size_t envsize() noexcept;
+        // using range_fn = std::string_view(*)(std::string_view);
+        // using env_range_t = decltype(detail::c_array((char**)nullptr));
     public:
         class variable
         {
         public:
             using path_iterator = detail::pathsep_iterator;
         
-            operator std::string_view() const { return this->value(); }
-            variable& operator = (std::string_view value);
+            operator std::string_view() const noexcept { return this->value(); }
+            std::string_view value() const noexcept { return this->m_value; }
             std::string_view key() const noexcept { return m_key; }
-            std::string_view value() const;
             std::pair<path_iterator, path_iterator> split () const;
 
-            explicit variable(std::string_view key_) : m_key(key_) {}
+            explicit variable(std::string_view key_) : m_key(key_) {
+                m_value = query();
+            }
+            variable& operator = (std::string_view value);
+
         private:
+            std::string query();
+        
             std::string m_key;
+            std::string m_value;
         };
 
-        using iterator = std::string const**;
+        using iterator = char const**;
         using value_type = variable;
         using size_type = size_t;
-
+        // using value_range = env_range_t;
+        // using key_range = env_range_t;
+        friend class variable;
 
         template <class T>
         using Is_Strview = std::enable_if_t<
@@ -59,37 +89,39 @@ namespace detail
 
         template <class K, class = Is_Strview_Convertible<K>>
         iterator find(K const& key) const noexcept {
-            return cache.find(key);
+            return find(key);
         }
+        iterator find(std::string_view k) const noexcept;
 
-        bool contains(std::string_view key) const {
-            return cache.contains(key);
-        }
+        bool contains(std::string_view key) const;
 
 
-        iterator cbegin() const noexcept { return cache.myenv.cbegin(); }
-        iterator cend() const noexcept { return cache.myenv.cend(); }
+        iterator cbegin() const noexcept;
+        iterator cend() const noexcept;
 
         iterator begin() const noexcept { return cbegin(); }
         iterator end() const noexcept { return cend(); }
 
-        size_type size() const noexcept { return cache.myenv.size(); }
-		[[nodiscard]] bool empty() const noexcept { return cache.myenv.empty(); }
+        size_type size() const noexcept { return envsize(); }
+		[[nodiscard]] bool empty() const noexcept { return envsize() == 0; }
 
         template <class K, class = Is_Strview_Convertible<K>>
         void erase(K const& key) {
-            cache.rmvar(key);
+            erase(key);
         }
+        void erase(std::string_view key);
 
         auto values() const noexcept {
             using namespace ranges;
-            return cache.myenv | views::transform([](std::string_view envline) {
+            auto envrange = views::delimit(env(), nullptr);
+            return envrange | views::transform([](std::string_view envline) {
                 return envline.substr(envline.find('=')+1);
             });
         }
         auto keys() const noexcept {
             using namespace ranges;
-            return cache.myenv | views::transform([](std::string_view envline) {
+            auto envrange = views::delimit(env(), nullptr);
+            return envrange | views::transform([](std::string_view envline) {
                 return envline.substr(0, envline.find('='));
             });
         }

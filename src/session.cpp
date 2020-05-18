@@ -1,3 +1,9 @@
+#if defined(WIN32)
+    #define _CRT_SECURE_NO_WARNINGS
+    #include "win32.hpp"
+    #include <shellapi.h>
+#endif // WIN32
+
 #include <algorithm>
 #include <vector>
 #include <memory>
@@ -5,33 +11,42 @@
 #include <cstdlib>
 #include <cstring>
 
-#if defined(WIN32)
-    #define _CRT_SECURE_NO_WARNINGS
-    #include "win32.hpp"
-    #include <shellapi.h>
-#else
-
-#endif // WIN32
+#include <range/v3/algorithm.hpp>
 
 #include "session.hpp"
 #include "session_impl.hpp"
+
+using std::string;
+using std::wstring;
+using std::string_view;
+using std::wstring_view;
+using namespace red::session::detail;
 
 // helpers
 namespace
 {
 char const** sys_argv() noexcept;
 int sys_argc() noexcept;
-char** sys_environ() noexcept;
-
 extern const char sys_path_sep;
 
-int osenv_find_pos(const char*);
+string sys_getenv(string_view key);
+void sys_setenv(string_view key, string_view value);
+void sys_rmenv(string_view key);
+int sys_findenv(string_view key);
 
 template<class T>
 size_t osenv_size(T** envptr) {
     size_t size = 0;
     while (envptr[size]) size++;
     return size;
+}
+
+
+template<class T>
+auto envrange(T** envptr)
+{
+    using namespace ranges;
+    return c_ptrptr_range<T>(envptr);
 }
 
 std::string make_envstr(std::string_view k, std::string_view v)
@@ -157,26 +172,18 @@ namespace
     std::string to_utf8(std::wstring_view wstr) {
         auto length = narrow(wstr.data(), wstr.size());
         auto str8 = std::string(length, '*');
-        auto result = narrow(wstr.data(), wstr.size(), str8.data(), length);
+        auto result = narrow(wstr.data(), (int)wstr.size(), str8.data(), length);
 
         if (result == 0)
             throw_win_error();
 
         return str8;
     }
-    auto to_utf8_p(std::wstring_view wstr) {
-        auto length = narrow(wstr.data(), wstr.size());
-        auto sptr = std::make_unique<char[]>(length);
-        auto result = narrow(wstr.data(), wstr.size(), sptr.get(), length);
-        if (result == 0)
-            throw_win_error();
-        return sptr;
-    }
 
     std::wstring to_utf16(std::string_view nstr) {
         auto length = wide(nstr.data(), nstr.size());
         auto str16 = std::wstring(length, L'*');
-        auto result = wide(nstr.data(), nstr.size(), str16.data(), length);
+        auto result = wide(nstr.data(), (int)nstr.size(), str16.data(), length);
 
         if (result == 0)
             throw_win_error();
@@ -221,56 +228,53 @@ namespace
         return vec;
     }
 
-    auto init_env() {
-        // make sure _wenviron is initialized
-        // https://docs.microsoft.com/en-us/cpp/c-runtime-library/environ-wenviron?view=vs-2017#remarks
-        if (!_wenviron) {
-            _wgetenv(L"initpls");
-        }
-
-        std::vector<char*> myenv;
-
-        try
-        {
-            wchar_t** wenv = _wenviron;
-            size_t wenv_l = osenv_size(wenv);
-            myenv.reserve(wenv_l);
-
-            std::transform(wenv, wenv+wenv_l, back_inserter(myenv), [](wchar_t* envstr) {
-                auto uptr = to_utf8_p(envstr);
-                return uptr.release();
-            });
-        }
-        catch(...)
-        {
-            for (auto p : myenv) delete[] p;
-            std::throw_with_nested(std::runtime_error("Failed to create environment"));
-        }
-        
-        return myenv;
-    }
-
     auto& argvec() {
         static auto vec = init_args();
-        return vec;
-    }
-    auto& envvec() {
-        static auto vec = init_env();
         return vec;
     }
 
     char const** sys_argv() noexcept { return argvec().data(); }
     int sys_argc() noexcept { return static_cast<int>(argvec().size()) - 1; }
-    char** sys_environ() noexcept { return envvec().data(); }
     const char sys_path_sep = ';';
 
-    int osenv_find_pos(const char* k)
+    string sys_getenv(string_view key)
     {
+        using namespace ranges;
+        auto wkey = to_utf16(key);
+
+        wchar_t* wval; size_t wval_l;
+        auto err = _wdupenv_s(&wval, &wval_l, wkey.c_str());
+        auto _g_ = std::unique_ptr<wchar_t[]>(wval);
+        if (err || !wval) {
+            // error or not found
+            return {};
+        }
+        else {
+            return to_utf8({wval, wval_l});
+        }
+    }
+
+    void sys_setenv(string_view key, string_view value) {
+        auto wenv = to_utf16(make_envstr(key, value));
+        wenv[key.size()] = L'\0';
+        wchar_t const *wkey = wenv.c_str();
+        auto wvalue = wkey + key.size() + 1;
+        _wputenv_s(wkey, wvalue);
+    }
+
+    void sys_rmenv(string_view key) {
+        auto wkey = to_utf16(key);
+        _wputenv_s(wkey.c_str(), L"");
+    }
+
+
+    int sys_findenv(string_view key)
+    {
+        using namespace ranges;
         auto** wenvp = _wenviron;
-        auto wkey = to_utf16(k);
+        auto wkey = to_utf16(key);
 
         auto predicate = ci_envstr_finder<wchar_t>(wkey);
-
         for (int i = 0; wenvp[i]; i++)
         {
             if (predicate(wenvp[i])) return i;
@@ -290,7 +294,7 @@ namespace
 
     char const** sys_argv() noexcept { return my_argv; }
     int sys_argc() noexcept { return my_argc; }
-    char** sys_environ() noexcept { return environ; }
+    const char sys_path_sep = ':';
 
 } // unnamed namespace
 
@@ -354,6 +358,24 @@ namespace red::session
         return sys_argc();
     }
 
+    // env
+    auto environment::variable::operator=(std::string_view value)->variable&
+    {
+        sys_setenv(m_key, value);
+        m_value = value;
+        return *this;
+    }
+
+    auto environment::variable::split() const->std::pair<path_iterator, path_iterator>
+    {
+        return { path_iterator(m_value), path_iterator() };
+    }
+
+    string environment::variable::query()
+    {
+        return sys_getenv(m_key);
+    }
+
 
     // detail
     void detail::pathsep_iterator::next_sep() noexcept
@@ -363,7 +385,7 @@ namespace red::session
             return;
         }
 
-        auto pos = m_var.find(impl::path_sep, m_offset);
+        auto pos = m_var.find(sys_path_sep, m_offset);
 
         if (pos == std::string::npos) {
             m_view = m_var.substr(m_offset, pos);

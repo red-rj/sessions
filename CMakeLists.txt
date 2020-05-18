@@ -13,12 +13,9 @@ endif()
 set(HEADERS include/session.hpp include/session_impl.hpp src/impl.hpp)
 
 add_library(sessions ${HEADERS} src/session.cpp)
-target_sources(sessions PRIVATE
-  $<$<NOT:$<PLATFORM_ID:Windows>>:src/posix.cxx>
-  $<$<PLATFORM_ID:Windows>:src/windows.cxx>
-)
+
 target_include_directories(sessions PUBLIC include)
-target_compile_features(sessions PUBLIC cxx_std_17)
+target_compile_features(sessions PUBLIC cxx_std_20)
 
 # submodules
 add_subdirectory(3rd-party/ranges)
