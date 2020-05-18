@@ -9,7 +9,6 @@ else()
   option(SESSION_NOEXTENTIONS "Disable use of the gnu constructor attribute (requires calling 'init_args')")
 endif()
 
-
 set(HEADERS include/session.hpp include/session_impl.hpp src/impl.hpp)
 
 add_library(sessions ${HEADERS} src/session.cpp)
@@ -19,7 +18,7 @@ target_compile_features(sessions PUBLIC cxx_std_20)
 
 # submodules
 add_subdirectory(3rd-party/ranges)
-target_link_libraries(sessions PUBLIC range-v3)
+target_link_libraries(sessions PUBLIC range-v3::range-v3)
 
 
 if(SESSIONS_TESTS)

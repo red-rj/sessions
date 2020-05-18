@@ -16,7 +16,7 @@ namespace detail
     class pathsep_iterator;
 
     template<class T>
-    class c_ptrptr_range : public ranges::view_facade<c_ptrptr_range>
+    class c_ptrptr_range : public ranges::view_facade<c_ptrptr_range, ranges::cardinality::finite>
     {
     private:
         friend ranges::range_access;
@@ -28,17 +28,15 @@ namespace detail
         c_ptrptr_range() = default;
         explicit c_ptrptr_range(T** p) : ptr(p) {}
     };
-    
 } // namespace detail
 
 
     class environment
     {
-        static char** env() noexcept;
+        using envchar_t = char;
         static size_t envsize() noexcept;
-        // using range_fn = std::string_view(*)(std::string_view);
-        // using env_range_t = decltype(detail::c_array((char**)nullptr));
     public:
+        using env_range_t = detail::c_ptrptr_range<char>;
         class variable
         {
         public:
@@ -61,12 +59,14 @@ namespace detail
             std::string m_value;
         };
 
-        using iterator = char const**;
+        using iterator = envchar_t const**;
         using value_type = variable;
         using size_type = size_t;
-        // using value_range = env_range_t;
-        // using key_range = env_range_t;
+        using value_range = env_range_t;
+        using key_range = env_range_t;
         friend class variable;
+
+        environment() noexcept;
 
         template <class T>
         using Is_Strview = std::enable_if_t<
@@ -82,19 +82,15 @@ namespace detail
 
         template <class T, class = Is_Strview<T>>
         variable operator [] (T const& k) const { return variable(k); }
-
         variable operator [] (std::string const& k) const { return variable(k); }
         variable operator [] (std::string_view k) const { return variable(k); }
         variable operator [] (char const* k) const { return variable(k); }
 
         template <class K, class = Is_Strview_Convertible<K>>
-        iterator find(K const& key) const noexcept {
-            return find(key);
-        }
+        iterator find(K const& key) const noexcept { return find(key); }
         iterator find(std::string_view k) const noexcept;
 
         bool contains(std::string_view key) const;
-
 
         iterator cbegin() const noexcept;
         iterator cend() const noexcept;
@@ -111,21 +107,8 @@ namespace detail
         }
         void erase(std::string_view key);
 
-        auto values() const noexcept {
-            using namespace ranges;
-            auto envrange = views::delimit(env(), nullptr);
-            return envrange | views::transform([](std::string_view envline) {
-                return envline.substr(envline.find('=')+1);
-            });
-        }
-        auto keys() const noexcept {
-            using namespace ranges;
-            auto envrange = views::delimit(env(), nullptr);
-            return envrange | views::transform([](std::string_view envline) {
-                return envline.substr(0, envline.find('='));
-            });
-        }
-
+        value_range values() const noexcept;
+        key_range keys() const noexcept;
     };
 
 

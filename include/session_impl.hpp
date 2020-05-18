@@ -59,43 +59,6 @@ namespace detail
         size_t m_offset = 0;
     };
 
-	class environ_cache
-	{
-		friend environment;
-
-		using vector_t = std::vector<std::string>;
-
-		using iterator = vector_t::iterator;
-		using const_iterator = vector_t::const_iterator;
-
-		environ_cache();
-		~environ_cache() noexcept;
-
-		environ_cache(const environ_cache&) = delete;
-
-		// cache and os, lock
-		std::string_view getvar(std::string_view);
-		void setvar(std::string_view, std::string_view);
-		void rmvar(std::string_view);
-
-		// cache only, no lock
-		const_iterator find(std::string_view) const noexcept;
-
-		// os only, no lock
-		bool contains(std::string_view) const;
-
-
-		// cache only, no lock
-		iterator getenvstr(std::string_view) noexcept;
-
-		// cache and os, no lock
-		iterator getenvstr_sync(std::string_view);
-
-		// members
-		vector_t myenv;
-	};
-
-
 } // detail
 
 } // red::session
