@@ -10,7 +10,7 @@ else()
 endif()
 
 
-set(HEADERS include/red/session.hpp include/red/session_impl.hpp src/impl.hpp)
+set(HEADERS include/session.hpp include/session_impl.hpp src/impl.hpp)
 
 add_library(sessions ${HEADERS} src/session.cpp)
 target_sources(sessions PRIVATE
