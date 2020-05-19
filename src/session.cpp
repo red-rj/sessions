@@ -195,7 +195,7 @@ namespace
             // not found
             return {};
         }
-        else return {val, len};
+        else return string(val, len);
     }
 
     void sys_setenv(string_view key, string_view value) {
@@ -324,7 +324,11 @@ namespace red::session
         return sys_getenv(m_key);
     }
 
-    char** environment::envp() noexcept { return sys_envp(); }
+    auto environment::env_range() noexcept 
+    -> env_range_t
+    {
+        return env_range_t(sys_envp());
+    }
 
     size_t environment::envsize() noexcept { return sys_envsize(); }
 
@@ -362,28 +366,17 @@ namespace red::session
 
     void environment::variable::path_iterator::next() noexcept
     {
-        // if (m_offset == string::npos) {
-        //     m_current = {};
-        //     return;
-        // }
-
         auto pos = m_var.find(sys_path_sep, m_offset);
         if (pos == string::npos) {
             m_current = m_var.substr(m_offset, pos);
             m_offset = pos;
-            return;
+        } else {
+            m_current = m_var.substr(m_offset, pos - m_offset);
+            m_offset = pos + 1;
         }
-
-        m_current = m_var.substr(m_offset, pos - m_offset);
-        m_offset = pos + 1;
     }
     void environment::variable::path_iterator::prev() noexcept
     {
-        // if (m_offset == string::npos) {
-        //     m_current = {};
-        //     return;
-        // }
-        
         auto pos = m_var.rfind(sys_path_sep, m_offset);
         if (pos != string::npos) {
             m_current = m_var.substr(pos, m_offset);

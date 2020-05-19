@@ -9,7 +9,7 @@ else()
   option(SESSION_NOEXTENTIONS "Disable use of the gnu constructor attribute (requires calling 'init_args')")
 endif()
 
-set(HEADERS include/session.hpp include/session_impl.hpp)
+set(HEADERS include/session.hpp)
 
 add_library(sessions ${HEADERS} src/session.cpp)
 
@@ -18,13 +18,15 @@ target_compile_features(sessions PUBLIC cxx_std_20)
 
 # submodules
 add_subdirectory(3rd-party/ranges)
-target_link_libraries(sessions PUBLIC range-v3::range-v3 range-v3::meta range-v3::concepts)
+target_link_libraries(sessions PUBLIC range-v3::range-v3)
 
 
 if(SESSIONS_TESTS)
+  enable_testing()
   add_executable(tests test/test.cpp test/util.cpp)
   target_link_libraries(tests PRIVATE sessions)
   target_include_directories(tests PRIVATE src)
+  add_test(NAME basic-test COMMAND tests WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 endif()
 
 if(SESSION_NOEXTENTIONS)
