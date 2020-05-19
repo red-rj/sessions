@@ -195,7 +195,7 @@ namespace
             // not found
             return {};
         }
-        else return string(val, len);
+        else return string(val, len-1);
     }
 
     void sys_setenv(string_view key, string_view value) {

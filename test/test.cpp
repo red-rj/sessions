@@ -18,12 +18,6 @@ using namespace std::literals;
 using namespace ranges;
 
 
-auto& operator << (std::ostream& os, environment::variable const& var)
-{
-    return os << (std::string_view)var;
-}
-
-
 TEST_CASE("Environment tests", "[environment]")
 {
     set_env("Phasellus", "LoremIpsumDolor");
@@ -32,9 +26,7 @@ TEST_CASE("Environment tests", "[environment]")
 
     environment env;
 
-    // REQUIRE(env["Phasellus"] == "LoremIpsumDolor"sv);
-    auto var = env["Phasellus"];
-    REQUIRE(var.value() == "LoremIpsumDolor"sv);
+    REQUIRE(env["Phasellus"] == "LoremIpsumDolor"sv);
     REQUIRE(env["thug2song"] == "354125go"sv);
 
     std::array cases = {
@@ -79,18 +71,6 @@ TEST_CASE("Environment tests", "[environment]")
         CHECK(env.size() == env_start_l - 1);
         auto e = get_env("PROTOCOL");
         CHECK(e.empty());
-    }
-    SECTION("stay in sync w/ external changes")
-    {
-        rm_env("thug2song");
-        set_env("Phasellus", "DolorLorem");
-
-        // find() does not sync
-        CHECK_FALSE(env.find("thug2song") == env.end());
-
-        CHECK(env["Phasellus"] == "DolorLorem"sv);
-        CHECK(env["thug2song"] == ""sv);
-        CHECK(env.size() == env_start_l - 1);
     }
     SECTION("contains")
     {

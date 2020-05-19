@@ -45,10 +45,6 @@ namespace detail
 
     } inline constexpr environ_views;
 
-    // HACK
-    
-    
-    
 } // namespace detail
 
 
@@ -113,21 +109,21 @@ namespace detail
         // variable operator [] (char const* k) const { return variable(k); }
 
         template <class K, class = Is_Strview_Convertible<K>>
-        iterator find(K const& key) const noexcept { return find(key); }
+        iterator find(K const& key) const noexcept { return find(std::string_view(key)); }
         iterator find(std::string_view k) const noexcept;
 
         bool contains(std::string_view key) const;
 
         iterator cbegin() const noexcept { return env_range().begin(); }
-        iterator cend() const noexcept { return iterator(); }
+        auto cend() const noexcept { return env_range().end(); } // TODO: why doesn't sentinel convert to iterator?
         iterator begin() const noexcept { return cbegin(); }
-        iterator end() const noexcept { return cend(); }
+        auto end() const noexcept { return cend(); }
 
         size_type size() const noexcept { return envsize(); }
 		[[nodiscard]] bool empty() const noexcept { return envsize() == 0; }
 
         template <class K, class = Is_Strview_Convertible<K>>
-        void erase(K const& key) { erase(key); }
+        void erase(K const& key) { erase(std::string_view(key)); }
         void erase(std::string_view key);
 
         value_range values() const noexcept {
