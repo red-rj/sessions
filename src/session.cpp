@@ -139,51 +139,6 @@ namespace
         throw std::system_error(static_cast<int>(error), std::system_category());
     }
 
-    bool is_valid_utf8(const char* str, int str_l = -1) {
-        return MultiByteToWideChar(
-            CP_UTF8, MB_ERR_INVALID_CHARS, 
-            str, str_l, 
-            nullptr, 0) != 0;
-    }
-
-    auto narrow(wchar_t const* wstr, int wstr_l = -1, char* ptr = nullptr, int length = 0) {
-        return WideCharToMultiByte(
-            CP_UTF8, 0, 
-            wstr, wstr_l,
-            ptr, length, 
-            nullptr, nullptr);
-    }
-
-    auto wide(const char* nstr, int nstr_l = -1, wchar_t* ptr = nullptr, int length = 0) {
-        const int CP = is_valid_utf8(nstr, nstr_l) ? CP_UTF8 : CP_ACP;
-        return MultiByteToWideChar(
-            CP, 0,
-            nstr, nstr_l,
-            ptr, length);
-    }
-    
-    std::string to_utf8(std::wstring_view wstr) {
-        auto length = narrow(wstr.data(), (int)wstr.size());
-        auto str8 = std::string(length, '\3');
-        auto result = narrow(wstr.data(), (int)wstr.size(), str8.data(), length);
-
-        if (result == 0)
-            throw_win_error();
-
-        return str8;
-    }
-
-    std::wstring to_utf16(std::string_view nstr) {
-        auto length = wide(nstr.data(), (int)nstr.size());
-        auto str16 = std::wstring(length, L'\3');
-        auto result = wide(nstr.data(), (int)nstr.size(), str16.data(), length);
-
-        if (result == 0)
-            throw_win_error();
-
-        return str16;
-    }
-
     auto init_args() {
         int argc;
         auto wargv = std::unique_ptr<LPWSTR[], decltype(LocalFree)*>{
@@ -201,11 +156,11 @@ namespace
             
             for (int i = 0; i < argc; i++)
             {
-                auto length = narrow(wargv[i]);
+                auto length = WideCharToMultiByte(CP_ACP, 0, wargv[i], -1, nullptr, 0, nullptr, nullptr);
                 auto ptr = new char[length];
                 vec.push_back(ptr);
 
-                auto result = narrow(wargv[i], -1, ptr, length);
+                auto result = WideCharToMultiByte(CP_ACP, 0, wargv[i], -1, ptr, length, nullptr, nullptr);
                 if (result==0)
                     throw_win_error();
             }
@@ -276,15 +231,15 @@ namespace
     const char sys_path_sep = ':';
 
     string sys_getenv(string_view key) {
-        string k = key;
+        string k{key};
         return getenv(k.c_str());
     }
     void sys_setenv(string_view key, string_view value) {
-        string k = key, v = value;
+        string k{key}, v{value};
         setenv(k.c_str(), v.c_str(), true);
     }
     void sys_rmenv(string_view key) {
-        string k = key;
+        string k{key};
         unsetenv(k.c_str());
     }
     size_t sys_envsize() noexcept {
@@ -375,17 +330,28 @@ namespace red::session
 
     environment::environment() noexcept {
 #ifdef WIN32
-        if (!_wenviron)
-            _wgetenv(L"initpls");
+        if (!_environ)
+            getenv("initpls");
 #endif
     }
 
     auto environment::find(string_view k) const noexcept->iterator
     {
-        // TODO FIXME
-        auto env = sys_envp();
-        auto env_end = env + osenv_size(env);
-        
+        using namespace ranges;
+        auto envp = sys_envp();
+        auto rng = env_range<char>(envp, osenv_size(envp));
+#ifdef WIN32
+        auto pred = ci_envstr_finder<char>(k);
+#else
+        auto pred = envstr_finder<char>(k);
+#endif
+        auto view = find_if(rng, pred);
+        return *view;
+    }
+
+    void environment::erase(string_view k)
+    {
+        sys_rmenv(k);
     }
 
 

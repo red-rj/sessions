@@ -16,9 +16,6 @@ namespace detail
     class pathsep_iterator;
 
     template<class T>
-    class env_range;
-
-    template<class T>
     class env_range : public ranges::view_facade<env_range<T>, ranges::finite>
     {
         friend ranges::range_access;
@@ -47,12 +44,14 @@ namespace detail
         explicit env_range(T** ep=nullptr, size_t l=0) : envp(ep), envsize(l) {}
     };
 
+    // ranges::basic_iterator<red::session::detail::env_range<char>::cursor>
     
 } // namespace detail
 
 
     class environment
     {
+        static char** envp() noexcept;
         static size_t envsize() noexcept;
     public:
         using env_range_t = detail::env_range<char>;
@@ -78,11 +77,12 @@ namespace detail
             std::string m_value;
         };
 
-        using iterator = char const**;
+        // using iterator = ranges::common_iterator<char*,nullptr_t>;
+        using iterator = decltype(*std::declval<env_range_t>());
         using value_type = variable;
         using size_type = size_t;
-        using value_range = env_range_t;
-        using key_range = env_range_t;
+        // using value_range = env_range_t;
+        // using key_range = env_range_t;
         friend class variable;
 
         environment() noexcept;
@@ -121,13 +121,25 @@ namespace detail
 		[[nodiscard]] bool empty() const noexcept { return envsize() == 0; }
 
         template <class K, class = Is_Strview_Convertible<K>>
-        void erase(K const& key) {
-            erase(key);
-        }
+        void erase(K const& key) { erase(key); }
         void erase(std::string_view key);
 
-        value_range values() const noexcept;
-        key_range keys() const noexcept;
+        auto values() const noexcept {
+            using namespace ranges;
+            auto envrng = env_range_t(envp(), envsize());
+            return envrng | views::transform([](std::string_view line) {
+                auto eq = line.find('=');
+                return line.substr(eq+1);
+            });
+        }
+        auto keys() const noexcept {
+            using namespace ranges;
+            auto envrng = env_range_t(envp(), envsize());
+            return envrng | views::transform([](std::string_view line) {
+                auto eq = line.find('=');
+                return line.substr(0, eq);
+            });
+        }
     };
 
 

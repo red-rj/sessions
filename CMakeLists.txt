@@ -9,7 +9,7 @@ else()
   option(SESSION_NOEXTENTIONS "Disable use of the gnu constructor attribute (requires calling 'init_args')")
 endif()
 
-set(HEADERS include/session.hpp include/session_impl.hpp src/impl.hpp)
+set(HEADERS include/session.hpp include/session_impl.hpp)
 
 add_library(sessions ${HEADERS} src/session.cpp)
 
