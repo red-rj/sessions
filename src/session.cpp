@@ -14,6 +14,7 @@
 #include <range/v3/algorithm.hpp>
 
 #include "session.hpp"
+#include "sys.hpp"
 
 using std::string;
 using std::wstring;
@@ -24,25 +25,6 @@ using namespace red::session::detail;
 // helpers
 namespace
 {
-char const** sys_argv() noexcept;
-int sys_argc() noexcept;
-char** sys_envp() noexcept;
-extern const char sys_path_sep;
-
-
-string sys_getenv(string_view key);
-void sys_setenv(string_view key, string_view value);
-void sys_rmenv(string_view key);
-size_t sys_envsize() noexcept;
-size_t sys_envfind(string_view k);
-
-template<class T>
-size_t osenv_size(T** envptr) {
-    size_t size = 0;
-    while (envptr[size]) size++;
-    return size;
-}
-
 std::string make_envstr(std::string_view k, std::string_view v)
 {
     std::string es;
@@ -129,6 +111,7 @@ using ci_envstr_finder = envstr_finder_base<ci_char_traits<char>>;
 } // unnamed namespace
 
 #if defined(WIN32)
+#undef environ
 namespace
 {
     [[noreturn]]
@@ -178,44 +161,25 @@ namespace
         static auto vec = init_args();
         return vec;
     }
-
-    char const** sys_argv() noexcept { return argvec().data(); }
-    int sys_argc() noexcept { return static_cast<int>(argvec().size()) - 1; }
-    char** sys_envp() noexcept { return environ; }
-    const char sys_path_sep = ';';
-
-    string sys_getenv(string_view k)
-    {
-        auto key = string(k);
-        
-        char* val; size_t len;
-        _dupenv_s(&val, &len, key.c_str());
-        auto _g_ = std::unique_ptr<char, void(*)(void*)>(val, free);
-        if (!val) {
-            // not found
-            return {};
-        }
-        else return string(val, len-1);
-    }
-
-    void sys_setenv(string_view key, string_view value) {
-        auto envline = make_envstr(key, value);
-        envline[key.size()] = '\0';
-        char const* k = envline.c_str();
-        auto v = k + key.size() + 1;
-        _putenv_s(k, v);
-    }
-
-    void sys_rmenv(string_view key) {
-        auto k = string(key);
-        _putenv_s(k.c_str(), "");
-    }
-
-    size_t sys_envsize() noexcept {
-        return osenv_size(environ);
-    }
-
 } // unnamed namespace
+
+char const** sys::argv() noexcept { return argvec().data(); }
+int sys::argc() noexcept { return static_cast<int>(argvec().size()) - 1; }
+char** sys::envp() noexcept { return _environ; }
+const char sys::path_sep = ';';
+
+void sys::setenv(string_view k, string_view v) {
+    auto line = make_envstr(k, v);
+    line[k.size()] = '\0';
+    auto* key = line.c_str();
+    auto* value = key+k.size()+1;
+    _putenv_s(key, value);
+}
+void sys::rmenv(string_view k) {
+    string key{k};
+    _putenv_s(key.c_str(), "");
+}
+
 #elif defined(_POSIX_VERSION)
 extern "C" char** environ;
 
@@ -223,29 +187,21 @@ namespace
 {
     char const** my_argv{};
     int my_argc{};
-
-    char const** sys_argv() noexcept { return my_argv; }
-    int sys_argc() noexcept { return my_argc; }
-    const char sys_path_sep = ':';
-
-    string sys_getenv(string_view key) {
-        string k{key};
-        return getenv(k.c_str());
-    }
-    void sys_setenv(string_view key, string_view value) {
-        string k{key}, v{value};
-        setenv(k.c_str(), v.c_str(), true);
-    }
-    void sys_rmenv(string_view key) {
-        string k{key};
-        unsetenv(k.c_str());
-    }
-    size_t sys_envsize() noexcept {
-        return osenv_size(environ);
-    }
-
 } // unnamed namespace
 
+char const** sys::argv() noexcept { return my_argv; }
+int sys::argc() noexcept { return my_argc; }
+char** sys::envp() noexcept { return environ; }
+const char sys::path_sep = ':';
+
+void sys::setenv(string_view k, string_view v) {
+    string key{k}, value{v};
+    ::setenv(key.c_str(), value.c_str(), true);
+}
+void sys::rmenv(string_view k) {
+    string key{k};
+    unsetenv(key.c_str());
+}
 
 namespace red::session
 {
@@ -261,13 +217,19 @@ namespace red::session
 }
 #endif
 
+// sys common
+string sys::getenv(string_view k) {
+    string key{k};
+    auto* var = ::getenv(key.c_str());
+    return var ? var : "";
+}
 
 namespace red::session
 {
     // args
     auto arguments::operator [] (arguments::index_type idx) const noexcept -> value_type
     {
-        auto args = sys_argv();
+        auto args = sys::argv();
         return args[idx];
     }
 
@@ -277,7 +239,7 @@ namespace red::session
             throw std::out_of_range("invalid arguments subscript");
         }
 
-        auto args = sys_argv();
+        auto args = sys::argv();
         return args[idx];
     }
 
@@ -298,18 +260,18 @@ namespace red::session
 
     const char** arguments::argv() const noexcept
     {
-        return sys_argv();
+        return sys::argv();
     }
 
     int arguments::argc() const noexcept
     {
-        return sys_argc();
+        return sys::argc();
     }
 
     // env
     auto environment::variable::operator=(std::string_view value)->variable&
     {
-        sys_setenv(m_key, value);
+        sys::setenv(m_key, value);
         m_value = value;
         return *this;
     }
@@ -321,16 +283,16 @@ namespace red::session
 
     string environment::variable::query()
     {
-        return sys_getenv(m_key);
+        return sys::getenv(m_key);
     }
 
     auto environment::env_range() noexcept 
     -> env_range_t
     {
-        return env_range_t(sys_envp());
+        return env_range_t(sys::envp());
     }
 
-    size_t environment::envsize() noexcept { return sys_envsize(); }
+    size_t environment::envsize() noexcept { return sys::envsize(sys::envp()); }
 
     environment::environment() noexcept {
 #ifdef WIN32
@@ -355,18 +317,18 @@ namespace red::session
     bool environment::contains(string_view k) const
     {
         string key{k};
-        return getenv(key.c_str());
+        return ::getenv(key.c_str());
     }
 
     void environment::erase(string_view k)
     {
-        sys_rmenv(k);
+        sys::rmenv(k);
     }
 
 
     void environment::variable::path_iterator::next() noexcept
     {
-        auto pos = m_var.find(sys_path_sep, m_offset);
+        auto pos = m_var.find(sys::path_sep, m_offset);
         if (pos == string::npos) {
             m_current = m_var.substr(m_offset, pos);
             m_offset = pos;
@@ -377,7 +339,7 @@ namespace red::session
     }
     void environment::variable::path_iterator::prev() noexcept
     {
-        auto pos = m_var.rfind(sys_path_sep, m_offset);
+        auto pos = m_var.rfind(sys::path_sep, m_offset);
         if (pos != string::npos) {
             m_current = m_var.substr(pos, m_offset);
             m_offset = pos;

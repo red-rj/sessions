@@ -9,8 +9,9 @@
 #include <array>
 #include <vector>
 #include <utility>
+
 #include "session.hpp"
-#include "util.hpp"
+#include "sys.hpp"
 #include "range/v3/view.hpp"
 
 using namespace red::session;
@@ -20,9 +21,9 @@ using namespace ranges;
 
 TEST_CASE("Environment tests", "[environment]")
 {
-    set_env("Phasellus", "LoremIpsumDolor");
-    set_env("thug2song", "354125go");
-    rm_env("nonesuch");
+    sys::setenv("Phasellus", "LoremIpsumDolor");
+    sys::setenv("thug2song", "354125go");
+    sys::rmenv("nonesuch");
 
     environment env;
 
@@ -69,7 +70,7 @@ TEST_CASE("Environment tests", "[environment]")
         env.erase("PROTOCOL");
         CHECK(env.find("PROTOCOL") == env.end());
         CHECK(env.size() == env_start_l - 1);
-        auto e = get_env("PROTOCOL");
+        auto e = sys::getenv("PROTOCOL");
         CHECK(e.empty());
     }
     SECTION("contains")
@@ -81,28 +82,32 @@ TEST_CASE("Environment tests", "[environment]")
         
         CHECK_FALSE(env.contains("nonesuch"));
     }
-    SECTION("Path split")
-    {
-        auto[path_begin, path_end] = env["PATH"].split();
-
-        for (auto it = path_begin; it != path_end; it++)
-        {
-            INFO(*it);
-        }
-    }
     SECTION("validate ranges")
     {
         for (std::string_view k : env.keys() | views::take(10))
         {
-            INFO(k);
+            CAPTURE(k);
             REQUIRE(k.find('=') == std::string::npos);
+            REQUIRE(env.contains(k));
         }
         for (std::string_view v : env.values() | views::take(10))
         {
-            INFO(v);
+            CAPTURE(v);
             REQUIRE(v.find('=') == std::string::npos);
         }
         
+    }
+}
+
+TEST_CASE("Path Split", "[pathsplit][.]")
+{
+    using std::cout; using std::quoted;
+
+    environment environment;
+    auto[path_begin, path_end] = environment["PATH"].split();
+    for (auto it = path_begin; it != path_end; it++)
+    {
+        cout<<quoted(*it)<<'\n';
     }
 }
 

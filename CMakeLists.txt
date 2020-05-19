@@ -23,7 +23,7 @@ target_link_libraries(sessions PUBLIC range-v3::range-v3)
 
 if(SESSIONS_TESTS)
   enable_testing()
-  add_executable(tests test/test.cpp test/util.cpp)
+  add_executable(tests test/test.cpp)
   target_link_libraries(tests PRIVATE sessions)
   target_include_directories(tests PRIVATE src)
   add_test(NAME basic-test COMMAND tests WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
