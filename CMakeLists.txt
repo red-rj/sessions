@@ -18,7 +18,7 @@ target_compile_features(sessions PUBLIC cxx_std_20)
 
 # submodules
 add_subdirectory(3rd-party/ranges)
-target_link_libraries(sessions PUBLIC range-v3::range-v3)
+target_link_libraries(sessions PUBLIC range-v3::range-v3 range-v3::meta range-v3::concepts)
 
 
 if(SESSIONS_TESTS)

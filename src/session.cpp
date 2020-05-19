@@ -228,8 +228,32 @@ namespace
         return vec;
     }
 
+    auto init_utf8_env() {
+        std::vector<string> myenv;
+        
+        try
+        {
+            auto wenv = _wenviron;
+            auto len = osenv_size(wenv);
+
+            myenv.reserve(len);
+
+            std::transform(wenv, wenv + len, std::back_inserter(myenv), to_utf8);
+            return myenv;
+        }
+        catch(...)
+        {
+            std::throw_with_nested(std::runtime_error("Failed to create environment"));
+        }
+        
+    }
+
     auto& argvec() {
         static auto vec = init_args();
+        return vec;
+    }
+    auto& envvec() {
+        static auto vec = init_utf8_env();
         return vec;
     }
 
@@ -270,18 +294,6 @@ namespace
     size_t sys_envsize() noexcept {
         return osenv_size(_wenviron);
     }
-
-    size_t sys_envfind(string_view k) {
-        auto wkey = to_utf16(k);
-        auto envp = _wenviron;
-        auto pred = ci_envstr_finder<wchar_t>(wkey);
-        for (size_t i = 0; envp[i]; i++)
-        {
-            if (pred(envp[i])) return i;
-        }
-        return string::npos;
-    }
-
 
 } // unnamed namespace
 #elif defined(_POSIX_VERSION)
@@ -403,7 +415,10 @@ namespace red::session
 
     auto environment::find(string_view k) const noexcept->iterator
     {
-
+        // TODO FIXME
+        auto env = environ;
+        auto env_end = env + osenv_size(env);
+        
     }
 
 

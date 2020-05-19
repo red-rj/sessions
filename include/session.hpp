@@ -3,11 +3,11 @@
 
 #include <type_traits>
 #include <string_view>
+#include <vector>
 
 #include <range/v3/view/transform.hpp>
-#include <range/v3/view/subrange.hpp>
-#include <range/v3/view/delimit.hpp>
 #include <range/v3/view/facade.hpp>
+#include <range/v3/iterator.hpp>
 
 namespace red::session {
 
@@ -16,27 +16,46 @@ namespace detail
     class pathsep_iterator;
 
     template<class T>
-    class c_ptrptr_range : public ranges::view_facade<c_ptrptr_range, ranges::cardinality::finite>
+    class env_range;
+
+    template<class T>
+    class env_range : public ranges::view_facade<env_range<T>, ranges::finite>
     {
-    private:
         friend ranges::range_access;
-        T** ptr = nullptr;
-        T const* read() const { return *ptr; }
-        bool equal(ranges::default_sentinel_t) const { return *ptr == nullptr; }
-        void next() { ++ptr; }
+        T** envp;
+        size_t envsize;
+
+        class cursor
+        {
+            T** envp=nullptr;
+            size_t i=0, max=0;
+        public:
+            cursor()=default;
+            cursor(T** ep, size_t count) : envp(ep), max(count) {}
+
+            void next() { i++; }
+            T* read() const noexcept { return envp[i]; };
+            bool equal(ranges::default_sentinel_t) const {
+                return i == max;
+            }
+        };
+        
+        cursor begin_cursor() {
+            return cursor(envp, envsize);
+        }
     public:
-        c_ptrptr_range() = default;
-        explicit c_ptrptr_range(T** p) : ptr(p) {}
+        explicit env_range(T** ep=nullptr, size_t l=0) : envp(ep), envsize(l) {}
     };
+
+    
 } // namespace detail
 
 
     class environment
     {
-        using envchar_t = char;
         static size_t envsize() noexcept;
     public:
-        using env_range_t = detail::c_ptrptr_range<char>;
+        using env_range_t = detail::env_range<char>;
         class variable
         {
         public:
@@ -59,7 +78,7 @@ namespace detail
             std::string m_value;
         };
 
-        using iterator = envchar_t const**;
+        using iterator = char const**;
         using value_type = variable;
         using size_type = size_t;
         using value_range = env_range_t;
@@ -142,6 +161,12 @@ namespace detail
         [[nodiscard]] const char** argv() const noexcept;
         [[nodiscard]] int argc() const noexcept;
     };
+
+    template<class Iter>
+    std::string join_paths(Iter begin, Iter end);
+
+    template<class Range>
+    std::string join_paths(Range rng);
 
 #if defined(SESSION_NOEXTENTIONS)
     void init_args(int argc, const char** argv);

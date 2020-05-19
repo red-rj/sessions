@@ -3,16 +3,11 @@
 
 #include <type_traits>
 #include <iterator>
-#include <string>
 #include <string_view>
-#include <utility>
-#include <vector>
 
 
 namespace red::session
 {
-	class environment;
-
 namespace detail
 {
 
