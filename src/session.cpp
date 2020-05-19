@@ -30,6 +30,7 @@ int sys_argc() noexcept;
 char** sys_envp() noexcept;
 extern const char sys_path_sep;
 
+
 string sys_getenv(string_view key);
 void sys_setenv(string_view key, string_view value);
 void sys_rmenv(string_view key);
@@ -41,6 +42,13 @@ size_t osenv_size(T** envptr) {
     size_t size = 0;
     while (envptr[size]) size++;
     return size;
+}
+
+auto get_environ_and_size() noexcept
+{
+    auto envp = sys_envp();
+    auto size = osenv_size(envp);
+    return std::make_pair(envp, size);
 }
 
 std::string make_envstr(std::string_view k, std::string_view v)
@@ -123,11 +131,9 @@ struct envstr_finder_base
     }
 };
 
-template<typename T>
-using envstr_finder = envstr_finder_base<std::char_traits<T>>;
+using envstr_finder = envstr_finder_base<std::char_traits<char>>;
 
-template<typename T>
-using ci_envstr_finder = envstr_finder_base<ci_char_traits<T>>;
+using ci_envstr_finder = envstr_finder_base<ci_char_traits<char>>;
 } // unnamed namespace
 
 #if defined(WIN32)
@@ -326,6 +332,8 @@ namespace red::session
         return sys_getenv(m_key);
     }
 
+    char** environment::envp() noexcept { return sys_envp(); }
+
     size_t environment::envsize() noexcept { return sys_envsize(); }
 
     environment::environment() noexcept {
@@ -338,15 +346,14 @@ namespace red::session
     auto environment::find(string_view k) const noexcept->iterator
     {
         using namespace ranges;
-        auto envp = sys_envp();
-        auto rng = env_range<char>(envp, osenv_size(envp));
+        auto rng = env_range<char>(sys_envp());
 #ifdef WIN32
-        auto pred = ci_envstr_finder<char>(k);
+        auto pred = ci_envstr_finder(k);
 #else
-        auto pred = envstr_finder<char>(k);
+        auto pred = envstr_finder(k);
 #endif
         auto view = find_if(rng, pred);
-        return *view;
+        return view;
     }
 
     void environment::erase(string_view k)

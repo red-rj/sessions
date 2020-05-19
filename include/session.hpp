@@ -19,33 +19,37 @@ namespace detail
     class env_range : public ranges::view_facade<env_range<T>, ranges::finite>
     {
         friend ranges::range_access;
-        T** envp;
-        size_t envsize;
+        T** envp = nullptr;
 
-        class cursor
-        {
-            T** envp=nullptr;
-            size_t i=0, max=0;
-        public:
-            cursor()=default;
-            cursor(T** ep, size_t count) : envp(ep), max(count) {}
-
-            void next() { i++; }
-            T* read() const noexcept { return envp[i]; };
-            bool equal(ranges::default_sentinel_t) const {
-                return i == max;
-            }
-        };
-        
-        cursor begin_cursor() {
-            return cursor(envp, envsize);
+        void next() { envp++; }
+        T* read() const noexcept { return envp[0]; };
+        bool equal(ranges::default_sentinel_t) const {
+            return *envp == nullptr;
         }
+
     public:
-        explicit env_range(T** ep=nullptr, size_t l=0) : envp(ep), envsize(l) {}
+        env_range() = default;
+        explicit env_range(T** ep) : envp(ep) {}
     };
 
-    // ranges::basic_iterator<red::session::detail::env_range<char>::cursor>
-    
+
+
+    auto get_key_range(char** envp) noexcept {
+        using namespace ranges;
+        auto rng = env_range<char>(envp);
+        return rng | views::transform([](std::string_view line) {
+            auto eq = line.find('=');
+            return line.substr(0, eq);
+        });
+    }
+    static auto get_value_range(char** envp) noexcept {
+        using namespace ranges;
+        auto envrng = env_range<char>(envp);
+        return envrng | views::transform([](std::string_view line) {
+            auto eq = line.find('=');
+            return line.substr(eq+1);
+        });
+    }
 } // namespace detail
 
 
@@ -54,7 +58,6 @@ namespace detail
         static char** envp() noexcept;
         static size_t envsize() noexcept;
     public:
-        using env_range_t = detail::env_range<char>;
         class variable
         {
         public:
@@ -77,12 +80,11 @@ namespace detail
             std::string m_value;
         };
 
-        // using iterator = ranges::common_iterator<char*,nullptr_t>;
-        using iterator = decltype(*std::declval<env_range_t>());
+        using value_range = decltype(detail::get_value_range(nullptr));
+        using key_range = decltype(detail::get_key_range(nullptr));
+        using iterator = ranges::basic_iterator<detail::env_range<char>>;
         using value_type = variable;
         using size_type = size_t;
-        // using value_range = env_range_t;
-        // using key_range = env_range_t;
         friend class variable;
 
         environment() noexcept;
@@ -124,21 +126,11 @@ namespace detail
         void erase(K const& key) { erase(key); }
         void erase(std::string_view key);
 
-        auto values() const noexcept {
-            using namespace ranges;
-            auto envrng = env_range_t(envp(), envsize());
-            return envrng | views::transform([](std::string_view line) {
-                auto eq = line.find('=');
-                return line.substr(eq+1);
-            });
+        value_range values() const noexcept {
+            return detail::get_value_range(envp());
         }
-        auto keys() const noexcept {
-            using namespace ranges;
-            auto envrng = env_range_t(envp(), envsize());
-            return envrng | views::transform([](std::string_view line) {
-                auto eq = line.find('=');
-                return line.substr(0, eq);
-            });
+        key_range keys() const noexcept {
+            return detail::get_key_range(envp());
         }
     };
 
