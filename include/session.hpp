@@ -3,7 +3,6 @@
 
 #include <type_traits>
 #include <string_view>
-#include <vector>
 
 #include <range/v3/view/transform.hpp>
 #include <range/v3/view/facade.hpp>
@@ -15,8 +14,9 @@ namespace detail
 {
     class pathsep_iterator;
 
+    // range over a C array of pointers where the end is nullptr
     template<class T>
-    class env_range : public ranges::view_facade<env_range<T>, ranges::finite>
+    class c_ptrptr_range : public ranges::view_facade<c_ptrptr_range<T>, ranges::finite>
     {
         friend ranges::range_access;
         T** envp = nullptr;
@@ -28,23 +28,22 @@ namespace detail
         }
 
     public:
-        env_range() = default;
-        explicit env_range(T** ep) : envp(ep) {}
+        c_ptrptr_range() = default;
+        explicit c_ptrptr_range(T** ep) : envp(ep) {}
     };
-
-
-
-    auto get_key_range(char** envp) noexcept {
+    
+    
+    inline auto get_key_range(char** envp) noexcept {
         using namespace ranges;
-        auto rng = env_range<char>(envp);
+        auto rng = c_ptrptr_range<char>(envp);
         return rng | views::transform([](std::string_view line) {
             auto eq = line.find('=');
             return line.substr(0, eq);
         });
     }
-    static auto get_value_range(char** envp) noexcept {
+    inline auto get_value_range(char** envp) noexcept {
         using namespace ranges;
-        auto envrng = env_range<char>(envp);
+        auto envrng = c_ptrptr_range<char>(envp);
         return envrng | views::transform([](std::string_view line) {
             auto eq = line.find('=');
             return line.substr(eq+1);
@@ -57,6 +56,15 @@ namespace detail
     {
         static char** envp() noexcept;
         static size_t envsize() noexcept;
+
+        using env_range_t = detail::c_ptrptr_range<char>;
+        static auto env_range() noexcept -> env_range_t
+        {
+            return env_range_t(envp());
+        }
+
+
+
     public:
         class variable
         {
@@ -82,7 +90,7 @@ namespace detail
 
         using value_range = decltype(detail::get_value_range(nullptr));
         using key_range = decltype(detail::get_key_range(nullptr));
-        using iterator = ranges::basic_iterator<detail::env_range<char>>;
+        using iterator = ranges::basic_iterator<env_range_t>;
         using value_type = variable;
         using size_type = size_t;
         friend class variable;
@@ -113,9 +121,8 @@ namespace detail
 
         bool contains(std::string_view key) const;
 
-        iterator cbegin() const noexcept;
-        iterator cend() const noexcept;
-
+        iterator cbegin() const noexcept { return env_range().begin(); }
+        iterator cend() const noexcept { return env_range().end(); }
         iterator begin() const noexcept { return cbegin(); }
         iterator end() const noexcept { return cend(); }
 

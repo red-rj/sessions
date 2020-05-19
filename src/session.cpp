@@ -44,13 +44,6 @@ size_t osenv_size(T** envptr) {
     return size;
 }
 
-auto get_environ_and_size() noexcept
-{
-    auto envp = sys_envp();
-    auto size = osenv_size(envp);
-    return std::make_pair(envp, size);
-}
-
 std::string make_envstr(std::string_view k, std::string_view v)
 {
     std::string es;
@@ -346,7 +339,7 @@ namespace red::session
     auto environment::find(string_view k) const noexcept->iterator
     {
         using namespace ranges;
-        auto rng = env_range<char>(sys_envp());
+        auto rng = env_range();
 #ifdef WIN32
         auto pred = ci_envstr_finder(k);
 #else
@@ -354,6 +347,12 @@ namespace red::session
 #endif
         auto view = find_if(rng, pred);
         return view;
+    }
+
+    bool environment::contains(string_view k) const
+    {
+        string key{k};
+        return getenv(key.c_str());
     }
 
     void environment::erase(string_view k)
