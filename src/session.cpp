@@ -27,6 +27,7 @@ namespace
 {
 char const** sys_argv() noexcept;
 int sys_argc() noexcept;
+char** sys_envp() noexcept;
 extern const char sys_path_sep;
 
 string sys_getenv(string_view key);
@@ -40,14 +41,6 @@ size_t osenv_size(T** envptr) {
     size_t size = 0;
     while (envptr[size]) size++;
     return size;
-}
-
-
-template<class T>
-auto envrange(T** envptr)
-{
-    using namespace ranges;
-    return c_ptrptr_range<T>(envptr);
 }
 
 std::string make_envstr(std::string_view k, std::string_view v)
@@ -228,71 +221,45 @@ namespace
         return vec;
     }
 
-    auto init_utf8_env() {
-        std::vector<string> myenv;
-        
-        try
-        {
-            auto wenv = _wenviron;
-            auto len = osenv_size(wenv);
-
-            myenv.reserve(len);
-
-            std::transform(wenv, wenv + len, std::back_inserter(myenv), to_utf8);
-            return myenv;
-        }
-        catch(...)
-        {
-            std::throw_with_nested(std::runtime_error("Failed to create environment"));
-        }
-        
-    }
-
     auto& argvec() {
         static auto vec = init_args();
-        return vec;
-    }
-    auto& envvec() {
-        static auto vec = init_utf8_env();
         return vec;
     }
 
     char const** sys_argv() noexcept { return argvec().data(); }
     int sys_argc() noexcept { return static_cast<int>(argvec().size()) - 1; }
+    char** sys_envp() noexcept { return environ; }
     const char sys_path_sep = ';';
 
-    string sys_getenv(string_view key)
+    string sys_getenv(string_view k)
     {
-        using namespace ranges;
-        auto wkey = to_utf16(key);
-
-        wchar_t* wval; size_t wval_l;
-        auto err = _wdupenv_s(&wval, &wval_l, wkey.c_str());
-        auto _g_ = std::unique_ptr<wchar_t, void(*)(void*)>(wval, free);
-        if (err || !wval) {
-            // error or not found
+        auto key = string(k);
+        
+        char* val; size_t len;
+        _dupenv_s(&val, &len, key.c_str());
+        auto _g_ = std::unique_ptr<char, void(*)(void*)>(val, free);
+        if (!val) {
+            // not found
             return {};
         }
-        else {
-            return to_utf8({wval, wval_l});
-        }
+        else return {val, len};
     }
 
     void sys_setenv(string_view key, string_view value) {
-        auto wenv = to_utf16(make_envstr(key, value));
-        wenv[key.size()] = L'\0';
-        wchar_t const *wkey = wenv.c_str();
-        auto wvalue = wkey + key.size() + 1;
-        _wputenv_s(wkey, wvalue);
+        auto envline = make_envstr(key, value);
+        envline[key.size()] = '\0';
+        char const* k = envline.c_str();
+        auto v = k + key.size() + 1;
+        _putenv_s(k, v);
     }
 
     void sys_rmenv(string_view key) {
-        auto wkey = to_utf16(key);
-        _wputenv_s(wkey.c_str(), L"");
+        auto k = string(key);
+        _putenv_s(k.c_str(), "");
     }
 
     size_t sys_envsize() noexcept {
-        return osenv_size(_wenviron);
+        return osenv_size(environ);
     }
 
 } // unnamed namespace
@@ -416,7 +383,7 @@ namespace red::session
     auto environment::find(string_view k) const noexcept->iterator
     {
         // TODO FIXME
-        auto env = environ;
+        auto env = sys_envp();
         auto env_end = env + osenv_size(env);
         
     }
