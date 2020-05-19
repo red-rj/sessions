@@ -4,9 +4,9 @@
 #include <type_traits>
 #include <string_view>
 
+#include <range/v3/core.hpp>
 #include <range/v3/view/transform.hpp>
-#include <range/v3/view/facade.hpp>
-#include <range/v3/iterator.hpp>
+#include <range/v3/view/common.hpp>
 
 namespace red::session {
 
@@ -69,7 +69,7 @@ namespace detail
         class variable
         {
         public:
-            using path_iterator = detail::pathsep_iterator;
+            struct path_iterator;
         
             operator std::string_view() const noexcept { return this->value(); }
             std::string_view value() const noexcept { return this->m_value; }
@@ -140,6 +140,53 @@ namespace detail
             return detail::get_key_range(envp());
         }
     };
+
+    struct environment::variable::path_iterator
+    {
+        using value_type = std::basic_string_view<char>;
+        using iterator_category = std::bidirectional_iterator_tag;
+
+        explicit path_iterator(value_type sv = {}) : m_var(sv)
+        {}
+
+        auto& operator++ () {
+            next();
+            return *this;
+        }
+        auto operator++ (int) {
+            auto tmp = path_iterator(*this);
+            next();
+            return tmp;
+        }
+
+        auto& operator-- () {
+            prev();
+            return *this;
+        }
+        auto operator-- (int) {
+            auto tmp = path_iterator(*this);
+            prev();
+            return tmp;
+        }
+
+        bool constexpr operator== (path_iterator const& rhs) const noexcept {
+            return m_current == rhs.m_current;
+        }
+        bool constexpr operator!= (path_iterator const& rhs) const noexcept {
+            return !(*this == rhs);
+        }
+
+        value_type& operator* () { return m_current; }
+
+
+    private:
+        void next() noexcept;
+        void prev() noexcept;
+    
+        value_type m_var, m_current;
+        size_t m_offset=0;
+    };
+    
 
 
     class arguments

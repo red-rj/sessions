@@ -14,7 +14,6 @@
 #include <range/v3/algorithm.hpp>
 
 #include "session.hpp"
-#include "session_impl.hpp"
 
 using std::string;
 using std::wstring;
@@ -361,24 +360,35 @@ namespace red::session
     }
 
 
-    // detail
-    void detail::pathsep_iterator::next_sep() noexcept
+    void environment::variable::path_iterator::next() noexcept
     {
-        if (m_offset == std::string::npos) {
-            m_view = {};
-            return;
-        }
+        // if (m_offset == string::npos) {
+        //     m_current = {};
+        //     return;
+        // }
 
         auto pos = m_var.find(sys_path_sep, m_offset);
-
-        if (pos == std::string::npos) {
-            m_view = m_var.substr(m_offset, pos);
+        if (pos == string::npos) {
+            m_current = m_var.substr(m_offset, pos);
             m_offset = pos;
             return;
         }
 
-        m_view = m_var.substr(m_offset, pos - m_offset);
+        m_current = m_var.substr(m_offset, pos - m_offset);
         m_offset = pos + 1;
+    }
+    void environment::variable::path_iterator::prev() noexcept
+    {
+        // if (m_offset == string::npos) {
+        //     m_current = {};
+        //     return;
+        // }
+        
+        auto pos = m_var.rfind(sys_path_sep, m_offset);
+        if (pos != string::npos) {
+            m_current = m_var.substr(pos, m_offset);
+            m_offset = pos;
+        }
     }
 
     
