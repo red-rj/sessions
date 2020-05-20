@@ -7,6 +7,12 @@
 #include <range/v3/core.hpp>
 #include <range/v3/view/transform.hpp>
 
+#define RED_ITERATOR_TYPES_ALL(vt, difft, ref, ptr, itcat) \
+    using value_type=vt; using difference_type=difft; using reference=ref; \
+    using pointer=ptr; using iterator_category=itcat
+
+#define RED_ITERATOR_TYPES(vt, difft, itcat) RED_ITERATOR_TYPES_ALL(vt, difft, vt&, vt*, itcat)
+
 namespace red::session {
 
 namespace detail
@@ -45,6 +51,11 @@ namespace detail
 
     } inline constexpr environ_views;
 
+    struct environ_range
+    {
+        // TODO: make the range responsible for text converting on windows
+    };    
+
 } // namespace detail
 
 
@@ -53,7 +64,6 @@ namespace detail
         using env_range_t = detail::c_ptrptr_range<char>;
 
         static env_range_t env_range() noexcept;
-        static size_t envsize() noexcept;
     public:
         class variable
         {
@@ -110,8 +120,8 @@ namespace detail
         iterator begin() const noexcept { return cbegin(); }
         auto end() const noexcept { return cend(); }
 
-        size_type size() const noexcept { return envsize(); }
-		[[nodiscard]] bool empty() const noexcept { return envsize() == 0; }
+        size_type size() const noexcept;
+		[[nodiscard]] bool empty() const noexcept { return size() == 0; }
 
         template <class K, class = Is_Strview_Convertible<K>>
         void erase(K const& key) { erase(std::string_view(key)); }
@@ -127,11 +137,7 @@ namespace detail
 
     struct environment::variable::path_iterator
     {
-        using iterator_category = std::forward_iterator_tag;
-        using value_type = std::string_view;
-        using difference_type = ptrdiff_t;
-        using pointer = value_type*;
-        using reference = value_type&;
+        RED_ITERATOR_TYPES(std::string_view, ptrdiff_t, std::forward_iterator_tag);
 
         explicit path_iterator(std::shared_ptr<std::string> sv) : m_var(sv) {
             next();
@@ -210,4 +216,6 @@ namespace detail
 
 } /* namespace red::session */
     
+#undef RED_ITERATOR_TYPES_ALL
+#undef RED_ITERATOR_TYPES
 #endif /* RED_SESSION_HPP */

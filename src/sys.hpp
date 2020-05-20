@@ -11,7 +11,6 @@ using std::string_view;
 
 char const** argv() noexcept;
 int argc() noexcept;
-char** envp() noexcept;
 extern const char path_sep;
 
 // env

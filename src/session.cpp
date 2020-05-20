@@ -120,6 +120,51 @@ namespace
         throw std::system_error(static_cast<int>(error), std::system_category());
     }
 
+    bool is_valid_utf8(const char* str, int str_l = -1) {
+        return MultiByteToWideChar(
+            CP_UTF8, MB_ERR_INVALID_CHARS, 
+            str, str_l, 
+            nullptr, 0) != 0;
+    }
+
+    auto narrow(wchar_t const* wstr, int wstr_l = -1, char* ptr = nullptr, int length = 0) {
+        return WideCharToMultiByte(
+            CP_UTF8, 0, 
+            wstr, wstr_l,
+            ptr, length, 
+            nullptr, nullptr);
+    }
+
+    auto wide(const char* nstr, int nstr_l = -1, wchar_t* ptr = nullptr, int length = 0) {
+        const int CP = is_valid_utf8(nstr, nstr_l) ? CP_UTF8 : CP_ACP;
+        return MultiByteToWideChar(
+            CP, 0,
+            nstr, nstr_l,
+            ptr, length);
+    }
+    
+    std::string to_utf8(std::wstring_view wstr) {
+        auto length = narrow(wstr.data(), (int)wstr.size());
+        auto str8 = std::string(length, '\3');
+        auto result = narrow(wstr.data(), (int)wstr.size(), str8.data(), length);
+
+        if (result == 0)
+            throw_win_error();
+
+        return str8;
+    }
+
+    std::wstring to_utf16(std::string_view nstr) {
+        auto length = wide(nstr.data(), (int)nstr.size());
+        auto str16 = std::wstring(length, L'\3');
+        auto result = wide(nstr.data(), (int)nstr.size(), str16.data(), length);
+
+        if (result == 0)
+            throw_win_error();
+
+        return str16;
+    }
+
     auto init_args() {
         int argc;
         auto wargv = std::unique_ptr<LPWSTR[], decltype(LocalFree)*>{
@@ -137,11 +182,11 @@ namespace
             
             for (int i = 0; i < argc; i++)
             {
-                auto length = WideCharToMultiByte(CP_ACP, 0, wargv[i], -1, nullptr, 0, nullptr, nullptr);
+                auto length = narrow(wargv[i]);
                 auto ptr = new char[length];
                 vec.push_back(ptr);
 
-                auto result = WideCharToMultiByte(CP_ACP, 0, wargv[i], -1, ptr, length, nullptr, nullptr);
+                auto result = narrow(wargv[i], -1, ptr, length);
                 if (result==0)
                     throw_win_error();
             }
@@ -165,19 +210,24 @@ namespace
 
 char const** sys::argv() noexcept { return argvec().data(); }
 int sys::argc() noexcept { return static_cast<int>(argvec().size()) - 1; }
-char** sys::envp() noexcept { return _environ; }
 const char sys::path_sep = ';';
 
-void sys::setenv(string_view k, string_view v) {
-    auto line = make_envstr(k, v);
-    line[k.size()] = '\0';
-    auto* key = line.c_str();
-    auto* value = key+k.size()+1;
-    _putenv_s(key, value);
+string sys::getenv(string_view k) {
+    auto wkey = to_utf16(k);
+    wchar_t* wval = _wgetenv(wkey.c_str());
+    return wval ? to_utf8(wval) : "";
+}
+
+void sys::setenv(string_view key, string_view value) {
+    auto wenv = to_utf16(make_envstr(key, value));
+    wenv[key.size()] = L'\0';
+    wchar_t const *wkey = wenv.c_str();
+    auto wvalue = wkey + key.size() + 1;
+    _wputenv_s(wkey, wvalue);
 }
 void sys::rmenv(string_view k) {
-    string key{k};
-    _putenv_s(key.c_str(), "");
+    auto wkey = to_utf16(k);
+    _wputenv_s(wkey.c_str(), L"");
 }
 
 #elif defined(_POSIX_VERSION)
@@ -191,7 +241,6 @@ namespace
 
 char const** sys::argv() noexcept { return my_argv; }
 int sys::argc() noexcept { return my_argc; }
-char** sys::envp() noexcept { return environ; }
 const char sys::path_sep = ':';
 
 void sys::setenv(string_view k, string_view v) {
@@ -218,11 +267,7 @@ namespace red::session
 #endif
 
 // sys common
-string sys::getenv(string_view k) {
-    string key{k};
-    auto* var = ::getenv(key.c_str());
-    return var ? var : "";
-}
+
 
 namespace red::session
 {
@@ -293,12 +338,12 @@ namespace red::session
         return env_range_t(sys::envp());
     }
 
-    size_t environment::envsize() noexcept { return sys::envsize(sys::envp()); }
+    size_t environment::size() const noexcept { return sys::envsize(sys::envp()); }
 
     environment::environment() noexcept {
 #ifdef WIN32
-        if (!_environ)
-            getenv("initpls");
+        if (!_wenviron)
+            _wgetenv(L"initpls");
 #endif
     }
 
