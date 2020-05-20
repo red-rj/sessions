@@ -272,18 +272,19 @@ namespace red::session
     auto environment::variable::operator=(std::string_view value)->variable&
     {
         sys::setenv(m_key, value);
-        m_value = value;
         return *this;
+    }
+
+    string_view environment::variable::value() const noexcept
+    {
+        auto* val = ::getenv(m_key.c_str());
+        return val ? val : "";
     }
 
     auto environment::variable::split() const->std::pair<path_iterator, path_iterator>
     {
-        return { path_iterator(m_value), path_iterator() };
-    }
-
-    string environment::variable::query()
-    {
-        return sys::getenv(m_key);
+        auto pvalue = std::make_shared<string>(value());
+        return { path_iterator(pvalue), path_iterator() };
     }
 
     auto environment::env_range() noexcept 
@@ -325,26 +326,23 @@ namespace red::session
         sys::rmenv(k);
     }
 
-
     void environment::variable::path_iterator::next() noexcept
     {
-        auto pos = m_var.find(sys::path_sep, m_offset);
-        if (pos == string::npos) {
-            m_current = m_var.substr(m_offset, pos);
-            m_offset = pos;
-        } else {
-            m_current = m_var.substr(m_offset, pos - m_offset);
-            m_offset = pos + 1;
+        if (m_offset == string::npos) {
+            m_current = {};
+            return;
         }
-    }
-    void environment::variable::path_iterator::prev() noexcept
-    {
-        auto pos = m_var.rfind(sys::path_sep, m_offset);
-        if (pos != string::npos) {
-            m_current = m_var.substr(pos, m_offset);
-            m_offset = pos;
-        }
-    }
 
-    
+        string_view var = *m_var;
+        auto pos = var.find(sys::path_sep, m_offset);
+
+        if (pos == string::npos) {
+            m_current = var.substr(m_offset, pos);
+            m_offset = pos;
+            return;
+        }
+
+        m_current = var.substr(m_offset, pos - m_offset);
+        m_offset = pos + 1;
+    }
 }

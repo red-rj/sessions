@@ -99,15 +99,46 @@ TEST_CASE("Environment tests", "[environment]")
     }
 }
 
-TEST_CASE("Path Split", "[pathsplit][.]")
+TEST_CASE("Path Split", "[pathsplit]")
 {
     using std::cout; using std::quoted;
+    using path_iterator = environment::variable::path_iterator;
 
     environment environment;
+    
     auto[path_begin, path_end] = environment["PATH"].split();
-    for (auto it = path_begin; it != path_end; it++)
+    path_iterator it;
+    int count=0;
+    CAPTURE(sys::path_sep, count);
+    for (it = path_begin; it != path_end; it++, count++)
     {
-        cout<<quoted(*it)<<'\n';
+        auto current = *it;
+        CAPTURE(current);
+        REQUIRE(current.find(sys::path_sep) == std::string::npos);
+    }
+
+    CHECK(count > 0);
+    auto rit = std::make_reverse_iterator(it);
+
+    for (int i = count - 1; i >= 0; i--,it++)
+    {
+        auto current = *it;
+        CAPTURE(current);
+        REQUIRE(current.find(sys::path_sep) == std::string::npos);
+    }
+
+    auto itens = std::array{path_begin,path_begin};
+    CHECK((itens[0] == path_begin && itens[1] == path_begin));
+    CAPTURE(*itens[0], *itens[1], *path_begin);
+    {
+        INFO("post increment");
+        itens[0]++; itens[1]++;
+        REQUIRE(itens[0] == itens[1]);
+    }
+    {
+        INFO("pre increment");
+        ++itens[0]; ++itens[1];
+        REQUIRE(itens[0] == itens[1]);
     }
 }
 

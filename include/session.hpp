@@ -60,25 +60,16 @@ namespace detail
         public:
             struct path_iterator;
         
-            operator std::string_view() const noexcept { 
-                return m_value;
-            }
-            std::string_view value() const noexcept { 
-                return this->m_value;
-            }
+            operator std::string_view() const noexcept { return value(); }
             std::string_view key() const noexcept { return m_key; }
+            std::string_view value() const noexcept;
             std::pair<path_iterator, path_iterator> split () const;
 
-            explicit variable(std::string_view key_) : m_key(key_) {
-                m_value = query();
-            }
-            variable& operator = (std::string_view value);
+            explicit variable(std::string_view key_) : m_key(key_) {}
+            variable& operator=(std::string_view value);
 
         private:
-            std::string query();
-        
             std::string m_key;
-            std::string m_value;
         };
 
         using value_range = decltype(detail::environ_views(env_range(),false));
@@ -136,11 +127,16 @@ namespace detail
 
     struct environment::variable::path_iterator
     {
-        using value_type = std::basic_string_view<char>;
-        using iterator_category = std::bidirectional_iterator_tag;
+        using iterator_category = std::forward_iterator_tag;
+        using value_type = std::string_view;
+        using difference_type = ptrdiff_t;
+        using pointer = value_type*;
+        using reference = value_type&;
 
-        explicit path_iterator(value_type sv = {}) : m_var(sv)
-        {}
+        explicit path_iterator(std::shared_ptr<std::string> sv) : m_var(sv) {
+            next();
+        }
+        path_iterator()=default;
 
         auto& operator++ () {
             next();
@@ -152,16 +148,6 @@ namespace detail
             return tmp;
         }
 
-        auto& operator-- () {
-            prev();
-            return *this;
-        }
-        auto operator-- (int) {
-            auto tmp = path_iterator(*this);
-            prev();
-            return tmp;
-        }
-
         bool constexpr operator== (path_iterator const& rhs) const noexcept {
             return m_current == rhs.m_current;
         }
@@ -169,14 +155,13 @@ namespace detail
             return !(*this == rhs);
         }
 
-        value_type& operator* () { return m_current; }
-
+        reference operator* () { return m_current; }
 
     private:
         void next() noexcept;
-        void prev() noexcept;
     
-        value_type m_var, m_current;
+        std::string_view m_current;
+        std::shared_ptr<std::string> m_var;
         size_t m_offset=0;
     };
     
