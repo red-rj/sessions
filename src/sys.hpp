@@ -2,6 +2,7 @@
 #pragma once
 #include <string>
 #include <string_view>
+#include <type_traits>
 
 namespace sys
 {
@@ -24,5 +25,21 @@ inline size_t envsize(T** envptr) {
     while (envptr[size]) size++;
     return size;
 }
+inline auto envp() noexcept
+{
+#ifdef WIN32
+    return _wenviron;
+#else
+    return environ;
+#endif
+}
+
+string envline(ptrdiff_t p);
+
+template<class T>
+using remove_ptrptr_t = std::remove_pointer_t<std::remove_pointer_t<T>>;
+
+using env_t = decltype(envp());
+using envchar = remove_ptrptr_t<env_t>;
 
 } // namespace sys

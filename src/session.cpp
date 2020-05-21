@@ -10,6 +10,7 @@
 #include <system_error>
 #include <cstdlib>
 #include <cstring>
+#include <cassert>
 
 #include <range/v3/algorithm.hpp>
 
@@ -32,6 +33,7 @@ std::string make_envstr(std::string_view k, std::string_view v)
     es += k; es += '='; es += v;
     return es;
 }
+
 
 template<class T>
 struct ci_char_traits : public std::char_traits<T> {
@@ -147,6 +149,8 @@ namespace
         auto length = narrow(wstr.data(), (int)wstr.size());
         auto str8 = std::string(length, '\3');
         auto result = narrow(wstr.data(), (int)wstr.size(), str8.data(), length);
+        str8.shrink_to_fit();
+        assert(str8.find('\3')==str8.npos);
 
         if (result == 0)
             throw_win_error();
@@ -158,6 +162,8 @@ namespace
         auto length = wide(nstr.data(), (int)nstr.size());
         auto str16 = std::wstring(length, L'\3');
         auto result = wide(nstr.data(), (int)nstr.size(), str16.data(), length);
+        str16.shrink_to_fit();
+        assert(str16.find(L'\3')==str16.npos);
 
         if (result == 0)
             throw_win_error();
@@ -176,6 +182,7 @@ namespace
             throw_win_error();
         
         std::vector<char const*> vec;
+        char* ptr;
         try
         {
             vec.reserve(argc+1);
@@ -183,18 +190,20 @@ namespace
             for (int i = 0; i < argc; i++)
             {
                 auto length = narrow(wargv[i]);
-                auto ptr = new char[length];
-                vec.push_back(ptr);
-
+                ptr = new char[length];
                 auto result = narrow(wargv[i], -1, ptr, length);
-                if (result==0)
+                if (result==0) {
                     throw_win_error();
+                }
+
+                vec.push_back(ptr);
             }
             
             vec.emplace_back(); // terminating null
         }
         catch(...)
         {
+            delete[] ptr;
             for (auto p : vec) delete[] p;
             std::throw_with_nested(std::runtime_error("Failed to create arguments"));
         }
@@ -249,7 +258,7 @@ void sys::setenv(string_view k, string_view v) {
 }
 void sys::rmenv(string_view k) {
     string key{k};
-    unsetenv(key.c_str());
+    ::unsetenv(key.c_str());
 }
 
 namespace red::session
@@ -267,10 +276,40 @@ namespace red::session
 #endif
 
 // sys common
+string sys::envline(ptrdiff_t p)
+{
+    auto env = envp();
+#ifdef WIN32
+    return to_utf8(env[p]);
+#else
+    return env[p];
+#endif
+}
 
 
 namespace red::session
 {
+namespace detail
+{
+    environ_range::environ_range(ptrdiff_t off_) : offset(off_), current(sys::envline(offset))
+    {
+    }
+
+    void environ_range::next()
+    {
+        current = sys::envline(++offset);
+    }
+    void environ_range::prev()
+    {
+        current = sys::envline(--offset);
+    }
+    void environ_range::advance(ptrdiff_t n)
+    {
+        offset += n;
+        current = sys::envline(offset);
+    }
+} // namespace detail
+
     // args
     auto arguments::operator [] (arguments::index_type idx) const noexcept -> value_type
     {
@@ -303,15 +342,8 @@ namespace red::session
         return iterator{argv() + argc()};
     }
 
-    const char** arguments::argv() const noexcept
-    {
-        return sys::argv();
-    }
-
-    int arguments::argc() const noexcept
-    {
-        return sys::argc();
-    }
+    const char** arguments::argv() const noexcept { return sys::argv(); }
+    int arguments::argc() const noexcept { return sys::argc(); }
 
     // env
     auto environment::variable::operator=(std::string_view value)->variable&
@@ -330,12 +362,6 @@ namespace red::session
     {
         auto pvalue = std::make_shared<string>(value());
         return { path_iterator(pvalue), path_iterator() };
-    }
-
-    auto environment::env_range() noexcept 
-    -> env_range_t
-    {
-        return env_range_t(sys::envp());
     }
 
     size_t environment::size() const noexcept { return sys::envsize(sys::envp()); }

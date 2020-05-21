@@ -3,6 +3,7 @@
 
 #include <type_traits>
 #include <string_view>
+#include <memory>
 
 #include <range/v3/core.hpp>
 #include <range/v3/view/transform.hpp>
@@ -15,8 +16,7 @@
 
 namespace red::session {
 
-namespace detail
-{
+namespace detail {
     // range over a C array of pointers where the end is nullptr
     template<class T>
     class c_ptrptr_range : public ranges::view_facade<c_ptrptr_range<T>>
@@ -40,10 +40,10 @@ namespace detail
 
     struct environ_views_fn
     {
-        template<class Ch>
-        auto operator() (c_ptrptr_range<Ch>&& rng, bool key) const {
+        template<typename Rng>
+        auto operator() (Rng&& rng, bool key) const {
             using namespace ranges;
-            return views::transform(rng, [key](std::basic_string_view<Ch> line) {
+            return views::transform(rng, [key](std::string_view line) {
                 auto const eq = line.find('=');
                 return key ? line.substr(0, eq) : line.substr(eq+1);
             });
@@ -51,19 +51,39 @@ namespace detail
 
     } inline constexpr environ_views;
 
-    struct environ_range
+    class environ_range : public ranges::view_facade<environ_range>
     {
-        // TODO: make the range responsible for text converting on windows
-    };    
+        friend ranges::range_access;
+        
+        ptrdiff_t offset=0;
+        std::string current;
+
+        // cursor
+        void next();
+        void prev();
+        void advance(ptrdiff_t n);
+        std::string_view read() const { return current; }
+        bool equal(ranges::default_sentinel_t) const {
+            return current.empty() && offset==0;
+        }
+        bool equal(environ_range const& other) const {
+            return offset == other.offset && current == other.current;
+        }
+
+    public:
+        // ctor
+        environ_range() noexcept
+            : environ_range(0) {}
+        
+        explicit environ_range(ptrdiff_t off_);
+    };
 
 } // namespace detail
 
 
     class environment
     {
-        using env_range_t = detail::c_ptrptr_range<char>;
-
-        static env_range_t env_range() noexcept;
+        detail::environ_range envrange;
     public:
         class variable
         {
@@ -82,9 +102,9 @@ namespace detail
             std::string m_key;
         };
 
-        using value_range = decltype(detail::environ_views(env_range(),false));
-        using key_range = decltype(detail::environ_views(env_range(),true));
-        using iterator = ranges::iterator_t<env_range_t>;
+        using value_range = decltype(detail::environ_views(envrange,false));
+        using key_range = decltype(detail::environ_views(envrange,true));
+        using iterator = ranges::iterator_t<detail::environ_range>;
         using value_type = variable;
         using size_type = size_t;
         friend class variable;
@@ -170,7 +190,6 @@ namespace detail
         std::shared_ptr<std::string> m_var;
         size_t m_offset=0;
     };
-    
 
 
     class arguments
