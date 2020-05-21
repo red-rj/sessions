@@ -7,6 +7,7 @@
 
 #include <range/v3/core.hpp>
 #include <range/v3/view/transform.hpp>
+#include <range/v3/view/delimit.hpp>
 
 #define RED_ITERATOR_TYPES_ALL(vt, difft, ref, ptr, itcat) \
     using value_type=vt; using difference_type=difft; using reference=ref; \
@@ -15,6 +16,8 @@
 #define RED_ITERATOR_TYPES(vt, difft, itcat) RED_ITERATOR_TYPES_ALL(vt, difft, vt&, vt*, itcat)
 
 namespace red::session {
+
+    class environment;
 
 namespace detail {
     // range over a C array of pointers where the end is nullptr
@@ -38,6 +41,54 @@ namespace detail {
         explicit c_ptrptr_range(T** ep) : envp(ep) {}
     };
 
+    struct c_ptrptr_fn
+    {
+        template<typename T, std::size_t N>
+        auto operator() (T* (&t)[N]) const -> ranges::subrange<T**>
+        {
+            return {&t[0], &t[N-1]};
+        }
+
+        template<typename T>
+        auto operator() (T** ary) const
+            //-> ranges::delimit_view<ranges::subrange<T**, ranges::unreachable_sentinel_t>, std::remove_cv_t<T>>
+        {
+            return ranges::views::delimit(ary, (T*)nullptr);
+        }
+    };
+
+    class environ_range : public ranges::view_facade<environ_range>
+    {
+        friend ranges::range_access;
+        friend environment;
+        
+        ptrdiff_t offset=0;
+        std::string current;
+
+        // cursor
+        void next();
+        void prev();
+        void advance(ptrdiff_t n);
+        std::string_view read() const { return current; }
+        bool equal(ranges::default_sentinel_t) const {
+            return current.empty();
+        }
+        bool equal(environ_range const& other) const {
+            return offset == other.offset && current == other.current;
+        }
+
+        // my
+        void reset() {
+            offset = 0;
+            current.clear();
+        }
+
+    public:
+        // ctors
+        environ_range() = default;
+        explicit environ_range(ptrdiff_t off_);
+    };
+    
     struct environ_views_fn
     {
         template<typename Rng>
@@ -51,39 +102,13 @@ namespace detail {
 
     } inline constexpr environ_views;
 
-    class environ_range : public ranges::view_facade<environ_range>
-    {
-        friend ranges::range_access;
-        
-        ptrdiff_t offset=0;
-        std::string current;
-
-        // cursor
-        void next();
-        void prev();
-        void advance(ptrdiff_t n);
-        std::string_view read() const { return current; }
-        bool equal(ranges::default_sentinel_t) const {
-            return current.empty() && offset==0;
-        }
-        bool equal(environ_range const& other) const {
-            return offset == other.offset && current == other.current;
-        }
-
-    public:
-        // ctor
-        environ_range() noexcept
-            : environ_range(0) {}
-        
-        explicit environ_range(ptrdiff_t off_);
-    };
-
 } // namespace detail
 
 
     class environment
     {
-        detail::environ_range envrange;
+        // static detail::environ_range env_range();
+        detail::environ_range m_range;
     public:
         class variable
         {
@@ -102,8 +127,8 @@ namespace detail {
             std::string m_key;
         };
 
-        using value_range = decltype(detail::environ_views(envrange,false));
-        using key_range = decltype(detail::environ_views(envrange,true));
+        using value_range = decltype(detail::environ_views(m_range,false));
+        using key_range = decltype(detail::environ_views(m_range,true));
         using iterator = ranges::iterator_t<detail::environ_range>;
         using value_type = variable;
         using size_type = size_t;
@@ -135,8 +160,8 @@ namespace detail {
 
         bool contains(std::string_view key) const;
 
-        iterator cbegin() const noexcept { return env_range().begin(); }
-        auto cend() const noexcept { return env_range().end(); } // TODO: why doesn't sentinel convert to iterator?
+        iterator cbegin() const noexcept { return m_range.begin(); }
+        auto cend() const noexcept { return m_range.end(); } // TODO: why doesn't sentinel convert to iterator?
         iterator begin() const noexcept { return cbegin(); }
         auto end() const noexcept { return cend(); }
 
@@ -147,11 +172,11 @@ namespace detail {
         void erase(K const& key) { erase(std::string_view(key)); }
         void erase(std::string_view key);
 
-        value_range values() const noexcept {
-            return detail::environ_views(env_range(), false);
+        auto values() const noexcept {
+            return detail::environ_views(m_range, false);
         }
-        key_range keys() const noexcept {
-            return detail::environ_views(env_range(), true);
+        auto keys() const noexcept {
+            return detail::environ_views(m_range, true);
         }
     };
 

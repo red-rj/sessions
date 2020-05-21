@@ -275,14 +275,14 @@ namespace red::session
 }
 #endif
 
-// sys common
-string sys::envline(ptrdiff_t p)
+
+string sys::get_envline(ptrdiff_t p, env_t env)
 {
-    auto env = envp();
+    envchar* line = env[p];
 #ifdef WIN32
-    return to_utf8(env[p]);
+    return line ? to_utf8(line) : "";
 #else
-    return env[p];
+    return line ? line : "";
 #endif
 }
 
@@ -291,23 +291,27 @@ namespace red::session
 {
 namespace detail
 {
-    environ_range::environ_range(ptrdiff_t off_) : offset(off_), current(sys::envline(offset))
+    environ_range::environ_range(ptrdiff_t off_) : offset(off_)
     {
+        current = sys::get_envline(offset);
     }
 
     void environ_range::next()
     {
-        current = sys::envline(++offset);
+        ++offset;
+        current = sys::get_envline(offset);
     }
     void environ_range::prev()
     {
-        current = sys::envline(--offset);
+        --offset;
+        current = sys::get_envline(offset);
     }
     void environ_range::advance(ptrdiff_t n)
     {
         offset += n;
-        current = sys::envline(offset);
+        current = sys::get_envline(offset);
     }
+
 } // namespace detail
 
     // args
@@ -366,7 +370,8 @@ namespace detail
 
     size_t environment::size() const noexcept { return sys::envsize(sys::envp()); }
 
-    environment::environment() noexcept {
+    environment::environment() noexcept
+    {
 #ifdef WIN32
         if (!_wenviron)
             _wgetenv(L"initpls");
@@ -375,14 +380,12 @@ namespace detail
 
     auto environment::find(string_view k) const noexcept->iterator
     {
-        using namespace ranges;
-        auto rng = env_range();
 #ifdef WIN32
         auto pred = ci_envstr_finder(k);
 #else
         auto pred = envstr_finder(k);
 #endif
-        auto view = find_if(rng, pred);
+        auto view = ranges::find_if(m_range, pred);
         return view;
     }
 

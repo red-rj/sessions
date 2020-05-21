@@ -50,37 +50,37 @@ TEST_CASE("Environment tests", "[environment]")
         for(auto[key, value] : cases)
         {
             std::string var { env[key] };
-            CHECK(var == value);
+            REQUIRE(var == value);
         }
 
-        CHECK(env["nonesuch"] == ""sv);
+        REQUIRE(env["nonesuch"] == ""sv);
     }
     SECTION("finding variables using find()")
     {
         for(auto c : cases)
         {
             auto it = env.find(c.first);
-            CHECK(it != env.end());
+            REQUIRE(it != env.end());
         }
 
-        CHECK(env.find("nonesuch") == env.end());
+        REQUIRE(env.find("nonesuch") == env.end());
     }
     SECTION("erasing variables")
     {
         env.erase("PROTOCOL");
-        CHECK(env.find("PROTOCOL") == env.end());
         CHECK(env.size() == env_start_l - 1);
         auto e = sys::getenv("PROTOCOL");
-        CHECK(e.empty());
+        REQUIRE(e.empty());
+        REQUIRE(env.find("PROTOCOL") == env.end());
     }
     SECTION("contains")
     {
         for(auto c : cases)
         {
-            CHECK(env.contains(c.first));
+            REQUIRE(env.contains(c.first));
         }
         
-        CHECK_FALSE(env.contains("nonesuch"));
+        REQUIRE_FALSE(env.contains("nonesuch"));
     }
     SECTION("validate ranges")
     {
@@ -116,16 +116,7 @@ TEST_CASE("Path Split", "[pathsplit]")
         CAPTURE(current);
         REQUIRE(current.find(sys::path_sep) == std::string::npos);
     }
-
     CHECK(count > 0);
-    auto rit = std::make_reverse_iterator(it);
-
-    for (int i = count - 1; i >= 0; i--,it++)
-    {
-        auto current = *it;
-        CAPTURE(current);
-        REQUIRE(current.find(sys::path_sep) == std::string::npos);
-    }
 
     auto itens = std::array{path_begin,path_begin};
     CHECK((itens[0] == path_begin && itens[1] == path_begin));
