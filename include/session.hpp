@@ -12,35 +12,30 @@
 
 namespace red::session {
 
-    class environment;
-
-namespace detail {
-    using splitpath_rng = ranges::split_view<ranges::views::all_t<std::string&>, ranges::single_view<char>>;
-    using splitpath_iter = decltype(std::declval<splitpath_rng>().begin());
-} // namespace detail
-
-
     class environment
     {
-
     public:
         class variable
         {
         public:
-            using path_iterator = detail::splitpath_iter;
+            class splitpath_t;
         
             operator std::string_view() const noexcept { return value(); }
             std::string_view key() const noexcept { return m_key; }
-            std::string_view value() const noexcept;
-            detail::splitpath_rng split () const;
+            std::string_view value() const noexcept { return m_value; }
+            splitpath_t split () const;
 
-            explicit variable(std::string_view key_) : m_key(key_) {}
-            variable& operator=(std::string_view value);
+            explicit variable(std::string_view key_) : m_key(key_) {
+                m_value = sys::getenv(key_);
+            }
+            variable& operator=(std::string_view value) {
+                sys::setenv(m_key, value);
+                m_value.assign(value);
+                return *this;
+            }
 
         private:
-            std::string& inner_val() const;
-        
-            std::string m_key;
+            std::string m_key, m_value;
         };
 
         using iterator = detail::environ_iterator;
@@ -71,8 +66,7 @@ namespace detail {
         // variable operator [] (char const* k) const { return variable(k); }
 
         template <class K, class = Is_Strview_Convertible<K>>
-        iterator find(K const& key) const noexcept { return find(std::string_view(key)); }
-        iterator find(std::string_view k) const noexcept;
+        iterator find(K const& key) const noexcept { return do_find(key); }
 
         bool contains(std::string_view key) const;
 
@@ -85,8 +79,7 @@ namespace detail {
 		[[nodiscard]] bool empty() const noexcept { return size() == 0; }
 
         template <class K, class = Is_Strview_Convertible<K>>
-        void erase(K const& key) { erase(std::string_view(key)); }
-        void erase(std::string_view key);
+        void erase(K const& key) { do_erase(key); }
 
         /*value_range*/ auto values() const noexcept {
             return detail::environ_keyval(*this, false);
@@ -94,7 +87,30 @@ namespace detail {
         /*key_range*/ auto keys() const noexcept {
             return detail::environ_keyval(*this, true);
         }
+    private:
+        void do_erase(std::string_view key);
+        iterator do_find(std::string_view k) const;
     };
+
+    class environment::variable::splitpath_t
+    {
+        using range_t = ranges::split_view<ranges::views::all_t<std::string_view>, ranges::single_view<char>>;
+        std::string m_value;
+        range_t rng;
+
+    public:
+        splitpath_t(std::string_view val) : m_value(val) {
+            rng = range_t(m_value, sys::path_sep);
+        }
+
+        auto begin() {
+            return rng.begin();
+        }
+        auto end() {
+            return rng.end();
+        }
+    };
+
 
     class arguments
     {

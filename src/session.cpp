@@ -4,12 +4,10 @@
     #include <shellapi.h>
 #endif // WIN32
 
-#include <algorithm>
 #include <vector>
-#include <memory>
+#include <locale>
 #include <system_error>
 #include <cstdlib>
-#include <cstring>
 #include <cassert>
 
 #include <range/v3/algorithm.hpp>
@@ -40,32 +38,29 @@ template<class T>
 struct ci_char_traits : public std::char_traits<T> {
     using typename std::char_traits<T>::char_type;
 
-    static char to_upper(char ch) {
-        return static_cast<char>(toupper(static_cast<unsigned char>(ch)));
-    }
-    static wchar_t to_upper(wchar_t ch) {
-        return towupper(ch);
-    }
-
     static bool eq(char_type c1, char_type c2) {
-        return to_upper(c1) == to_upper(c2);
+        std::locale l;
+        return toupper(c1, l) == toupper(c2, l);
     }
     static bool lt(char_type c1, char_type c2) {
-        return to_upper(c1) < to_upper(c2);
+        std::locale l;
+        return toupper(c1, l) < toupper(c2, l);
     }
     static int compare(const char_type* s1, const char_type* s2, size_t n) {
+        std::locale l;
         while (n-- != 0) {
-            if (to_upper(*s1) < to_upper(*s2)) return -1;
-            if (to_upper(*s1) > to_upper(*s2)) return 1;
+            if (toupper(*s1, l) < toupper(*s2, l)) return -1;
+            if (toupper(*s1, l) > toupper(*s2, l)) return 1;
             ++s1; ++s2;
         }
         return 0;
     }
     static const char_type* find(const char_type* s, int n, char_type a) {
-        auto const ua = to_upper(a);
+        std::locale l;
+        auto const ua = toupper(a, l);
         while (n-- != 0)
         {
-            if (to_upper(*s) == ua)
+            if (toupper(*s, l) == ua)
                 return s;
             s++;
         }
@@ -256,7 +251,6 @@ namespace
 
 char const** sys::argv() noexcept { return my_argv; }
 int sys::argc() noexcept { return my_argc; }
-const char sys::path_sep = ':';
 
 void sys::setenv(string_view k, string_view v) {
     string key{k}, value{v};
@@ -328,32 +322,11 @@ namespace detail
     const char** arguments::argv() const noexcept { return sys::argv(); }
     int arguments::argc() const noexcept { return sys::argc(); }
 
-    string g_value; // TODO: how to ensure the lifetime of value?
-
     // env
-    auto environment::variable::operator=(std::string_view value)->variable&
-    {
-        sys::setenv(m_key, value);
-        g_value.assign(value);
-        return *this;
-    }
 
-    string_view environment::variable::value() const noexcept
+    auto environment::variable::split() const->splitpath_t
     {
-        return this->inner_val();
-    }
-
-    auto environment::variable::split() const->detail::splitpath_rng
-    {
-        using namespace ranges;
-        auto& v = this->inner_val();
-        auto rng = split_view(v, sys::path_sep);
-        return rng;
-    }
-
-    string& environment::variable::inner_val() const {
-        g_value = sys::getenv(m_key);
-        return g_value;
+        return splitpath_t{m_value};
     }
 
     size_t environment::size() const noexcept { return sys::envsize(sys::envp()); }
@@ -366,7 +339,7 @@ namespace detail
 #endif
     }
 
-    auto environment::find(string_view k) const noexcept->iterator
+    auto environment::do_find(string_view k) const ->iterator
     {
 #ifdef WIN32
         auto pred = ci_envstr_finder(k);
@@ -378,11 +351,10 @@ namespace detail
 
     bool environment::contains(string_view k) const
     {
-        auto value = sys::getenv(k);
-        return !value.empty();
+        return !sys::getenv(k).empty();
     }
 
-    void environment::erase(string_view k)
+    void environment::do_erase(string_view k)
     {
         sys::rmenv(k);
     }

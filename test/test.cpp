@@ -19,25 +19,23 @@
 using namespace red::session;
 using namespace std::literals;
 using namespace ranges;
+using std::string_view;
+using keyval_pair = std::pair<string_view, string_view>;
 
 
 TEST_CASE("Environment tests", "[environment]")
 {
-    sys::setenv("Phasellus", "LoremIpsumDolor");
-    sys::setenv("thug2song", "354125go");
     sys::rmenv("nonesuch");
 
     environment env;
 
-    REQUIRE(env["Phasellus"] == "LoremIpsumDolor"sv);
-    REQUIRE(env["thug2song"] == "354125go"sv);
-
-    std::array cases = {
-        std::pair{"DRUAGA1"sv, "WEED"sv},
-        std::pair{"PROTOCOL"sv, "DEFAULT"sv},
-        std::pair{"SERVER"sv, "127.0.0.1"sv},
-        // std::pair{"ACENTOS"sv, u8"ÁáÉéÍíÓóÚúÇç"sv}
-    };
+    auto cases = std::array<keyval_pair, 5>{{
+        {"DRUAGA1"sv, "WEED"sv},
+        {"PROTOCOL"sv, "DEFAULT"sv},
+        {"SERVER"sv, "127.0.0.1"sv},
+        {"Phasellus", "LoremIpsumDolor"},
+        {"thug2song", "354125go"}
+    }};
 
     for(auto[key, value] : cases)
     {
@@ -84,28 +82,45 @@ TEST_CASE("Environment tests", "[environment]")
         
         REQUIRE_FALSE(env.contains("nonesuch"));
     }
-    SECTION("validate ranges")
+    SECTION("External changes")
     {
-        int count = 0;
-        for (std::string k : env.keys() | views::take(10))
-        {
-            CAPTURE(k, ++count);
-            REQUIRE(k.find('=') == std::string::npos);
-            REQUIRE(env.contains(k));
-        }
-        for (std::string v : env.values() | views::take(10))
-        {
-            CAPTURE(v);
-            REQUIRE(v.find('=') == std::string::npos);
-        }
-        
+        sys::setenv("Horizon", "Chase");
+        sys::rmenv("DRUAGA1");
+
+        REQUIRE(env.contains("Horizon"));
+        REQUIRE_FALSE(env.contains("DRUAGA1"));
+    }
+
+    // remove
+    for(auto[key, val] : cases)
+    {
+        sys::rmenv(key);
     }
 }
 
-TEST_CASE("Path Split", "[pathsplit]")
+TEST_CASE("Environment ranges", "[environment]")
+{
+    environment env;
+
+    int count = 0;
+    for (auto k : env.keys() | views::take(10))
+    {
+        CAPTURE(k, ++count);
+        REQUIRE(k.find('=') == std::string::npos);
+        CHECK(env.contains(k));
+    }
+    count=0;
+    for (auto v : env.values() | views::take(10))
+    {
+        CAPTURE(v, ++count);
+        REQUIRE(v.find('=') == std::string::npos);
+    }
+
+}
+
+TEST_CASE("Path Split", "[pathsplit][environment]")
 {
     using std::cout; using std::quoted;
-    using path_iterator = environment::variable::path_iterator;
 
     environment environment;
     
@@ -134,7 +149,7 @@ TEST_CASE("Arguments tests", "[arguments]")
     for (size_t i = 0; i < args.size(); i++)
     {
         CAPTURE(args[i], cmdargs[i]);
-        CHECK(args[i] == cmdargs[i]);
+        REQUIRE(args[i] == cmdargs[i]);
     }
 }
 
@@ -170,7 +185,7 @@ int main(int argc, const char* argv[]) {
     // error out due to unknown arguments
     std::string dummy;
     auto cli = session.cli()
-    | Opt(dummy, "test arguments")["--args"];
+    | Opt(dummy, "arg1 arg2...")["--test-args"]("additional test arguments for session::arguments");
 
     session.cli(cli);
 

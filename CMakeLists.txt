@@ -26,7 +26,16 @@ if(SESSIONS_TESTS)
   add_executable(tests test/test.cpp)
   target_link_libraries(tests PRIVATE sessions)
   target_include_directories(tests PRIVATE src)
-  add_test(NAME basic-test COMMAND tests WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  add_test(
+    NAME test-environment
+    COMMAND tests "[environment]"
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+  )
+  add_test(
+    NAME test-arguments
+    COMMAND tests "[arguments]" --test-args doh reh mi fa soh
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+  )
 endif()
 
 if(SESSION_NOEXTENTIONS)
