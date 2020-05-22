@@ -13,6 +13,8 @@
 #include "session.hpp"
 #include "sys_layer.hpp"
 #include "range/v3/view.hpp"
+#include <range/v3/view/split.hpp>
+#include <range/v3/range/conversion.hpp>
 
 using namespace red::session;
 using namespace std::literals;
@@ -84,13 +86,14 @@ TEST_CASE("Environment tests", "[environment]")
     }
     SECTION("validate ranges")
     {
-        for (std::string_view k : env.keys() | views::take(10))
+        int count = 0;
+        for (std::string k : env.keys() | views::take(10))
         {
-            CAPTURE(k);
+            CAPTURE(k, ++count);
             REQUIRE(k.find('=') == std::string::npos);
             REQUIRE(env.contains(k));
         }
-        for (std::string_view v : env.values() | views::take(10))
+        for (std::string v : env.values() | views::take(10))
         {
             CAPTURE(v);
             REQUIRE(v.find('=') == std::string::npos);
@@ -106,31 +109,18 @@ TEST_CASE("Path Split", "[pathsplit]")
 
     environment environment;
     
-    auto[path_begin, path_end] = environment["PATH"].split();
-    path_iterator it;
+    auto pathsplit = environment["PATH"].split();
+    
     int count=0;
     CAPTURE(sys::path_sep, count);
-    for (it = path_begin; it != path_end; it++, count++)
+    for (auto it = pathsplit.begin(); it != pathsplit.end(); it++, count++)
     {
-        auto current = *it;
+        auto current = ranges::to<std::string>(*it);
         CAPTURE(current);
         REQUIRE(current.find(sys::path_sep) == std::string::npos);
     }
-    CHECK(count > 0);
 
-    auto itens = std::array{path_begin,path_begin};
-    CHECK((itens[0] == path_begin && itens[1] == path_begin));
-    CAPTURE(*itens[0], *itens[1], *path_begin);
-    {
-        INFO("post increment");
-        itens[0]++; itens[1]++;
-        REQUIRE(itens[0] == itens[1]);
-    }
-    {
-        INFO("pre increment");
-        ++itens[0]; ++itens[1];
-        REQUIRE(itens[0] == itens[1]);
-    }
+
 }
 
 std::vector<std::string> cmdargs;

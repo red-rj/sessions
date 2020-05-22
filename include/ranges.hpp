@@ -1,0 +1,91 @@
+#pragma once
+#include <string>
+#include <string_view>
+#include <memory>
+
+#include <range/v3/core.hpp>
+#include <range/v3/view/transform.hpp>
+
+#include "sys_layer.hpp"
+
+namespace red::session::detail {
+
+struct environ_keyval_fn
+{
+    template<typename Rng>
+    auto operator() (Rng&& rng, bool key) const {
+        using namespace ranges;
+        return views::transform(rng, [key](std::string_view line) {
+            auto const eq = line.find('=');
+            auto value = key ? line.substr(0, eq) : line.substr(eq+1);
+            return std::string(value);
+        });
+    }
+
+} inline constexpr environ_keyval;
+
+
+// range over a C array of pointers where the end is nullptr
+template<typename T>
+class c_ptrptr_cursor
+{
+    T** block = nullptr;
+public:
+    void next() noexcept { block++; }
+    void prev() noexcept { block--; }
+    void advance(ptrdiff_t n) noexcept { block += n; }
+    T* read() const noexcept { return *block; };
+    ptrdiff_t distance_to(c_ptrptr_cursor const &that) const noexcept {
+        return that.block - block;
+    }
+    bool equal(c_ptrptr_cursor const& other) const noexcept {
+        return block == other.block;
+    }
+    bool equal(ranges::default_sentinel_t) const {
+        return !block || *block == nullptr;
+    }
+
+    c_ptrptr_cursor()=default;
+    c_ptrptr_cursor(T** ep) : block(ep) {}
+};
+
+class environ_cursor : c_ptrptr_cursor<sys::envchar>
+{
+    using base_t = c_ptrptr_cursor<sys::envchar>;
+
+    // std::string current;
+    std::shared_ptr<std::string> current;
+
+public:
+    using value_type = std::string_view;
+
+    value_type read() const { return *current; }
+
+    void next() {
+        base_t::next();
+        auto* native = base_t::read();
+        *current = sys::narrow(native);
+    }
+    void prev() {
+        base_t::prev();
+        auto* native = base_t::read();
+        *current = sys::narrow(native);
+    }
+    void advance(ptrdiff_t n) {
+        base_t::advance(n);
+        auto* native = base_t::read();
+        *current = sys::narrow(native);
+    }
+
+    using base_t::distance_to;
+    using base_t::equal;
+    
+    environ_cursor() = default;
+    environ_cursor(sys::env_t penv) : base_t(penv) {
+        current = std::make_shared<std::string>(sys::narrow(*penv));
+    }
+};
+
+using environ_iterator = ranges::basic_iterator<environ_cursor>;
+
+} // namespace red::session::detail

@@ -290,26 +290,6 @@ namespace red::session
 {
 namespace detail
 {
-    environ_range::environ_range(sys::env_t env) : penv(env) {
-        current = sys::narrow(env[0]);
-    }
-
-    void environ_range::next()
-    {
-        penv++;
-        current = sys::narrow(*penv);
-    }
-    void environ_range::prev()
-    {
-        penv--;
-        current = sys::narrow(*penv);
-    }
-    void environ_range::advance(ptrdiff_t n)
-    {
-        penv += n;
-        current = sys::narrow(*penv);
-    }
-    
 
 } // namespace detail
 
@@ -348,23 +328,32 @@ namespace detail
     const char** arguments::argv() const noexcept { return sys::argv(); }
     int arguments::argc() const noexcept { return sys::argc(); }
 
+    string g_value; // TODO: how to ensure the lifetime of value?
+
     // env
     auto environment::variable::operator=(std::string_view value)->variable&
     {
         sys::setenv(m_key, value);
+        g_value.assign(value);
         return *this;
     }
 
     string_view environment::variable::value() const noexcept
     {
-        auto* val = ::getenv(m_key.c_str());
-        return val ? val : "";
+        return this->inner_val();
     }
 
-    auto environment::variable::split() const->std::pair<path_iterator, path_iterator>
+    auto environment::variable::split() const->detail::splitpath_rng
     {
-        auto pvalue = std::make_shared<string>(value());
-        return { path_iterator(pvalue), path_iterator() };
+        using namespace ranges;
+        auto& v = this->inner_val();
+        auto rng = split_view(v, sys::path_sep);
+        return rng;
+    }
+
+    string& environment::variable::inner_val() const {
+        g_value = sys::getenv(m_key);
+        return g_value;
     }
 
     size_t environment::size() const noexcept { return sys::envsize(sys::envp()); }
@@ -384,37 +373,17 @@ namespace detail
 #else
         auto pred = envstr_finder(k);
 #endif
-        return detail::c_ptrptr(sys::envp()) | ranges::find_if(pred, sys::narrow);
+        return ranges::find_if(*this, pred);
     }
 
     bool environment::contains(string_view k) const
     {
-        string key{k};
-        return ::getenv(key.c_str());
+        auto value = sys::getenv(k);
+        return !value.empty();
     }
 
     void environment::erase(string_view k)
     {
         sys::rmenv(k);
-    }
-
-    void environment::variable::path_iterator::next() noexcept
-    {
-        if (m_offset == string::npos) {
-            m_current = {};
-            return;
-        }
-
-        string_view var = *m_var;
-        auto pos = var.find(sys::path_sep, m_offset);
-
-        if (pos == string::npos) {
-            m_current = var.substr(m_offset, pos);
-            m_offset = pos;
-            return;
-        }
-
-        m_current = var.substr(m_offset, pos - m_offset);
-        m_offset = pos + 1;
     }
 }
