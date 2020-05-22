@@ -34,6 +34,8 @@ inline size_t envsize(T** envptr) noexcept {
 using env_t = decltype(envp());
 using envchar = std::remove_pointer_t<std::remove_pointer_t<env_t>>;
 
+std::string narrow(envchar* s);
+
 std::string getenv(std::string_view key);
 void setenv(std::string_view key, std::string_view value);
 void rmenv(std::string_view key);

@@ -15,13 +15,14 @@
 #include <range/v3/algorithm.hpp>
 
 #include "session.hpp"
-#include "sys.hpp"
+#include "sys_layer.hpp"
 
 using std::string;
 using std::wstring;
 using std::string_view;
 using std::wstring_view;
 using namespace red::session::detail;
+namespace sys = red::session::sys;
 
 // helpers
 namespace
@@ -110,6 +111,7 @@ struct envstr_finder_base
 using envstr_finder = envstr_finder_base<std::char_traits<char>>;
 
 using ci_envstr_finder = envstr_finder_base<ci_char_traits<char>>;
+
 } // unnamed namespace
 
 #if defined(WIN32)
@@ -219,7 +221,6 @@ namespace
 
 char const** sys::argv() noexcept { return argvec().data(); }
 int sys::argc() noexcept { return static_cast<int>(argvec().size()) - 1; }
-const char sys::path_sep = ';';
 
 string sys::getenv(string_view k) {
     auto wkey = to_utf16(k);
@@ -238,6 +239,11 @@ void sys::rmenv(string_view k) {
     auto wkey = to_utf16(k);
     _wputenv_s(wkey.c_str(), L"");
 }
+
+string sys::narrow(envchar* s) {
+    return s ? to_utf8(s) : "";
+}
+
 
 #elif defined(_POSIX_VERSION)
 extern "C" char** environ;
@@ -261,6 +267,10 @@ void sys::rmenv(string_view k) {
     ::unsetenv(key.c_str());
 }
 
+string sys::narrow(envchar* s) { 
+    return s ? s : "";
+}
+
 namespace red::session
 {
 #ifndef SESSION_NOEXTENTIONS
@@ -276,41 +286,30 @@ namespace red::session
 #endif
 
 
-string sys::get_envline(ptrdiff_t p, env_t env)
-{
-    envchar* line = env[p];
-#ifdef WIN32
-    return line ? to_utf8(line) : "";
-#else
-    return line ? line : "";
-#endif
-}
-
-
 namespace red::session
 {
 namespace detail
 {
-    environ_range::environ_range(ptrdiff_t off_) : offset(off_)
-    {
-        current = sys::get_envline(offset);
+    environ_range::environ_range(sys::env_t env) : penv(env) {
+        current = sys::narrow(env[0]);
     }
 
     void environ_range::next()
     {
-        ++offset;
-        current = sys::get_envline(offset);
+        penv++;
+        current = sys::narrow(*penv);
     }
     void environ_range::prev()
     {
-        --offset;
-        current = sys::get_envline(offset);
+        penv--;
+        current = sys::narrow(*penv);
     }
     void environ_range::advance(ptrdiff_t n)
     {
-        offset += n;
-        current = sys::get_envline(offset);
+        penv += n;
+        current = sys::narrow(*penv);
     }
+    
 
 } // namespace detail
 
@@ -385,8 +384,7 @@ namespace detail
 #else
         auto pred = envstr_finder(k);
 #endif
-        auto view = ranges::find_if(m_range, pred);
-        return view;
+        return detail::c_ptrptr(sys::envp()) | ranges::find_if(pred, sys::narrow);
     }
 
     bool environment::contains(string_view k) const

@@ -8,6 +8,9 @@
 #include <range/v3/core.hpp>
 #include <range/v3/view/transform.hpp>
 #include <range/v3/view/delimit.hpp>
+#include <range/v3/experimental/view/shared.hpp>
+
+#include "sys_layer.hpp"
 
 #define RED_ITERATOR_TYPES_ALL(vt, difft, ref, ptr, itcat) \
     using value_type=vt; using difference_type=difft; using reference=ref; \
@@ -20,27 +23,8 @@ namespace red::session {
     class environment;
 
 namespace detail {
+
     // range over a C array of pointers where the end is nullptr
-    template<class T>
-    class c_ptrptr_range : public ranges::view_facade<c_ptrptr_range<T>>
-    {
-        friend ranges::range_access;
-        T** envp = nullptr;
-
-        void next() { envp++; }
-        T* read() const noexcept { return envp[0]; };
-        bool equal(ranges::default_sentinel_t) const {
-            return *envp == nullptr;
-        }
-        bool equal(c_ptrptr_range const& other) const {
-            return envp == other.envp;
-        }
-
-    public:
-        c_ptrptr_range() = default;
-        explicit c_ptrptr_range(T** ep) : envp(ep) {}
-    };
-
     struct c_ptrptr_fn
     {
         template<typename T, std::size_t N>
@@ -51,45 +35,14 @@ namespace detail {
 
         template<typename T>
         auto operator() (T** ary) const
-            //-> ranges::delimit_view<ranges::subrange<T**, ranges::unreachable_sentinel_t>, std::remove_cv_t<T>>
         {
             return ranges::views::delimit(ary, (T*)nullptr);
         }
-    };
 
-    class environ_range : public ranges::view_facade<environ_range>
-    {
-        friend ranges::range_access;
-        friend environment;
-        
-        ptrdiff_t offset=0;
-        std::string current;
+    } inline constexpr c_ptrptr;
 
-        // cursor
-        void next();
-        void prev();
-        void advance(ptrdiff_t n);
-        std::string_view read() const { return current; }
-        bool equal(ranges::default_sentinel_t) const {
-            return current.empty();
-        }
-        bool equal(environ_range const& other) const {
-            return offset == other.offset && current == other.current;
-        }
-
-        // my
-        void reset() {
-            offset = 0;
-            current.clear();
-        }
-
-    public:
-        // ctors
-        environ_range() = default;
-        explicit environ_range(ptrdiff_t off_);
-    };
     
-    struct environ_views_fn
+    struct environ_keyval_fn
     {
         template<typename Rng>
         auto operator() (Rng&& rng, bool key) const {
@@ -100,15 +53,55 @@ namespace detail {
             });
         }
 
-    } inline constexpr environ_views;
+    } inline constexpr environ_keyval;
 
+    // views::common para begin e end?
+
+    class environ_range : public ranges::view_facade<environ_range>
+    {
+        friend ranges::range_access;
+        friend environment;
+        
+        std::string current;
+        sys::env_t penv = nullptr;
+
+        // cursor
+        void next();
+        void prev();
+        void advance(ptrdiff_t n);
+        std::string_view read() const { return current; }
+        bool equal(ranges::default_sentinel_t) const {
+            return *penv == nullptr;
+        }
+        bool equal(environ_range const& other) const {
+            return penv == other.penv;
+        }
+
+    public:
+        // ctors
+        environ_range() = default;
+        explicit environ_range(sys::env_t env);
+    };
+
+
+    // value/key range 
+    // iterator
+
+    
+    
 } // namespace detail
 
 
     class environment
     {
-        // static detail::environ_range env_range();
-        detail::environ_range m_range;
+        using env_range_t = detail::environ_range;
+
+        // static auto env_range()->env_range_t {
+        //     using namespace detail;
+        //     return environ_range(sys::envp());
+        // }
+
+        env_range_t env_range = detail::environ_range(sys::envp());
     public:
         class variable
         {
@@ -127,9 +120,9 @@ namespace detail {
             std::string m_key;
         };
 
-        using value_range = decltype(detail::environ_views(m_range,false));
-        using key_range = decltype(detail::environ_views(m_range,true));
-        using iterator = ranges::iterator_t<detail::environ_range>;
+        using value_range = decltype(detail::environ_keyval(env_range,false));
+        using key_range = decltype(detail::environ_keyval(env_range,true));
+        using iterator = ranges::iterator_t<env_range_t>;
         using value_type = variable;
         using size_type = size_t;
         friend class variable;
@@ -160,8 +153,8 @@ namespace detail {
 
         bool contains(std::string_view key) const;
 
-        iterator cbegin() const noexcept { return m_range.begin(); }
-        auto cend() const noexcept { return m_range.end(); } // TODO: why doesn't sentinel convert to iterator?
+        iterator cbegin() const noexcept { return env_range.begin(); }
+        auto cend() const noexcept { return env_range.end(); } // TODO: why doesn't sentinel convert to iterator?
         iterator begin() const noexcept { return cbegin(); }
         auto end() const noexcept { return cend(); }
 
@@ -172,11 +165,11 @@ namespace detail {
         void erase(K const& key) { erase(std::string_view(key)); }
         void erase(std::string_view key);
 
-        auto values() const noexcept {
-            return detail::environ_views(m_range, false);
+        /*value_range*/ auto values() const noexcept {
+            return detail::environ_keyval(env_range, false);
         }
-        auto keys() const noexcept {
-            return detail::environ_views(m_range, true);
+        /*key_range*/ auto keys() const noexcept {
+            return detail::environ_keyval(env_range, true);
         }
     };
 
