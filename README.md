@@ -1,15 +1,15 @@
 # Red Sessions
-Red Sessions is an implementation of the proposed P1275's Desert Sessions API - See link above for details on the paper it self.
+Red Sessions is a library for accessing arguments and environment variables from anywhere in your program.
 
-## Features:
-- Access program arguments and environment variables anywhere in a safe, easy way.
-- UTF8 safe storage
+It's an implementation of the proposed P1275's Desert Sessions API - See link above for details on the paper it self.
 
 ## Overview
 What's in the package?
 
-- `arguments` is an _immutable_ wrapper around the old `argv` pointer, it's elements are the same for the lifetime of the application, behaves like a `std::vector<T> const`.
-- `environment` is and an _associative container_ like class, it let's you get and set environment variables like getting and setting keys in a `std::map`!
+- `arguments` an _immutable_ wrapper around the old `argv` pointer, behaves like a `std::vector<T> const`.
+- `environment` an _associative container_-like class, it let's you get and set environment variables like getting and setting keys in a `std::map`, but with a couple of differences:
+    - `environment::operator[]` returns `environment::variable`, a proxy for interacting a single environment variable. You may assign it to a string to get the value or keep an instance of it, in which case it keeps the value at the time of construction and allows assigning a string to it to change the value of that environment variable.
+- The `join_paths` function allows joining a series of `std::filesystem::path` into a `std::string` *(not implemented)*
 
 Both are empty classes and can be freely constructed around.
 
@@ -19,7 +19,7 @@ Feel free to open an issue or contact me if you want to share some feedback. :)
 
 ## How to use
 ### Arguments
-It's as simple as creating an instance and using it like a container.
+It's as simple as creating an instance and using it like a container. 
 
 ```cpp
 #include "red/session.hpp"
@@ -34,9 +34,9 @@ for (const auto& a : args) {
 // ...
 
 auto it = args.begin();
-// *it = "whatever"; // Error, can't modify/add elements to `arguments`
+*it = "whatever"; // Error, can't modify/add elements to `arguments`
 
-// copy the arguments if you need to modify them
+// copy the arguments if you want to modify them
 std::vector<std::string> myargs{ args.begin(), args.end() };
 ```
 
@@ -47,20 +47,38 @@ using namespace red::session;
 
 environment env;
 
-// get
+// get a value by assinging it to a string/string_view
 std::string_view myvar_value = env["myvar"];
 
+// or keep the environment::variable object it self and do operations on it latter.
+environment::variable mypath = env["PATH"];
+auto splt = mypath.split();
+std::string_view key = mypath.key() // "PATH"
+
 // set
-env["myvar"] = "...";
+env["myvar"] = "something clever";
+mypath = "a;b;c"; // assigns to PATH
 
 // checking if a variable exists
 if (env.contains("myvar")) {
     // do stuff
 }
 
+// iterating the environment
+for (auto envline : env)
+{
+    /* 'envline' has the format key=value
+    
+        PATH=a;b;c
+        myvar=something clever
+        HOME=C:\Users\FulanoDeTal
+        ...
+    */
+}
+
+// erasing a variable
+env.erase("myvar");
+assert(!env.contains("myvar"));
+
 // ...
 ```
-
-## ToDo
-- ~~Implement environment ranges~~
-- enforce utf-8 storage on non windows platforms
