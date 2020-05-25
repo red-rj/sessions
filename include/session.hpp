@@ -5,7 +5,6 @@
 #include <string_view>
 #include <utility>
 
-#include <range/v3/view/delimit.hpp>
 #include <range/v3/view/split.hpp>
 
 #include "ranges.hpp"
@@ -71,7 +70,7 @@ namespace red::session {
         bool contains(std::string_view key) const;
 
         iterator cbegin() const noexcept { return iterator(sys::envp()); }
-        /*iterator*/ auto cend() const noexcept { return ranges::default_sentinel; } // TODO: why doesn't sentinel convert to iterator?
+        /*iterator*/ auto cend() const noexcept { return ranges::default_sentinel; }
         auto begin() const noexcept { return cbegin(); }
         auto end() const noexcept { return cend(); }
 

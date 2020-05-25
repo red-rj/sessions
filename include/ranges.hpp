@@ -2,7 +2,7 @@
 #include <string>
 #include <string_view>
 
-#include <range/v3/core.hpp>
+#include <range/v3/iterator/basic_iterator.hpp>
 #include <range/v3/view/transform.hpp>
 
 #include "sys_layer.hpp"
@@ -26,7 +26,7 @@ struct environ_keyval_fn
 } inline constexpr environ_keyval;
 
 
-// range over a C array of pointers where the end is nullptr
+// cursor over a C array of pointers where the end is nullptr
 template<typename T>
 class c_ptrptr_cursor
 {
@@ -43,11 +43,13 @@ public:
         return block == other.block;
     }
     bool equal(ranges::default_sentinel_t) const noexcept {
-        return !block || *block == nullptr;
+        return *block == nullptr;
     }
 
     c_ptrptr_cursor()=default;
-    c_ptrptr_cursor(T** ep) : block(ep) {}
+    c_ptrptr_cursor(T** ep) : block(ep) {
+        assert(block != nullptr);
+    }
 };
 
 class environ_cursor : c_ptrptr_cursor<sys::envchar>

@@ -22,8 +22,6 @@ using std::wstring_view;
 using namespace red::session::detail;
 namespace sys = red::session::sys;
 
-// assertions
-static_assert(std::is_same_v<environ_iterator::iterator_category, std::random_access_iterator_tag>, "environ_iterator must be random access");
 
 // helpers
 namespace
@@ -237,7 +235,7 @@ void sys::rmenv(string_view k) {
     _wputenv_s(wkey.c_str(), L"");
 }
 
-string sys::narrow(envchar* s) {
+string sys::narrow(envchar const* s) {
     return s ? to_utf8(s) : "";
 }
 
@@ -268,7 +266,7 @@ void sys::rmenv(string_view k) {
     ::unsetenv(key.c_str());
 }
 
-string sys::narrow(envchar* s) { 
+string sys::narrow(envchar const* s) { 
     return s ? s : "";
 }
 
