@@ -23,7 +23,7 @@ using std::string_view;
 using keyval_pair = std::pair<string_view, string_view>;
 
 
-TEST_CASE("Environment tests", "[environment]")
+TEST_CASE("Environment manip.", "[environment]")
 {
     sys::rmenv("nonesuch");
 
@@ -82,7 +82,7 @@ TEST_CASE("Environment tests", "[environment]")
         
         REQUIRE_FALSE(env.contains("nonesuch"));
     }
-    SECTION("External changes")
+    SECTION("external changes")
     {
         sys::setenv("Horizon", "Chase");
         sys::rmenv("DRUAGA1");
@@ -98,7 +98,7 @@ TEST_CASE("Environment tests", "[environment]")
     }
 }
 
-TEST_CASE("Environment ranges", "[environment]")
+TEST_CASE("Environment ranges", "[environment][keyval]")
 {
     environment env;
 
@@ -118,7 +118,7 @@ TEST_CASE("Environment ranges", "[environment]")
 
 }
 
-TEST_CASE("Path Split", "[pathsplit][environment]")
+TEST_CASE("Path Split", "[environment][pathsplit]")
 {
     using std::cout; using std::quoted;
 
@@ -134,8 +134,19 @@ TEST_CASE("Path Split", "[pathsplit][environment]")
         CAPTURE(current);
         REQUIRE(current.find(sys::path_sep) == std::string::npos);
     }
+}
 
+TEST_CASE("Environment iterator", "[environment][iterator]")
+{
+    environment environment;
+    auto it = environment.begin();
+    auto it2 = it;
 
+    it++;
+    it2++; it2++;
+
+    REQUIRE_FALSE(it == it2);
+    REQUIRE_FALSE(*it == *it2);
 }
 
 std::vector<std::string> cmdargs;
@@ -164,17 +175,8 @@ int main(int argc, const char* argv[]) {
 
     for (int i = 0; i < argc; i++)
     {
-#if defined(WIN32)
-        std::wstring_view warg = argv[i];
-        std::string arg;
-        size_t arg_l = WideCharToMultiByte(CP_UTF8, 0, warg.data(), warg.size(), nullptr, 0, nullptr, nullptr);
-        arg.resize(arg_l);
-        WideCharToMultiByte(CP_UTF8, 0, warg.data(), warg.size(), arg.data(), arg.size(), nullptr, nullptr);
-
+        std::string arg = sys::narrow(argv[i]);
         cmdargs.push_back(arg);
-#else
-        cmdargs.push_back(argv[i]);
-#endif // WIN32
     }
 
     setlocale(LC_ALL, ".UTF-8");

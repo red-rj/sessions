@@ -22,6 +22,9 @@ using std::wstring_view;
 using namespace red::session::detail;
 namespace sys = red::session::sys;
 
+// assertions
+static_assert(std::is_same_v<environ_iterator::iterator_category, std::random_access_iterator_tag>, "environ_iterator must be random access");
+
 // helpers
 namespace
 {
@@ -222,7 +225,6 @@ string sys::getenv(string_view k) {
     wchar_t* wval = _wgetenv(wkey.c_str());
     return wval ? to_utf8(wval) : "";
 }
-
 void sys::setenv(string_view key, string_view value) {
     auto wenv = to_utf16(make_envstr(key, value));
     wenv[key.size()] = L'\0';
@@ -252,6 +254,11 @@ namespace
 char const** sys::argv() noexcept { return my_argv; }
 int sys::argc() noexcept { return my_argc; }
 
+string sys::getenv(string_view k) {
+    string key{k};
+    char* val = getenv(key.c_str());
+    return val ? val : "";
+}
 void sys::setenv(string_view k, string_view v) {
     string key{k}, value{v};
     ::setenv(key.c_str(), value.c_str(), true);

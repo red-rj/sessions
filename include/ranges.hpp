@@ -1,7 +1,6 @@
 #pragma once
 #include <string>
 #include <string_view>
-#include <memory>
 
 #include <range/v3/core.hpp>
 #include <range/v3/view/transform.hpp>
@@ -9,6 +8,8 @@
 #include "sys_layer.hpp"
 
 namespace red::session::detail {
+
+using std::ptrdiff_t;
 
 struct environ_keyval_fn
 {
@@ -41,7 +42,7 @@ public:
     bool equal(c_ptrptr_cursor const& other) const noexcept {
         return block == other.block;
     }
-    bool equal(ranges::default_sentinel_t) const {
+    bool equal(ranges::default_sentinel_t) const noexcept {
         return !block || *block == nullptr;
     }
 
@@ -53,36 +54,36 @@ class environ_cursor : c_ptrptr_cursor<sys::envchar>
 {
     using base_t = c_ptrptr_cursor<sys::envchar>;
 
-    // std::string current;
-    std::shared_ptr<std::string> current;
+    std::string current;
 
 public:
-    using value_type = std::string_view;
-
-    value_type read() const { return *current; }
+    std::string_view read() const { return current; }
 
     void next() {
         base_t::next();
         auto* native = base_t::read();
-        *current = sys::narrow(native);
+        current = sys::narrow(native);
     }
     void prev() {
         base_t::prev();
         auto* native = base_t::read();
-        *current = sys::narrow(native);
+        current = sys::narrow(native);
     }
     void advance(ptrdiff_t n) {
         base_t::advance(n);
         auto* native = base_t::read();
-        *current = sys::narrow(native);
+        current = sys::narrow(native);
     }
 
-    using base_t::distance_to;
-    using base_t::equal;
+    // note: inheriting methods (using base_t::...) don't work
+
+    bool equal(environ_cursor const& other) const noexcept { return base_t::equal(other); }
+    bool equal(ranges::default_sentinel_t ds) const noexcept { return base_t::equal(ds); }
+    ptrdiff_t distance_to(environ_cursor const &that) const noexcept { return base_t::distance_to(that); }
     
     environ_cursor() = default;
     environ_cursor(sys::env_t penv) : base_t(penv) {
-        current = std::make_shared<std::string>(sys::narrow(*penv));
+        current = sys::narrow(*penv);
     }
 };
 

@@ -2,6 +2,7 @@
 #include <type_traits>
 #include <string>
 #include <string_view>
+#include <cstdlib>
 
 
 #ifndef WIN32
