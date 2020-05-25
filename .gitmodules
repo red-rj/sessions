@@ -1,3 +1,0 @@
-[submodule "ranges"]
-	path = 3rd-party/ranges
-	url = https://github.com/ericniebler/range-v3.git
