@@ -47,8 +47,8 @@ using namespace red::session;
 
 environment env;
 
-// get a value by assinging it to a string/string_view
-std::string_view myvar_value = env["myvar"];
+// get a value by assinging it to a string
+std::string myvar_value = env["myvar"];
 
 // or keep the environment::variable object it self and do operations on it latter.
 environment::variable mypath = env["PATH"];

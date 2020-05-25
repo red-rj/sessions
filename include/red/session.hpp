@@ -19,7 +19,7 @@ namespace red::session {
         public:
             class splitpath_t;
         
-            operator std::string_view() const noexcept { return value(); }
+            operator std::string() const { return m_value; }
             std::string_view key() const noexcept { return m_key; }
             std::string_view value() const noexcept { return m_value; }
             splitpath_t split () const;

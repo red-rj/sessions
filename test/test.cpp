@@ -154,11 +154,11 @@ TEST_CASE("environment::variable", "[environment][variable]")
             std::string myvar_value{environment["myvar"]};
             REQUIRE(myvar_value == environment["myvar"].value());
         }
-        {
-            INFO("into a string_view");
-            std::string_view myvar_value = environment["myvar"];
-            REQUIRE(myvar_value == environment["myvar"].value());
-        }
+        // {
+        //     INFO("into a string_view");
+        //     std::string_view myvar_value = environment["myvar"];
+        //     REQUIRE(myvar_value == environment["myvar"].value());
+        // }
     }
 }
 
