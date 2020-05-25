@@ -12,8 +12,7 @@
 
 #include <range/v3/algorithm.hpp>
 
-#include "session.hpp"
-#include "sys_layer.hpp"
+#include "red/session.hpp"
 
 using std::string;
 using std::wstring;
