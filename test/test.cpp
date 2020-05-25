@@ -90,6 +90,17 @@ TEST_CASE("Environment manip.", "[environment]")
         REQUIRE(env.contains("Horizon"));
         REQUIRE_FALSE(env.contains("DRUAGA1"));
     }
+    SECTION("iterator")
+    {
+        auto it = env.begin();
+        auto it2 = it;
+
+        it++;
+        it2++; it2++;
+
+        REQUIRE_FALSE(it == it2);
+        REQUIRE_FALSE(*it == *it2);
+    }
 
     // remove
     for(auto[key, val] : cases)
@@ -118,36 +129,39 @@ TEST_CASE("Environment ranges", "[environment][keyval]")
 
 }
 
-TEST_CASE("Path Split", "[environment][pathsplit]")
+TEST_CASE("environment::variable", "[environment][variable]")
 {
-    using std::cout; using std::quoted;
-
     environment environment;
-    
-    auto pathsplit = environment["PATH"].split();
-    
-    int count=0;
-    CAPTURE(sys::path_sep, count);
-    for (auto it = pathsplit.begin(); it != pathsplit.end(); it++, count++)
+
+    SECTION("Path Split")
     {
-        auto current = ranges::to<std::string>(*it);
-        CAPTURE(current);
-        REQUIRE(current.find(sys::path_sep) == std::string::npos);
+        auto pathsplit = environment["PATH"].split();
+        
+        int count=0;
+        CAPTURE(sys::path_sep, count);
+        for (auto it = pathsplit.begin(); it != pathsplit.end(); it++, count++)
+        {
+            auto current = ranges::to<std::string>(*it);
+            CAPTURE(current);
+            REQUIRE(current.find(sys::path_sep) == std::string::npos);
+        }
+    }
+    SECTION("Value lifetime")
+    {
+        environment["myvar"] = "Something clever";
+        {
+            INFO("into a string");
+            std::string myvar_value{environment["myvar"]};
+            REQUIRE(myvar_value == environment["myvar"].value());
+        }
+        {
+            INFO("into a string_view");
+            std::string_view myvar_value = environment["myvar"];
+            REQUIRE(myvar_value == environment["myvar"].value());
+        }
     }
 }
 
-TEST_CASE("Environment iterator", "[environment][iterator]")
-{
-    environment environment;
-    auto it = environment.begin();
-    auto it2 = it;
-
-    it++;
-    it2++; it2++;
-
-    REQUIRE_FALSE(it == it2);
-    REQUIRE_FALSE(*it == *it2);
-}
 
 std::vector<std::string> cmdargs;
 
