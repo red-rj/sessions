@@ -37,14 +37,12 @@ namespace red::session {
             std::string m_key, m_value;
         };
 
-        using iterator = detail::environ_iterator;
+        using iterator = detail::environment_iterator;
         using value_type = variable;
         using size_type = size_t;
         // using value_range = decltype(detail::environ_keyval(*this,false));
         // using key_range = value_range;
         friend class variable;
-
-        environment() noexcept;
 
         template <class T>
         using Is_Strview = std::enable_if_t<
@@ -58,6 +56,8 @@ namespace red::session {
         using Is_Strview_Convertible = std::enable_if_t<std::is_convertible_v<const T&, std::string_view>>;
 
 
+        environment() noexcept;
+
         template <class T, class = Is_Strview<T>>
         variable operator [] (T const& k) const { return variable(k); }
         variable operator [] (std::string_view k) const { return variable(k); }
@@ -69,8 +69,8 @@ namespace red::session {
 
         bool contains(std::string_view key) const;
 
-        iterator cbegin() const noexcept { return iterator(sys::envp()); }
-        /*iterator*/ auto cend() const noexcept { return ranges::default_sentinel; }
+        iterator cbegin() const noexcept { return detail::environ_iterator(sys::envp()); }
+        iterator cend() const noexcept { return ranges::default_sentinel; }
         auto begin() const noexcept { return cbegin(); }
         auto end() const noexcept { return cend(); }
 

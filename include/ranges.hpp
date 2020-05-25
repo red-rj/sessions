@@ -3,6 +3,7 @@
 #include <string_view>
 
 #include <range/v3/iterator/basic_iterator.hpp>
+#include <range/v3/iterator/common_iterator.hpp>
 #include <range/v3/view/transform.hpp>
 
 #include "sys_layer.hpp"
@@ -90,5 +91,7 @@ public:
 };
 
 using environ_iterator = ranges::basic_iterator<environ_cursor>;
+
+using environment_iterator = ranges::common_iterator<environ_iterator, ranges::default_sentinel_t>;
 
 } // namespace red::session::detail
