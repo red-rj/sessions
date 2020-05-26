@@ -53,7 +53,7 @@ TEST_CASE("Environment manip.", "[environment]")
             REQUIRE(var == value);
         }
 
-        REQUIRE(env["nonesuch"] == ""sv);
+        REQUIRE(std::string(env["nonesuch"]).empty());
     }
     SECTION("finding variables using find()")
     {
@@ -146,20 +146,7 @@ TEST_CASE("environment::variable", "[environment][variable]")
             REQUIRE(current.find(sys::path_sep) == std::string::npos);
         }
     }
-    SECTION("Value lifetime")
-    {
-        environment["myvar"] = "Something clever";
-        {
-            INFO("into a string");
-            std::string myvar_value{environment["myvar"]};
-            REQUIRE(myvar_value == environment["myvar"].value());
-        }
-        // {
-        //     INFO("into a string_view");
-        //     std::string_view myvar_value = environment["myvar"];
-        //     REQUIRE(myvar_value == environment["myvar"].value());
-        // }
-    }
+
 }
 
 

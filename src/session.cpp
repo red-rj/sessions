@@ -330,7 +330,8 @@ namespace detail
 
     auto environment::variable::split() const->splitpath_t
     {
-        return splitpath_t{m_value};
+        auto v = sys::getenv(m_key);
+        return splitpath_t{v};
     }
 
     size_t environment::size() const noexcept { return sys::envsize(sys::envp()); }

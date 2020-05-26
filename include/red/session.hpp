@@ -3,7 +3,6 @@
 
 #include <type_traits>
 #include <string_view>
-#include <utility>
 
 #include <range/v3/view/split.hpp>
 
@@ -18,23 +17,21 @@ namespace red::session {
         {
         public:
             class splitpath_t;
+            friend class environment;
         
-            operator std::string() const { return m_value; }
+            operator std::string() const { return sys::getenv(m_key); }
             std::string_view key() const noexcept { return m_key; }
-            std::string_view value() const noexcept { return m_value; }
             splitpath_t split () const;
 
-            explicit variable(std::string_view key_) : m_key(key_) {
-                m_value = sys::getenv(key_);
-            }
             variable& operator=(std::string_view value) {
                 sys::setenv(m_key, value);
-                m_value.assign(value);
                 return *this;
             }
 
         private:
-            std::string m_key, m_value;
+            explicit variable(std::string_view key_) : m_key(key_) {}
+
+            std::string m_key;
         };
 
         using iterator = detail::environment_iterator;
@@ -42,7 +39,6 @@ namespace red::session {
         using size_type = size_t;
         // using value_range = decltype(detail::environ_keyval(*this,false));
         // using key_range = value_range;
-        friend class variable;
 
         template <class T>
         using Is_Strview = std::enable_if_t<
