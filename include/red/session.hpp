@@ -5,6 +5,7 @@
 #include <string_view>
 
 #include <range/v3/view/split.hpp>
+#include <range/v3/iterator/common_iterator.hpp>
 
 #include "ranges.hpp"
 
@@ -34,7 +35,7 @@ namespace red::session {
             std::string m_key;
         };
 
-        using iterator = detail::environment_iterator;
+        using iterator = ranges::common_iterator<detail::environ_iterator, ranges::default_sentinel_t>;
         using value_type = variable;
         using size_type = size_t;
         // using value_range = decltype(detail::environ_keyval(*this,false));

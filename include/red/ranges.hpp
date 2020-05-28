@@ -3,7 +3,6 @@
 #include <string_view>
 
 #include <range/v3/iterator/basic_iterator.hpp>
-#include <range/v3/iterator/common_iterator.hpp>
 #include <range/v3/view/transform.hpp>
 
 #include "sys_layer.hpp"
@@ -26,72 +25,50 @@ struct environ_keyval_fn
 
 } inline constexpr environ_keyval;
 
-
-// cursor over a C array of pointers where the end is nullptr
-template<typename T>
-class c_ptrptr_cursor
+class environ_cursor
 {
-    T** block = nullptr;
-public:
-    void next() noexcept { block++; }
-    void prev() noexcept { block--; }
-    void advance(ptrdiff_t n) noexcept { block += n; }
-    T* read() const noexcept { return *block; };
-    ptrdiff_t distance_to(c_ptrptr_cursor const &that) const noexcept {
-        return that.block - block;
-    }
-    bool equal(c_ptrptr_cursor const& other) const noexcept {
-        return block == other.block;
-    }
-    bool equal(ranges::default_sentinel_t) const noexcept {
-        return *block == nullptr;
-    }
-
-    c_ptrptr_cursor()=default;
-    c_ptrptr_cursor(T** ep) : block(ep) {
-        assert(block != nullptr);
-    }
-};
-
-class environ_cursor : c_ptrptr_cursor<sys::envchar>
-{
-    using base_t = c_ptrptr_cursor<sys::envchar>;
-
-    std::string current;
+    sys::env_t envblock = nullptr; // native environ block
+    sys::env_t mutable pos = nullptr; // last read pos.
+    std::string mutable current; // last read data
 
 public:
-    std::string_view read() const { return current; }
+    std::string_view read() const {
+        if (pos != envblock) {
+            auto* native = *envblock;
+            current = sys::narrow(native);
+            pos = envblock;
+        }
+
+        return current;
+    }
 
     void next() {
-        base_t::next();
-        auto* native = base_t::read();
-        current = sys::narrow(native);
+        envblock++;
     }
     void prev() {
-        base_t::prev();
-        auto* native = base_t::read();
-        current = sys::narrow(native);
+        envblock--;
     }
     void advance(ptrdiff_t n) {
-        base_t::advance(n);
-        auto* native = base_t::read();
-        current = sys::narrow(native);
+        envblock += n;
     }
 
-    // note: inheriting methods (using base_t::...) don't work
-
-    bool equal(environ_cursor const& other) const noexcept { return base_t::equal(other); }
-    bool equal(ranges::default_sentinel_t ds) const noexcept { return base_t::equal(ds); }
-    ptrdiff_t distance_to(environ_cursor const &that) const noexcept { return base_t::distance_to(that); }
+    bool equal(environ_cursor const& other) const noexcept {
+        return envblock == other.envblock;
+    }
+    bool equal(ranges::default_sentinel_t ds) const noexcept {
+        return *envblock == nullptr;
+    }
+    ptrdiff_t distance_to(environ_cursor const &that) const noexcept {
+        return that.envblock - envblock;
+    }
     
     environ_cursor() = default;
-    environ_cursor(sys::env_t penv) : base_t(penv) {
-        current = sys::narrow(*penv);
+    environ_cursor(sys::env_t penv) : envblock(penv), pos(penv)
+    {
+        current = sys::narrow(*envblock);
     }
 };
 
 using environ_iterator = ranges::basic_iterator<environ_cursor>;
-
-using environment_iterator = ranges::common_iterator<environ_iterator, ranges::default_sentinel_t>;
 
 } // namespace red::session::detail

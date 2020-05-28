@@ -217,6 +217,10 @@ namespace
 char const** sys::argv() noexcept { return argvec().data(); }
 int sys::argc() noexcept { return static_cast<int>(argvec().size()) - 1; }
 
+sys::env_t sys::envp() noexcept {
+    return _wenviron;
+}
+
 string sys::getenv(string_view k) {
     auto wkey = to_utf16(k);
     wchar_t* wval = _wgetenv(wkey.c_str());
@@ -250,6 +254,10 @@ namespace
 
 char const** sys::argv() noexcept { return my_argv; }
 int sys::argc() noexcept { return my_argc; }
+
+sys::env_t sys::envp() noexcept {
+    return environ;
+}
 
 string sys::getenv(string_view k) {
     string key{k};

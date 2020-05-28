@@ -2,28 +2,22 @@
 #include <type_traits>
 #include <string>
 #include <string_view>
-#include <cstdlib>
 
-
-#ifndef WIN32
-
-extern "C" char** environ;
-
-#endif // !WIN32
 
 // system layer
 namespace red::session::sys {
 
-// env
+// envionment
 
-inline auto envp() noexcept
-{
 #ifdef WIN32
-    return _wenviron;
+using envchar = wchar_t;
 #else
-    return environ;
+using envchar = char;
 #endif
-}
+
+using env_t = envchar**;
+
+env_t envp() noexcept;
 
 template<class T>
 inline size_t envsize(T** envptr) noexcept {
@@ -31,9 +25,6 @@ inline size_t envsize(T** envptr) noexcept {
     while (envptr[size]) size++;
     return size;
 }
-
-using env_t = decltype(envp());
-using envchar = std::remove_pointer_t<std::remove_pointer_t<env_t>>;
 
 std::string narrow(envchar const* s);
 
