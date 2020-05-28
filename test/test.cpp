@@ -180,7 +180,7 @@ int main(int argc, const char* argv[]) {
         cmdargs.push_back(arg);
     }
 
-    setlocale(LC_ALL, ".UTF-8");
+    setlocale(LC_ALL, "");
 
     Catch::Session session;
 

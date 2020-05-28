@@ -15,7 +15,13 @@ target_include_directories(sessions PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
-target_compile_features(sessions PUBLIC cxx_std_17)
+
+if(MSVC)
+  target_compile_features(sessions PUBLIC cxx_std_20)
+else()
+  target_compile_features(sessions PUBLIC cxx_std_17)
+endif()
+
 
 # 3rd-party
 find_package(Catch2 CONFIG)
