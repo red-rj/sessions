@@ -5,6 +5,8 @@
 #include <string_view>
 
 #include <range/v3/view/split.hpp>
+#include <range/v3/view/join.hpp>
+#include <range/v3/view/subrange.hpp>
 #include <range/v3/iterator/common_iterator.hpp>
 
 #include "ranges.hpp"
@@ -139,11 +141,25 @@ namespace red::session {
         [[nodiscard]] int argc() const noexcept;
     };
 
-    template<class Iter>
-    std::string join_paths(Iter begin, Iter end);
 
-    template<class Range>
-    std::string join_paths(Range rng);
+    CPP_template(class Rng)
+        (requires ranges::range<Rng> && concepts::convertible_to<ranges::range_value_t<Rng>, std::string_view>)
+    std::string join_paths(Rng&& rng, char sep = sys::path_sep) {
+        using namespace ranges;
+
+        std::string var = rng | views::join(sep) | to<std::string>();
+        if (var.back() == sep)
+            var.pop_back();
+
+        return var;
+    }
+
+    CPP_template(class Iter)
+        (requires concepts::convertible_to<ranges::iter_value_t<Iter>, std::string_view>)
+    std::string join_paths(Iter begin, Iter end, char sep = sys::path_sep) {
+        return join_paths(ranges::subrange(begin, end), sep);
+    }
+
 
 #if defined(SESSION_NOEXTENTIONS)
     void init_args(int argc, const char** argv);

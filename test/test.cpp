@@ -18,9 +18,11 @@
 
 using namespace red::session;
 using namespace std::literals;
-using namespace ranges;
+
+using std::string;
 using std::string_view;
 using keyval_pair = std::pair<string_view, string_view>;
+template <size_t N> using sv_array = std::array<string_view, N>;
 
 
 TEST_CASE("Environment manip.", "[environment]")
@@ -45,7 +47,7 @@ TEST_CASE("Environment manip.", "[environment]")
     const auto env_start_l = env.size();
     CAPTURE(env_start_l);
 
-    SECTION("finding variables using operator[]")
+    SECTION("operator[]")
     {
         for(auto[key, value] : cases)
         {
@@ -55,7 +57,7 @@ TEST_CASE("Environment manip.", "[environment]")
 
         REQUIRE(std::string(env["nonesuch"]).empty());
     }
-    SECTION("finding variables using find()")
+    SECTION("find")
     {
         for(auto c : cases)
         {
@@ -65,7 +67,7 @@ TEST_CASE("Environment manip.", "[environment]")
 
         REQUIRE(env.find("nonesuch") == env.end());
     }
-    SECTION("erasing variables")
+    SECTION("erase")
     {
         env.erase("PROTOCOL");
         CHECK(env.size() == env_start_l - 1);
@@ -111,6 +113,7 @@ TEST_CASE("Environment manip.", "[environment]")
 
 TEST_CASE("Environment ranges", "[environment][keyval]")
 {
+    using namespace ranges;
     environment env;
 
     int count = 0;
@@ -147,6 +150,28 @@ TEST_CASE("environment::variable", "[environment][variable]")
         }
     }
 
+}
+
+TEST_CASE("join_paths")
+{
+    auto elems = sv_array<5> {
+        "path", "dir", "folder", "location"
+    };
+    auto constexpr joinend_elems = "path;dir;folder;location"sv;
+    string_view expected = joinend_elems;
+
+    string result = join_paths(elems, ';');
+    REQUIRE(result == expected);
+
+    result = join_paths(elems.begin(), elems.end(), ';');
+    REQUIRE(result == expected);
+
+    {
+        expected = "path;dir;folder;location;some;thing;else";
+        auto elems = {joinend_elems, "some;thing;else"sv};
+        result = join_paths(elems,';');
+        REQUIRE(result == expected);
+    }
 }
 
 
