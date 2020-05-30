@@ -2,7 +2,7 @@
 #include "catch.hpp"
 
 #if defined(WIN32)
-#include "win32.hpp"
+#include "../src/win32.hpp"
 #endif // WIN32
 
 #include <iostream>
@@ -10,56 +10,75 @@
 #include <vector>
 #include <utility>
 
-#include "range/v3/view.hpp"
-#include <range/v3/view/split.hpp>
+#include <range/v3/view.hpp>
+#include <range/v3/action.hpp>
 #include <range/v3/range/conversion.hpp>
 
 #include "red/session.hpp"
 
 using namespace red::session;
 using namespace std::literals;
+namespace sys = red::session::sys;
 
 using std::string;
 using std::string_view;
 using keyval_pair = std::pair<string_view, string_view>;
 template <size_t N> using sv_array = std::array<string_view, N>;
 
+auto constexpr TEST_VARS = std::array<keyval_pair, 5>{{
+    {"DRUAGA1", "WEED"},
+    {"PROTOCOL", "DEFAULT"},
+    {"SERVER", "127.0.0.1"},
+    {"Phasellus", "LoremIpsumDolor"},
+    {"thug2song", "354125go"}
+}};
 
-TEST_CASE("Environment manip.", "[environment]")
-{
+void push_test_vars() {
+    for(auto[key, value] : TEST_VARS) {
+        sys::setenv(key, value);
+    }
     sys::rmenv("nonesuch");
+}
+void pop_test_vars() {
+    for(auto[key, _] : TEST_VARS) {
+        sys::rmenv(key);
+    }
+}
 
+class test_vars_guard
+{
+public:
+    test_vars_guard() {
+        push_test_vars();
+    }
+    ~test_vars_guard() {
+        pop_test_vars();
+    }
+};
+
+
+//---
+
+TEST_CASE("get environment variables", "[environment]")
+{
+    test_vars_guard _;
     environment env;
 
-    auto cases = std::array<keyval_pair, 5>{{
-        {"DRUAGA1"sv, "WEED"sv},
-        {"PROTOCOL"sv, "DEFAULT"sv},
-        {"SERVER"sv, "127.0.0.1"sv},
-        {"Phasellus", "LoremIpsumDolor"},
-        {"thug2song", "354125go"}
-    }};
-
-    for(auto[key, value] : cases)
-    {
-        env[key] = value;
-    }
-
-    const auto env_start_l = env.size();
-    CAPTURE(env_start_l);
+    auto const env_size = env.size();
+    CAPTURE(env_size);
 
     SECTION("operator[]")
     {
-        for(auto[key, value] : cases)
+        for(auto[key, value] : TEST_VARS)
         {
-            std::string var { env[key] };
-            REQUIRE(var == value);
+            REQUIRE(string(env[key]) == value);
         }
 
         REQUIRE(std::string(env["nonesuch"]).empty());
     }
-    SECTION("find")
+    SECTION("find()")
     {
-        for(auto c : cases)
+        for(auto c : TEST_VARS)
         {
             auto it = env.find(c.first);
             REQUIRE(it != env.end());
@@ -67,24 +86,16 @@ TEST_CASE("Environment manip.", "[environment]")
 
         REQUIRE(env.find("nonesuch") == env.end());
     }
-    SECTION("erase")
+    SECTION("contains()")
     {
-        env.erase("PROTOCOL");
-        CHECK(env.size() == env_start_l - 1);
-        auto e = sys::getenv("PROTOCOL");
-        REQUIRE(e.empty());
-        REQUIRE(env.find("PROTOCOL") == env.end());
-    }
-    SECTION("contains")
-    {
-        for(auto c : cases)
+        for(auto c : TEST_VARS)
         {
             REQUIRE(env.contains(c.first));
         }
         
         REQUIRE_FALSE(env.contains("nonesuch"));
     }
-    SECTION("external changes")
+    SECTION("from external changes")
     {
         sys::setenv("Horizon", "Chase");
         sys::rmenv("DRUAGA1");
@@ -92,47 +103,54 @@ TEST_CASE("Environment manip.", "[environment]")
         REQUIRE(env.contains("Horizon"));
         REQUIRE_FALSE(env.contains("DRUAGA1"));
     }
-    SECTION("iterator")
-    {
-        auto it = env.begin();
-        auto it2 = it;
-
-        it++;
-        it2++; it2++;
-
-        REQUIRE_FALSE(it == it2);
-        REQUIRE_FALSE(*it == *it2);
-    }
-
-    // remove
-    for(auto[key, val] : cases)
-    {
-        sys::rmenv(key);
-    }
 }
 
-TEST_CASE("Environment ranges", "[environment][keyval]")
+TEST_CASE("set environment variables", "[environment]")
+{
+    environment env;
+
+    for(auto[key, value] : TEST_VARS)
+    {
+        env[key] = value;
+        CHECK(env.contains(key));
+        REQUIRE_FALSE(sys::getenv(key).empty());
+    }
+
+    REQUIRE(std::string(env["nonesuch"]).empty());
+}
+
+TEST_CASE("remove environment variables", "[environment]")
+{
+    test_vars_guard _;
+    environment env;
+    auto const env_size = env.size();
+
+    env.erase("PROTOCOL");
+    CHECK(env.size() == env_size - 1);
+    REQUIRE_FALSE(env.contains("PROTOCOL"));
+    REQUIRE(env.find("PROTOCOL") == env.end());
+}
+
+
+TEST_CASE("Environment keys/values ranges", "[environment]")
 {
     using namespace ranges;
     environment env;
 
-    int count = 0;
     for (auto k : env.keys() | views::take(10))
     {
-        CAPTURE(k, ++count);
+        CAPTURE(k);
         REQUIRE(k.find('=') == std::string::npos);
-        CHECK(env.contains(k));
+        REQUIRE(env.contains(k));
     }
-    count=0;
     for (auto v : env.values() | views::take(10))
     {
-        CAPTURE(v, ++count);
+        CAPTURE(v);
         REQUIRE(v.find('=') == std::string::npos);
     }
-
 }
 
-TEST_CASE("environment::variable", "[environment][variable]")
+TEST_CASE("environment::variable", "[environment]")
 {
     environment environment;
 
@@ -177,7 +195,7 @@ TEST_CASE("join_paths")
 
 std::vector<std::string> cmdargs;
 
-TEST_CASE("Arguments tests", "[arguments]")
+TEST_CASE("Arguments")
 {
     arguments args;
     
@@ -190,14 +208,19 @@ TEST_CASE("Arguments tests", "[arguments]")
     }
 }
 
-
 // entry point
 #if defined(WIN32)
+#define T(txt) L ## txt
 int wmain(int argc, const wchar_t* argv[]) {
+    using char_t = wchar_t;
 #else
+#define T(txt) txt
 int main(int argc, const char* argv[]) {
+    using char_t = char;
 #endif // WIN32
     using namespace Catch::clara;
+    
+    setlocale(LC_ALL, "");
 
     for (int i = 0; i < argc; i++)
     {
@@ -205,19 +228,21 @@ int main(int argc, const char* argv[]) {
         cmdargs.push_back(arg);
     }
 
-    setlocale(LC_ALL, "");
-
     Catch::Session session;
 
-    // we already captured the arguments, but we need this so catch doesn't
-    // error out due to unknown arguments
-    std::string dummy;
+    // fake support for '--'
+    string dummy;
     auto cli = session.cli()
-    | Opt(dummy, "arg1 arg2...")["--test-args"]("additional test arguments for session::arguments");
+    | Opt(dummy, "arg1 arg2 ...")["--"]("pass remaining values to session::arguments tests");
 
     session.cli(cli);
 
-    int rc = session.applyCommandLine(argc, argv);
+    // remove args past '--'
+    using namespace ranges;
+    std::vector<char_t const*> argvec{argv, argv+argc};
+    argvec |= actions::take_while([](char_t const* arg) { return arg != T("--"sv); });
+
+    int rc = session.applyCommandLine((int)argvec.size(), argvec.data());
     if (rc != 0)
         return rc;
 
