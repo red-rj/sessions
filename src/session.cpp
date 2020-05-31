@@ -261,7 +261,7 @@ sys::env_t sys::envp() noexcept {
 
 string sys::getenv(string_view k) {
     string key{k};
-    char* val = getenv(key.c_str());
+    char* val = ::getenv(key.c_str());
     return val ? val : "";
 }
 void sys::setenv(string_view k, string_view v) {
