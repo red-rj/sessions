@@ -131,23 +131,41 @@ TEST_CASE("remove environment variables", "[environment]")
     REQUIRE(env.find("PROTOCOL") == env.end());
 }
 
-
-TEST_CASE("Environment keys/values ranges", "[environment]")
+TEST_CASE("environment iteration", "[environment]")
 {
     using namespace ranges;
     environment env;
 
-    for (auto k : env.keys() | views::take(10))
+    SECTION("Key/Value ranges")
     {
-        CAPTURE(k);
-        REQUIRE(k.find('=') == std::string::npos);
-        REQUIRE(env.contains(k));
+        for (auto k : env.keys() | views::take(10))
+        {
+            CAPTURE(k);
+            REQUIRE(k.find('=') == std::string::npos);
+            REQUIRE(env.contains(k));
+        }
+        for (auto v : env.values() | views::take(10))
+        {
+            CAPTURE(v);
+            REQUIRE(v.find('=') == std::string::npos);
+        }
     }
-    for (auto v : env.values() | views::take(10))
+    SECTION("iterator")
     {
-        CAPTURE(v);
-        REQUIRE(v.find('=') == std::string::npos);
+        auto begin = env.begin();
+        auto it1 = begin; auto it2 = begin;
+
+        it1++; it2++;
+        REQUIRE(it1 == it2);
+        CHECK(*it1 == *it2);
+        REQUIRE(string(*it1) == string(*it2));
+
+        it1++; ranges::advance(it2, 5);
+        REQUIRE(it1 != it2);
+        CHECK(*it1 != *it2);
+        REQUIRE(string(*it1) != string(*it2));
     }
+
 }
 
 TEST_CASE("environment::variable", "[environment]")
@@ -233,7 +251,7 @@ int main(int argc, const char* argv[]) {
     // fake support for '--'
     string dummy;
     auto cli = session.cli()
-    | Opt(dummy, "arg1 arg2 ...")["--"]("pass remaining values to session::arguments tests");
+    | Opt(dummy, "arg1 arg2 ...")["--"]("pass more values to session::arguments tests");
 
     session.cli(cli);
 
