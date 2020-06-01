@@ -6,14 +6,13 @@
 
 #include <range/v3/view/split.hpp>
 #include <range/v3/view/join.hpp>
-#include <range/v3/view/subrange.hpp>
 #include <range/v3/iterator/common_iterator.hpp>
 
 #include "ranges.hpp"
 
 namespace red::session {
 
-    class environment : detail::environ_view
+    class environment
     {
     public:
         class variable
@@ -37,7 +36,7 @@ namespace red::session {
             std::string m_key;
         };
 
-        using iterator = ranges::common_iterator<ranges::iterator_t<environment>, ranges::default_sentinel_t>;
+        using iterator = ranges::common_iterator<detail::environ_iterator, ranges::default_sentinel_t>;
         using value_type = variable;
         using size_type = size_t;
         // using value_range = decltype(detail::environ_keyval(*this,false));
@@ -68,8 +67,8 @@ namespace red::session {
 
         bool contains(std::string_view key) const;
 
-        iterator cbegin() const noexcept { return environ_view::begin(); }
-        iterator cend() const noexcept { return environ_view::end(); }
+        iterator cbegin() const noexcept { return detail::environ_iterator(sys::envp()); }
+        iterator cend() const noexcept { return ranges::default_sentinel; }
         auto begin() const noexcept { return cbegin(); }
         auto end() const noexcept { return cend(); }
 
