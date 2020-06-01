@@ -16,10 +16,10 @@ struct environ_keyval_fn
     template<typename Rng>
     auto operator() (Rng&& rng, bool key) const {
         using namespace ranges;
-        return views::transform(rng, [key](std::string_view line) {
+        return views::transform(rng, [key](std::string const& line) {
             auto const eq = line.find('=');
             auto value = key ? line.substr(0, eq) : line.substr(eq+1);
-            return std::string(value);
+            return value;
         });
     }
 
@@ -32,7 +32,7 @@ class environ_cursor
     std::string mutable current; // last read data
 
 public:
-    std::string_view read() const {
+    std::string& read() const {
         if (pos != envblock) {
             auto* native = *envblock;
             current = sys::narrow(native);
