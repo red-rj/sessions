@@ -30,6 +30,7 @@ if(SESSIONS_TESTS)
 
   add_executable(tests test/test.cpp)
   target_link_libraries(tests PRIVATE sessions Catch2::Catch2)
+  target_compile_definitions(tests PRIVATE UNICODE)
 
   add_test(NAME all-tests  COMMAND tests -- áéíóú words something -l 123
           WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
