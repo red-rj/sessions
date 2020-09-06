@@ -12,6 +12,7 @@
 
 #include <range/v3/algorithm.hpp>
 
+#include "red/config.h"
 #include "red/session.hpp"
 
 using std::string;
@@ -111,6 +112,13 @@ using ci_envstr_finder = envstr_finder_base<ci_char_traits<char>>;
 
 #if defined(WIN32)
 #undef environ
+
+#ifdef SESSIONS_UTF8
+constexpr auto NARROW_CP = CP_UTF8;
+#else
+constexpr auto NARROW_CP = CP_ACP;
+#endif // SESSIONS_UTF8
+
 namespace
 {
     [[noreturn]]
@@ -119,53 +127,45 @@ namespace
         throw std::system_error(static_cast<int>(error), std::system_category());
     }
 
-    bool is_valid_utf8(const char* str, int str_l = -1) {
+
+    auto wide(const char* nstr, int nstr_l = -1, wchar_t* ptr = nullptr, int length = 0) {
         return MultiByteToWideChar(
-            CP_UTF8, MB_ERR_INVALID_CHARS, 
-            str, str_l, 
-            nullptr, 0) != 0;
+            NARROW_CP, 0,
+            nstr, nstr_l,
+            ptr, length);
     }
 
     auto narrow(wchar_t const* wstr, int wstr_l = -1, char* ptr = nullptr, int length = 0) {
         return WideCharToMultiByte(
-            CP_UTF8, 0, 
+            NARROW_CP, 0, 
             wstr, wstr_l,
             ptr, length, 
             nullptr, nullptr);
     }
 
-    auto wide(const char* nstr, int nstr_l = -1, wchar_t* ptr = nullptr, int length = 0) {
-        const int CP = is_valid_utf8(nstr, nstr_l) ? CP_UTF8 : CP_ACP;
-        return MultiByteToWideChar(
-            CP, 0,
-            nstr, nstr_l,
-            ptr, length);
-    }
     
-    std::string to_utf8(std::wstring_view wstr) {
+    std::string to_narrow(std::wstring_view wstr) {
         auto length = narrow(wstr.data(), (int)wstr.size());
-        auto str8 = std::string(length, '\3');
-        auto result = narrow(wstr.data(), (int)wstr.size(), str8.data(), length);
-        str8.shrink_to_fit();
-        assert(str8.find('\3')==str8.npos);
+        auto str = std::string(length, '\0');
+        auto result = narrow(wstr.data(), (int)wstr.size(), str.data(), length);
+        str.shrink_to_fit();
 
         if (result == 0)
             throw_win_error();
 
-        return str8;
+        return str;
     }
 
-    std::wstring to_utf16(std::string_view nstr) {
+    std::wstring to_wide(std::string_view nstr) {
         auto length = wide(nstr.data(), (int)nstr.size());
-        auto str16 = std::wstring(length, L'\3');
-        auto result = wide(nstr.data(), (int)nstr.size(), str16.data(), length);
-        str16.shrink_to_fit();
-        assert(str16.find(L'\3')==str16.npos);
+        auto str = std::wstring(length, L'\0');
+        auto result = wide(nstr.data(), (int)nstr.size(), str.data(), length);
+        str.shrink_to_fit();
 
         if (result == 0)
             throw_win_error();
 
-        return str16;
+        return str;
     }
 
     auto init_args() {
@@ -179,33 +179,29 @@ namespace
             throw_win_error();
         
         std::vector<char const*> vec;
-        char* ptr;
+
         try
         {
-            vec.reserve(argc+1);
-            
-            for (int i = 0; i < argc; i++)
-            {
-                auto length = narrow(wargv[i]);
-                ptr = new char[length];
-                auto result = narrow(wargv[i], -1, ptr, length);
+            vec.resize(argc+1, nullptr); // +1 for terminating null
+
+            std::transform(wargv.get(), wargv.get()+argc, vec.begin(), [](const wchar_t* arg) {
+                auto length = narrow(arg);
+                auto ptr = std::make_unique<char[]>(length);
+                auto result = narrow(arg, -1, ptr.get(), length);
                 if (result==0) {
                     throw_win_error();
                 }
+                
+                return ptr.release();
+            });
 
-                vec.push_back(ptr);
-            }
-            
-            vec.emplace_back(); // terminating null
+            return vec;
         }
         catch(...)
         {
-            delete[] ptr;
             for (auto p : vec) delete[] p;
             std::throw_with_nested(std::runtime_error("Failed to create arguments"));
         }
-        
-        return vec;
     }
 
     auto& argvec() {
@@ -222,24 +218,24 @@ sys::env_t sys::envp() noexcept {
 }
 
 string sys::getenv(string_view k) {
-    auto wkey = to_utf16(k);
+    auto wkey = to_wide(k);
     wchar_t* wval = _wgetenv(wkey.c_str());
-    return wval ? to_utf8(wval) : "";
+    return wval ? to_narrow(wval) : "";
 }
 void sys::setenv(string_view key, string_view value) {
-    auto wenv = to_utf16(make_envstr(key, value));
-    wenv[key.size()] = L'\0';
+    auto wenv = to_wide(make_envstr(key, value));
+    wenv[key.size()] = L'\0'; // replace '='
     wchar_t const *wkey = wenv.c_str();
     auto wvalue = wkey + key.size() + 1;
     _wputenv_s(wkey, wvalue);
 }
 void sys::rmenv(string_view k) {
-    auto wkey = to_utf16(k);
+    auto wkey = to_wide(k);
     _wputenv_s(wkey.c_str(), L"");
 }
 
 string sys::narrow(envchar const* s) {
-    return s ? to_utf8(s) : "";
+    return s ? to_narrow(s) : "";
 }
 
 
