@@ -10,30 +10,47 @@
 
 namespace red::session::detail {
 
+using std::ptrdiff_t;
+
+struct environ_keyval_fn
+{
+    template<typename Rng>
+    auto operator() (Rng&& rng, bool key) const {
+        using namespace ranges;
+        return views::transform(rng, [key](std::string const& line) {
+            auto const eq = line.find('=');
+            auto value = key ? line.substr(0, eq) : line.substr(eq+1);
+            return value;
+        });
+    }
+
+} inline constexpr environ_keyval;
+
 class environ_cursor
 {
     sys::env_t envblock = nullptr; // native environ block
-    bool mutable dirty;
-    std::optional<std::string> mutable cache;
+    sys::env_t mutable pos = nullptr; // last read pos.
+    std::string mutable current; // last read data
 
 public:
-    using value_type = std::string;
-
-    std::string read() const {
-        if (dirty) {
+    std::string& read() const {
+        if (pos != envblock) {
             auto* native = *envblock;
-            cache.emplace(sys::narrow(native));
-            dirty=false;
+            current = sys::narrow(native);
+            pos = envblock;
         }
 
-        return *cache;
+        return current;
     }
 
-    void next() { advance(+1); }
-    void prev() { advance(-1); }
+    void next() {
+        envblock++;
+    }
+    void prev() {
+        envblock--;
+    }
     void advance(ptrdiff_t n) {
         envblock += n;
-        dirty=true;
     }
 
     bool equal(environ_cursor const& other) const noexcept {
@@ -47,28 +64,13 @@ public:
     }
     
     environ_cursor() = default;
-    environ_cursor(sys::env_t penv) : envblock(penv)
+    environ_cursor(sys::env_t penv) : envblock(penv), pos(penv)
     {
-        dirty = true;
+        current = sys::narrow(*envblock);
     }
 };
 
 using environ_iterator = ranges::basic_iterator<environ_cursor>;
-
-struct keyval_fn
-{
-    bool getkey;
-
-    template<typename Rng>
-    auto operator() (Rng&& rng) const {
-        using namespace ranges;
-        return views::transform(rng, [=](std::string const& line) {
-            auto const eq = line.find('=');
-            auto value = getkey ? line.substr(0, eq) : line.substr(eq+1);
-            return value;
-        });
-    }
-};
 
 
 // ---

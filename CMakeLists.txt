@@ -1,12 +1,13 @@
 cmake_minimum_required(VERSION 3.10)
 project(sessions VERSION 0.1.2)
 
-option(SESSIONS_TESTS "Build tests" On)
+option(SESSIONS_TESTS "Build tests." On)
+option(SESSIONS_UTF8 "Force UTF-8 storage.")
 
 if(WIN32)
   add_compile_definitions(UNICODE _UNICODE)
 else()
-  option(SESSION_NOEXTENTIONS "Disable use of the gnu constructor attribute (requires calling 'init_args')")
+  option(SESSIONS_NOEXTENTIONS "Disable use of the gnu constructor attribute (requires calling 'init_args')")
 endif()
 
 add_library(sessions src/session.cpp)
@@ -38,10 +39,7 @@ if(SESSIONS_TESTS)
           WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 endif()
 
-if(SESSION_NOEXTENTIONS)
-  target_compile_definitions(sessions PRIVATE SESSION_NOEXTENTIONS)
-endif()
-
+configure_file(include/red/config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/include/red/config.h)
 # installation
 add_library(red::sessions ALIAS sessions)
 include(cmake/install.cmake)
