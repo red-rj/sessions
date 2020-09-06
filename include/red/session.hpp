@@ -10,6 +10,7 @@
 #include <range/v3/iterator/common_iterator.hpp>
 
 #include "ranges.hpp"
+#include "config.h"
 
 namespace red::session {
 
@@ -40,8 +41,6 @@ namespace red::session {
         using iterator = ranges::common_iterator<detail::environ_iterator, ranges::default_sentinel_t>;
         using value_type = variable;
         using size_type = size_t;
-        // using value_range = decltype(detail::environ_keyval(*this,false));
-        // using key_range = value_range;
 
         template <class T>
         using Is_Strview = std::enable_if_t<
@@ -60,8 +59,8 @@ namespace red::session {
         template <class T, class = Is_Strview<T>>
         variable operator [] (T const& k) const { return variable(k); }
         variable operator [] (std::string_view k) const { return variable(k); }
-        // variable operator [] (std::string const& k) const { return variable(k); }
-        // variable operator [] (char const* k) const { return variable(k); }
+        variable operator [] (std::string const& k) const { return variable(k); }
+        variable operator [] (char const* k) const { return variable(k); }
 
         template <class K, class = Is_Strview_Convertible<K>>
         iterator find(K const& key) const noexcept { return do_find(key); }
@@ -79,16 +78,27 @@ namespace red::session {
         template <class K, class = Is_Strview_Convertible<K>>
         void erase(K const& key) { do_erase(key); }
 
+        /* TODO: declare value_range and key_range
+            How the hell do I make these?
+
+            'using value_range = decltype(detail::environ_keyval(environment(),bool))' doesn't work, 
+            cause environment is an incomplete type.
+
+            detail::environ_keyval() calls ranges::view::transform()
+        */
+
         /*value_range*/ auto values() const noexcept {
             return detail::environ_keyval(*this, false);
         }
         /*key_range*/ auto keys() const noexcept {
             return detail::environ_keyval(*this, true);
         }
+
     private:
         void do_erase(std::string_view key);
         iterator do_find(std::string_view k) const;
     };
+
 
     class environment::variable::splitpath_t
     {
@@ -139,6 +149,10 @@ namespace red::session {
 
         [[nodiscard]] const char** argv() const noexcept;
         [[nodiscard]] int argc() const noexcept;
+
+#ifdef SESSION_NOEXTENTIONS
+        static void init(int argc, const char** argv) noexcept;
+#endif
     };
 
 
@@ -159,11 +173,6 @@ namespace red::session {
     std::string join_paths(Iter begin, Iter end, char sep = sys::path_sep) {
         return join_paths(ranges::subrange(begin, end), sep);
     }
-
-
-#if defined(SESSION_NOEXTENTIONS)
-    void init_args(int argc, const char** argv);
-#endif
 
 } /* namespace red::session */
 

@@ -279,11 +279,17 @@ namespace red::session
     // https://gcc.gnu.org/onlinedocs/gcc-8.3.0/gcc/Common-Function-Attributes.html#index-constructor-function-attribute
     // https://stackoverflow.com/a/37012337
     [[gnu::constructor]]
-#endif
     void init_args(int argc, const char** argv) {
         my_argv = argc;
         my_argc = argv;
     }
+#else
+    void arguments::init(int argc, const char** argv) noexcept
+    {
+        my_argv = argc;
+        my_argc = argv;
+    }
+#endif
 }
 #endif
 
