@@ -11,22 +11,20 @@ else()
 endif()
 
 add_library(sessions src/session.cpp)
+target_compile_features(sessions PUBLIC cxx_std_17)
 
 target_include_directories(sessions PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
 
-if(MSVC)
-  target_compile_features(sessions PUBLIC cxx_std_20)
-else()
-  target_compile_features(sessions PUBLIC cxx_std_17)
-endif()
-
 # 3rd-party
 find_package(range-v3 0.10.0 CONFIG REQUIRED)
-
 target_link_libraries(sessions PUBLIC range-v3::range-v3)
+
+if(MSVC AND range-v3_VERSION VERSION_LESS 0.11.0)
+  target_compile_features(sessions PUBLIC cxx_std_20)
+endif()
 
 if(SESSIONS_TESTS)
   find_package(Catch2 CONFIG REQUIRED)
@@ -40,6 +38,7 @@ if(SESSIONS_TESTS)
 endif()
 
 configure_file(include/red/config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/include/red/config.h)
+
 # installation
 add_library(red::sessions ALIAS sessions)
 include(cmake/install.cmake)
