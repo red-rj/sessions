@@ -7,23 +7,13 @@
 
 #include "sys_layer.hpp"
 
+namespace red::session {
+    class environment;
+}
+
 namespace red::session::detail {
 
 using std::ptrdiff_t;
-
-struct environ_keyval_fn
-{
-    template<typename Rng>
-    auto operator() (Rng&& rng, bool key) const {
-        using namespace ranges;
-        return views::transform(rng, [key](std::string const& line) {
-            auto const eq = line.find('=');
-            auto value = key ? line.substr(0, eq) : line.substr(eq+1);
-            return value;
-        });
-    }
-
-} inline constexpr environ_keyval;
 
 class environ_cursor
 {
@@ -70,5 +60,52 @@ public:
 };
 
 using environ_iterator = ranges::basic_iterator<environ_cursor>;
+
+using envline_delegate = std::string(*)(const std::string&);
+
+struct get_envline_key_fn
+{
+    template<typename Rng>
+    auto operator() (Rng const& rng) const {
+        using namespace ranges;
+        return views::transform(rng, +[](const std::string& line) {
+            auto const eq = line.find('=');
+            auto key = line.substr(0, eq);
+            return key;
+        });
+    }
+} inline constexpr get_envline_key;
+
+struct get_envline_value_fn
+{
+    template<typename Rng>
+    auto operator() (Rng const& rng) const {
+        using namespace ranges;
+        return views::transform(rng, +[](const std::string& line) {
+            auto const eq = line.find('=');
+            auto val = line.substr(eq+1);
+            return val;
+        });
+    }
+} inline constexpr get_envline_value;
+
+class environment_base
+{
+public:
+    using iterator = ranges::common_iterator<detail::environ_iterator, ranges::default_sentinel_t>;
+
+    iterator begin() const noexcept
+    {
+        return environ_iterator(sys::envp());
+    }
+
+    iterator end() const noexcept
+    {
+        return ranges::default_sentinel;
+    }
+};
+
+using envkeyrng = ranges::transform_view<environment_base, get_envline_key_fn>;
+using envvaluerng = ranges::transform_view<environment_base, get_envline_value_fn>;
 
 } // namespace red::session::detail

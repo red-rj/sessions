@@ -14,7 +14,7 @@
 
 namespace red::session {
 
-    class environment
+    class environment : public detail::environment_base
     {
     public:
         class variable
@@ -38,7 +38,6 @@ namespace red::session {
             std::string m_key;
         };
 
-        using iterator = ranges::common_iterator<detail::environ_iterator, ranges::default_sentinel_t>;
         using value_type = variable;
         using size_type = size_t;
 
@@ -69,8 +68,6 @@ namespace red::session {
 
         iterator cbegin() const noexcept { return detail::environ_iterator(sys::envp()); }
         iterator cend() const noexcept { return ranges::default_sentinel; }
-        auto begin() const noexcept { return cbegin(); }
-        auto end() const noexcept { return cend(); }
 
         size_type size() const noexcept;
 		[[nodiscard]] bool empty() const noexcept { return size() == 0; }
@@ -87,11 +84,14 @@ namespace red::session {
             detail::environ_keyval() calls ranges::view::transform()
         */
 
-        /*value_range*/ auto values() const noexcept {
-            return detail::environ_keyval(*this, false);
+        using value_range = detail::envvaluerng;
+        using key_range = detail::envkeyrng;
+
+        value_range values() const noexcept {
+            return detail::get_envline_value(*this);
         }
-        /*key_range*/ auto keys() const noexcept {
-            return detail::environ_keyval(*this, true);
+        key_range keys() const noexcept {
+            return detail::get_envline_key(*this);
         }
 
     private:
