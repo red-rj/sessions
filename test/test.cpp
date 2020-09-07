@@ -14,7 +14,7 @@
 #include <range/v3/action.hpp>
 #include <range/v3/range/conversion.hpp>
 
-#include "red/session.hpp"
+#include "red/sessions/session.hpp"
 
 using namespace red::session;
 using namespace std::literals;

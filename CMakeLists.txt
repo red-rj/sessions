@@ -52,3 +52,5 @@ include(cmake/install.cmake)
 install_targets(sessions)
 configure_and_install(cmake/redConfig.cmake red:: AnyNewerVersion)
 install(DIRECTORY include/ DESTINATION include)
+
+set_target_properties(sessions PROPERTIES DEBUG_POSTFIX d)
