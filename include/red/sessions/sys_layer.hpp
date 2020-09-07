@@ -18,13 +18,6 @@ using env_t = envchar**;
 
 env_t envp() noexcept;
 
-template<class T>
-inline size_t envsize(T** envptr) noexcept {
-    size_t size = 0;
-    while (envptr[size]) size++;
-    return size;
-}
-
 std::string narrow(envchar const* s);
 
 std::string getenv(std::string_view key);

@@ -18,7 +18,7 @@ using std::string;
 using std::wstring;
 using std::string_view;
 using std::wstring_view;
-using namespace red::session::detail;
+namespace detail = red::session::detail;
 namespace sys = red::session::sys;
 
 
@@ -34,37 +34,38 @@ std::string make_envstr(std::string_view k, std::string_view v)
 }
 
 
-template<class T>
-struct ci_char_traits : public std::char_traits<T> {
-    using typename std::char_traits<T>::char_type;
+struct ci_char_traits : public std::char_traits<char> {
+    using typename std::char_traits<char>::char_type;
 
     static bool eq(char_type c1, char_type c2) {
-        std::locale l;
-        return toupper(c1, l) == toupper(c2, l);
+        return toupper(c1) == toupper(c2);
     }
     static bool lt(char_type c1, char_type c2) {
-        std::locale l;
-        return toupper(c1, l) < toupper(c2, l);
+        return toupper(c1) < toupper(c2);
     }
     static int compare(const char_type* s1, const char_type* s2, size_t n) {
-        std::locale l;
         while (n-- != 0) {
-            if (toupper(*s1, l) < toupper(*s2, l)) return -1;
-            if (toupper(*s1, l) > toupper(*s2, l)) return 1;
+            if (toupper(*s1) < toupper(*s2)) return -1;
+            if (toupper(*s1) > toupper(*s2)) return 1;
             ++s1; ++s2;
         }
         return 0;
     }
     static const char_type* find(const char_type* s, int n, char_type a) {
-        std::locale l;
-        auto const ua = toupper(a, l);
+        auto const ua = toupper(a);
         while (n-- != 0)
         {
-            if (toupper(*s, l) == ua)
+            if (toupper(*s) == ua)
                 return s;
             s++;
         }
         return nullptr;
+    }
+
+private:
+    static char toupper(char ch) {
+        const auto& C = std::locale::classic();
+        return std::toupper(ch, C);
     }
 };
 
@@ -104,8 +105,8 @@ struct envstr_finder_base
 };
 
 using envstr_finder = envstr_finder_base<std::char_traits<char>>;
+using ci_envstr_finder = envstr_finder_base<ci_char_traits>;
 
-using ci_envstr_finder = envstr_finder_base<ci_char_traits<char>>;
 
 } // unnamed namespace
 
@@ -343,7 +344,13 @@ namespace detail
         return splitpath_t{v};
     }
 
-    size_t environment::size() const noexcept { return sys::envsize(sys::envp()); }
+    auto environment::size() const noexcept -> size_type
+    {
+        auto** env = sys::envp();
+        size_type size = 0;
+        while (*env++) size++;
+        return size;
+    }
 
     environment::environment() noexcept
     {
