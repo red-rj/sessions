@@ -11,8 +11,6 @@
 #include <range/v3/iterator/common_iterator.hpp>
 #include <range/v3/iterator/basic_iterator.hpp>
 #include <range/v3/view/transform.hpp>
-#include <range/v3/view/adaptor.hpp>
-#include <range/v3/utility/semiregular_box.hpp>
 #include <range/v3/view/facade.hpp>
 
 #include "config.h"
@@ -44,22 +42,6 @@ namespace sys {
 // impl detail
 namespace detail {
 
-    using std::ptrdiff_t;
-
-    struct environ_keyval_fn
-    {
-        template<typename Rng>
-        auto operator() (Rng&& rng, bool key) const {
-            using namespace ranges;
-            return views::transform(rng, [key](std::string const& line) {
-                auto const eq = line.find('=');
-                auto value = key ? line.substr(0, eq) : line.substr(eq+1);
-                return value;
-            });
-        }
-
-    } inline constexpr environ_keyval;
-
     // cursor over an array of pointers where the end is nullptr
     template<typename T>
     class ptr_array_cursor
@@ -70,7 +52,7 @@ namespace detail {
         void prev() noexcept { block--; }
         // void advance(ptrdiff_t n) noexcept { block += n; }
         T* read() const noexcept { return *block; };
-        ptrdiff_t distance_to(ptr_array_cursor const &that) const noexcept {
+        std::ptrdiff_t distance_to(ptr_array_cursor const &that) const noexcept {
             return that.block - block;
         }
         bool equal(ptr_array_cursor const& other) const noexcept {
@@ -101,7 +83,7 @@ namespace detail {
                 elem = *e;
                 current = sys::narrow(elem);
             }
-            
+
             using value_type = std::string;
 
             value_type& read() const
@@ -132,12 +114,22 @@ namespace detail {
 
     inline auto env_key_range(const environ_range& rng)
     {
-        return environ_keyval(rng, true);
+        using namespace ranges;
+        return views::transform(rng, [](std::string const& arg){
+            std::string_view line = arg;
+            auto const eq = line.find('=');
+            return line.substr(0, eq);
+        });
     }
-    
+
     inline auto env_value_range(const environ_range& rng)
     {
-        return environ_keyval(rng, false);
+        using namespace ranges;
+        return views::transform(rng, [](std::string const& arg){
+            std::string_view line = arg;
+            auto const eq = line.find('=');
+            return line.substr(eq+1);
+        });
     }
 
 } // namespace detail

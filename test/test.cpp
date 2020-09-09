@@ -177,12 +177,12 @@ TEST_CASE("environment::variable", "[environment]")
         auto pathsplit = environment["PATH"].split();
         
         int count=0;
-        CAPTURE(sys::path_sep, count);
+        CAPTURE(environment::path_separator, count);
         for (auto it = pathsplit.begin(); it != pathsplit.end(); it++, count++)
         {
             auto current = ranges::to<std::string>(*it);
             CAPTURE(current);
-            REQUIRE(current.find(sys::path_sep) == std::string::npos);
+            REQUIRE(current.find(environment::path_separator) == std::string::npos);
         }
     }
 
