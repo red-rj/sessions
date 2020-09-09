@@ -32,7 +32,6 @@ std::string make_envstr(std::string_view k, std::string_view v)
     return es;
 }
 
-
 struct ci_char_traits : public std::char_traits<char> {
     using typename std::char_traits<char>::char_type;
 
@@ -105,8 +104,6 @@ struct envstr_finder_base
 
 using envstr_finder = envstr_finder_base<std::char_traits<char>>;
 using ci_envstr_finder = envstr_finder_base<ci_char_traits>;
-
-
 } // unnamed namespace
 
 #if defined(WIN32)
@@ -185,13 +182,14 @@ namespace
 
             std::transform(wargv.get(), wargv.get()+argc, vec.begin(), [](const wchar_t* arg) {
                 auto length = narrow(arg);
-                auto ptr = std::make_unique<char[]>(length);
-                auto result = narrow(arg, -1, ptr.get(), length);
+                auto* ptr = new char[length];
+                auto result = narrow(arg, -1, ptr, length);
                 if (result==0) {
+                    delete[] ptr;
                     throw_win_error();
                 }
                 
-                return ptr.release();
+                return ptr;
             });
 
             return vec;

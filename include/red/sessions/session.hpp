@@ -11,6 +11,9 @@
 #include <range/v3/iterator/common_iterator.hpp>
 #include <range/v3/iterator/basic_iterator.hpp>
 #include <range/v3/view/transform.hpp>
+#include <range/v3/view/adaptor.hpp>
+#include <range/v3/utility/semiregular_box.hpp>
+#include <range/v3/view/facade.hpp>
 
 #include "config.h"
 
@@ -57,56 +60,91 @@ namespace detail {
 
     } inline constexpr environ_keyval;
 
-    class environ_cursor
+    // cursor over an array of pointers where the end is nullptr
+    template<typename T>
+    class ptr_array_cursor
     {
-        sys::env_t envblock = nullptr; // native environ block
-        sys::env_t mutable pos = nullptr; // last read pos.
-        std::string mutable current; // last read data
-
+        T** block = nullptr;
     public:
-        std::string& read() const {
-            if (pos != envblock) {
-                auto* native = *envblock;
-                current = sys::narrow(native);
-                pos = envblock;
-            }
-
-            return current;
+        void next() noexcept { block++; }
+        void prev() noexcept { block--; }
+        // void advance(ptrdiff_t n) noexcept { block += n; }
+        T* read() const noexcept { return *block; };
+        ptrdiff_t distance_to(ptr_array_cursor const &that) const noexcept {
+            return that.block - block;
+        }
+        bool equal(ptr_array_cursor const& other) const noexcept {
+            return block == other.block;
+        }
+        bool equal(ranges::default_sentinel_t) const noexcept {
+            return *block == nullptr;
         }
 
-        void next() {
-            envblock++;
-        }
-        void prev() {
-            envblock--;
-        }
-        void advance(ptrdiff_t n) {
-            envblock += n;
-        }
-
-        bool equal(environ_cursor const& other) const noexcept {
-            return envblock == other.envblock;
-        }
-        bool equal(ranges::default_sentinel_t ds) const noexcept {
-            return *envblock == nullptr;
-        }
-        ptrdiff_t distance_to(environ_cursor const &that) const noexcept {
-            return that.envblock - envblock;
-        }
-        
-        environ_cursor() = default;
-        environ_cursor(sys::env_t penv) : envblock(penv), pos(penv)
-        {
-            current = sys::narrow(*envblock);
+        ptr_array_cursor()=default;
+        ptr_array_cursor(T** ep) : block(ep) {
+            //assert(block != nullptr);
         }
     };
 
-    using environ_iterator = ranges::basic_iterator<environ_cursor>;
+    class environ_range : public ranges::view_facade<environ_range>
+    {
+        friend ranges::range_access;
+
+        // narrowing cursor
+        struct cursor : ptr_array_cursor<sys::envchar>
+        {
+            using base_cursor = ptr_array_cursor<sys::envchar>;
+
+            cursor() = default;
+            cursor(sys::env_t e) : base_cursor(e)
+            {
+                elem = *e;
+                current = sys::narrow(elem);
+            }
+            
+            using value_type = std::string;
+
+            value_type& read() const
+            {
+                auto cur = base_cursor::read();
+                if (cur != elem) {
+                    current = sys::narrow(cur);
+                    elem = cur;
+                }
+
+                return current;
+            }
+
+        private:
+            mutable sys::envchar* elem = nullptr; // last read elem.
+            mutable std::string current; // last read data
+        };
+        
+        
+        auto begin_cursor() const {
+            return cursor(sys::envp());
+        }
+        
+    public:
+        environ_range()=default;
+    };
+
+
+    inline auto env_key_range(const environ_range& rng)
+    {
+        return environ_keyval(rng, true);
+    }
+    
+    inline auto env_value_range(const environ_range& rng)
+    {
+        return environ_keyval(rng, false);
+    }
 
 } // namespace detail
 
-    class environment
+    class environment : public detail::environ_range
     {
+        using base_class = detail::environ_range;
     public:
         class variable
         {
@@ -129,7 +167,7 @@ namespace detail {
         // the separator char. used in the PATH variable
         static const char path_separator;
 
-        using iterator = ranges::common_iterator<detail::environ_iterator, ranges::default_sentinel_t>;
+        using iterator = ranges::common_iterator<ranges::iterator_t<base_class>, ranges::default_sentinel_t>;
         using value_type = variable;
         using size_type = size_t;
 
@@ -140,7 +178,6 @@ namespace detail {
                 std::negation<std::is_convertible<const T&, const char*>>
             >
         >;
-
         template <class T>
         using Is_Strview_Convertible = std::enable_if_t<std::is_convertible_v<const T&, std::string_view>>;
 
@@ -159,8 +196,8 @@ namespace detail {
 
         bool contains(std::string_view key) const;
 
-        iterator cbegin() const noexcept { return detail::environ_iterator(sys::envp()); }
-        iterator cend() const noexcept { return ranges::default_sentinel; }
+        iterator cbegin() const noexcept { return begin(); }
+        iterator cend() const noexcept { return end(); }
 
         size_type size() const noexcept;
 		[[nodiscard]] bool empty() const noexcept { return size() == 0; }
@@ -168,17 +205,14 @@ namespace detail {
         template <class K, class = Is_Strview_Convertible<K>>
         void erase(K const& key) { do_erase(key); }
 
-        /* TODO: declare value_range and key_range
-            How the hell do I declare these? 😭
+        using value_range = decltype(detail::env_value_range(base_class{}));
+        using key_range = decltype(detail::env_key_range(base_class{}));
 
-            detail::environ_keyval() calls ranges::view::transform()
-        */
-
-        auto values() const noexcept {
-            return detail::environ_keyval(*this, false);
+        value_range values() const noexcept {
+            return detail::env_value_range(*this);
         }
-        auto keys() const noexcept {
-            return detail::environ_keyval(*this, true);
+        key_range keys() const noexcept {
+            return detail::env_key_range(*this);
         }
 
     private:
