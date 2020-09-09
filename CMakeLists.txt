@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(sessions VERSION 0.2.0)
+project(sessions VERSION 0.2.5)
 
 option(SESSIONS_TESTS "Build tests." On)
 option(SESSIONS_UTF8 "Force UTF-8 storage." On)
