@@ -1,20 +1,111 @@
-#ifndef RED_SESSION_HPP
-#define RED_SESSION_HPP
+#ifndef RED_SESSIONS_HPP
+#define RED_SESSIONS_HPP
 
 #include <type_traits>
 #include <string_view>
+#include <string>
 
 #include <range/v3/view/split.hpp>
 #include <range/v3/view/join.hpp>
 #include <range/v3/view/subrange.hpp>
 #include <range/v3/iterator/common_iterator.hpp>
+#include <range/v3/iterator/basic_iterator.hpp>
+#include <range/v3/view/transform.hpp>
 
-#include "ranges.hpp"
 #include "config.h"
 
 namespace red::session {
 
-    class environment : public detail::environment_base
+// system layer (impl detail)
+namespace sys {
+#ifdef WIN32
+    using envchar = wchar_t;
+#else
+    using envchar = char;
+#endif
+
+    using env_t = envchar**;
+
+    env_t envp() noexcept;
+
+    std::string getenv(std::string_view key);
+    void setenv(std::string_view key, std::string_view value);
+    void rmenv(std::string_view key);
+
+    char const** argv() noexcept;
+    int argc() noexcept;
+    
+    std::string narrow(envchar const* s);
+} // namespace sys
+
+// impl detail
+namespace detail {
+
+    using std::ptrdiff_t;
+
+    struct environ_keyval_fn
+    {
+        template<typename Rng>
+        auto operator() (Rng&& rng, bool key) const {
+            using namespace ranges;
+            return views::transform(rng, [key](std::string const& line) {
+                auto const eq = line.find('=');
+                auto value = key ? line.substr(0, eq) : line.substr(eq+1);
+                return value;
+            });
+        }
+
+    } inline constexpr environ_keyval;
+
+    class environ_cursor
+    {
+        sys::env_t envblock = nullptr; // native environ block
+        sys::env_t mutable pos = nullptr; // last read pos.
+        std::string mutable current; // last read data
+
+    public:
+        std::string& read() const {
+            if (pos != envblock) {
+                auto* native = *envblock;
+                current = sys::narrow(native);
+                pos = envblock;
+            }
+
+            return current;
+        }
+
+        void next() {
+            envblock++;
+        }
+        void prev() {
+            envblock--;
+        }
+        void advance(ptrdiff_t n) {
+            envblock += n;
+        }
+
+        bool equal(environ_cursor const& other) const noexcept {
+            return envblock == other.envblock;
+        }
+        bool equal(ranges::default_sentinel_t ds) const noexcept {
+            return *envblock == nullptr;
+        }
+        ptrdiff_t distance_to(environ_cursor const &that) const noexcept {
+            return that.envblock - envblock;
+        }
+        
+        environ_cursor() = default;
+        environ_cursor(sys::env_t penv) : envblock(penv), pos(penv)
+        {
+            current = sys::narrow(*envblock);
+        }
+    };
+
+    using environ_iterator = ranges::basic_iterator<environ_cursor>;
+
+} // namespace detail
+
+    class environment
     {
     public:
         class variable
@@ -23,14 +114,11 @@ namespace red::session {
             class splitpath_t;
             friend class environment;
         
-            operator std::string() const { return sys::getenv(m_key); }
+            operator std::string() const;
             std::string_view key() const noexcept { return m_key; }
             splitpath_t split () const;
 
-            variable& operator=(std::string_view value) {
-                sys::setenv(m_key, value);
-                return *this;
-            }
+            variable& operator=(std::string_view value);
 
         private:
             explicit variable(std::string_view key_) : m_key(key_) {}
@@ -38,6 +126,10 @@ namespace red::session {
             std::string m_key;
         };
 
+        // the separator char. used in the PATH variable
+        static const char path_separator;
+
+        using iterator = ranges::common_iterator<detail::environ_iterator, ranges::default_sentinel_t>;
         using value_type = variable;
         using size_type = size_t;
 
@@ -57,6 +149,7 @@ namespace red::session {
 
         template <class T, class = Is_Strview<T>>
         variable operator [] (T const& k) const { return variable(k); }
+
         variable operator [] (std::string_view k) const { return variable(k); }
         variable operator [] (std::string const& k) const { return variable(k); }
         variable operator [] (char const* k) const { return variable(k); }
@@ -76,22 +169,16 @@ namespace red::session {
         void erase(K const& key) { do_erase(key); }
 
         /* TODO: declare value_range and key_range
-            How the hell do I make these?
-
-            'using value_range = decltype(detail::environ_keyval(environment(),bool))' doesn't work, 
-            cause environment is an incomplete type.
+            How the hell do I declare these? 😭
 
             detail::environ_keyval() calls ranges::view::transform()
         */
 
-        using value_range = detail::envvaluerng;
-        using key_range = detail::envkeyrng;
-
-        value_range values() const noexcept {
-            return detail::get_envline_value(*this);
+        auto values() const noexcept {
+            return detail::environ_keyval(*this, false);
         }
-        key_range keys() const noexcept {
-            return detail::get_envline_key(*this);
+        auto keys() const noexcept {
+            return detail::environ_keyval(*this, true);
         }
 
     private:
@@ -108,7 +195,7 @@ namespace red::session {
 
     public:
         splitpath_t(std::string_view val) : m_value(val) {
-            rng = range_t(m_value, sys::path_sep);
+            rng = range_t(m_value, environment::path_separator);
         }
 
         auto begin() {
@@ -151,14 +238,18 @@ namespace red::session {
         [[nodiscard]] int argc() const noexcept;
 
 #ifdef SESSION_NOEXTENTIONS
+        /* Initialize arguments's global storage.
+           Users need to call this function *ONLY* if SESSIONS_NOEXTENTIONS is set.
+        */
         static void init(int argc, const char** argv) noexcept;
-#endif
+#endif // SESSION_NOEXTENTIONS
+
     };
 
 
     CPP_template(class Rng)
         (requires ranges::range<Rng> && concepts::convertible_to<ranges::range_value_t<Rng>, std::string_view>)
-    std::string join_paths(Rng&& rng, char sep = sys::path_sep) {
+    std::string join_paths(Rng&& rng, char sep = environment::path_separator) {
         using namespace ranges;
 
         std::string var = rng | views::join(sep) | to<std::string>();
@@ -170,10 +261,10 @@ namespace red::session {
 
     CPP_template(class Iter)
         (requires concepts::convertible_to<ranges::iter_value_t<Iter>, std::string_view>)
-    std::string join_paths(Iter begin, Iter end, char sep = sys::path_sep) {
+    std::string join_paths(Iter begin, Iter end, char sep = environment::path_separator) {
         return join_paths(ranges::subrange(begin, end), sep);
     }
 
 } /* namespace red::session */
 
-#endif /* RED_SESSION_HPP */
+#endif /* RED_SESSIONS_HPP */

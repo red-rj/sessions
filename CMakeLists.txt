@@ -10,7 +10,7 @@ endif()
 
 set(INC_SUBDIR red/sessions)
 
-set(HEADERS session.hpp ranges.hpp sys_layer.hpp config.h)
+set(HEADERS session.hpp config.h)
 list(TRANSFORM HEADERS PREPEND include/${INC_SUBDIR}/)
 
 add_library(sessions src/session.cpp ${HEADERS})
@@ -50,7 +50,7 @@ add_library(red::sessions ALIAS sessions)
 include(cmake/install.cmake)
 
 install_targets(sessions)
-configure_and_install(cmake/redConfig.cmake red:: AnyNewerVersion)
+configure_and_install(cmake/redConfig.cmake red AnyNewerVersion)
 install(DIRECTORY include/ DESTINATION include)
 
 set_target_properties(sessions PROPERTIES DEBUG_POSTFIX d)
