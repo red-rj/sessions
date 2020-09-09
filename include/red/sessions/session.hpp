@@ -1,5 +1,5 @@
-#ifndef RED_SESSION_HPP
-#define RED_SESSION_HPP
+#ifndef RED_SESSIONS_HPP
+#define RED_SESSIONS_HPP
 
 #include <type_traits>
 #include <string_view>
@@ -269,4 +269,4 @@ namespace detail {
 
 } /* namespace red::session */
 
-#endif /* RED_SESSION_HPP */
+#endif /* RED_SESSIONS_HPP */
