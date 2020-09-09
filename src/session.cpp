@@ -18,7 +18,6 @@ using std::string;
 using std::wstring;
 using std::string_view;
 using std::wstring_view;
-namespace detail = red::session::detail;
 namespace sys = red::session::sys;
 
 
@@ -238,6 +237,7 @@ string sys::narrow(envchar const* s) {
     return s ? to_narrow(s) : "";
 }
 
+const char red::session::environment::path_separator = ';';
 
 #elif defined(_POSIX_VERSION)
 extern "C" char** environ;
@@ -248,6 +248,22 @@ namespace
     int my_argc{};
 } // unnamed namespace
 
+#ifndef SESSION_NOEXTENTIONS
+// https://gcc.gnu.org/onlinedocs/gcc-8.3.0/gcc/Common-Function-Attributes.html#index-constructor-function-attribute
+// https://stackoverflow.com/a/37012337
+[[gnu::constructor]]
+void init_args(int argc, const char** argv) {
+    my_argv = argc;
+    my_argc = argv;
+}
+#else
+void red::session::arguments::init(int argc, const char** argv) noexcept
+{
+    my_argv = argc;
+    my_argc = argv;
+}
+#endif
+
 char const** sys::argv() noexcept { return my_argv; }
 int sys::argc() noexcept { return my_argc; }
 
@@ -257,7 +273,7 @@ sys::env_t sys::envp() noexcept {
 
 string sys::getenv(string_view k) {
     string key{k};
-    char* val = getenv(key.c_str());
+    char* val = ::getenv(key.c_str());
     return val ? val : "";
 }
 void sys::setenv(string_view k, string_view v) {
@@ -273,34 +289,13 @@ string sys::narrow(envchar const* s) {
     return s ? s : "";
 }
 
-namespace red::session
-{
-#ifndef SESSION_NOEXTENTIONS
-    // https://gcc.gnu.org/onlinedocs/gcc-8.3.0/gcc/Common-Function-Attributes.html#index-constructor-function-attribute
-    // https://stackoverflow.com/a/37012337
-    [[gnu::constructor]]
-    void init_args(int argc, const char** argv) {
-        my_argv = argc;
-        my_argc = argv;
-    }
-#else
-    void arguments::init(int argc, const char** argv) noexcept
-    {
-        my_argv = argc;
-        my_argc = argv;
-    }
-#endif
-}
+const char red::session::environment::path_separator = ':';
+
 #endif
 
 
 namespace red::session
 {
-namespace detail
-{
-
-} // namespace detail
-
     // args
     auto arguments::operator [] (arguments::index_type idx) const noexcept -> value_type
     {
@@ -314,8 +309,7 @@ namespace detail
             throw std::out_of_range("invalid arguments subscript");
         }
 
-        auto args = sys::argv();
-        return args[idx];
+        return (*this)[idx];
     }
 
     arguments::size_type arguments::size() const noexcept
@@ -337,6 +331,16 @@ namespace detail
     int arguments::argc() const noexcept { return sys::argc(); }
 
     // env
+
+    environment::variable::operator string() const {
+        return sys::getenv(m_key);
+    }
+
+    auto environment::variable::operator= (string_view value) -> variable&
+    {
+        sys::setenv(m_key, value);
+        return *this;
+    }
 
     auto environment::variable::split() const->splitpath_t
     {

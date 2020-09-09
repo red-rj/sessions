@@ -10,7 +10,7 @@ endif()
 
 set(INC_SUBDIR red/sessions)
 
-set(HEADERS session.hpp ranges.hpp sys_layer.hpp config.h)
+set(HEADERS session.hpp config.h)
 list(TRANSFORM HEADERS PREPEND include/${INC_SUBDIR}/)
 
 add_library(sessions src/session.cpp ${HEADERS})

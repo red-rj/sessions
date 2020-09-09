@@ -16,9 +16,8 @@
 
 namespace red::session {
 
-// system layer
-namespace sys
-{
+// system layer (impl detail)
+namespace sys {
 #ifdef WIN32
     using envchar = wchar_t;
 #else
@@ -33,21 +32,15 @@ namespace sys
     void setenv(std::string_view key, std::string_view value);
     void rmenv(std::string_view key);
 
-    inline constexpr char path_sep =
-#ifdef WIN32
-    ';';
-#else
-    ':';
-#endif
-
     char const** argv() noexcept;
     int argc() noexcept;
     
     std::string narrow(envchar const* s);
 } // namespace sys
 
-namespace detail
-{
+// impl detail
+namespace detail {
+
     using std::ptrdiff_t;
 
     struct environ_keyval_fn
@@ -109,6 +102,7 @@ namespace detail
     };
 
     using environ_iterator = ranges::basic_iterator<environ_cursor>;
+
 } // namespace detail
 
     class environment
@@ -120,20 +114,20 @@ namespace detail
             class splitpath_t;
             friend class environment;
         
-            operator std::string() const { return sys::getenv(m_key); }
+            operator std::string() const;
             std::string_view key() const noexcept { return m_key; }
             splitpath_t split () const;
 
-            variable& operator=(std::string_view value) {
-                sys::setenv(m_key, value);
-                return *this;
-            }
+            variable& operator=(std::string_view value);
 
         private:
             explicit variable(std::string_view key_) : m_key(key_) {}
 
             std::string m_key;
         };
+
+        // the separator char. used in the PATH variable
+        static const char path_separator;
 
         using iterator = ranges::common_iterator<detail::environ_iterator, ranges::default_sentinel_t>;
         using value_type = variable;
@@ -155,6 +149,7 @@ namespace detail
 
         template <class T, class = Is_Strview<T>>
         variable operator [] (T const& k) const { return variable(k); }
+
         variable operator [] (std::string_view k) const { return variable(k); }
         variable operator [] (std::string const& k) const { return variable(k); }
         variable operator [] (char const* k) const { return variable(k); }
@@ -176,10 +171,7 @@ namespace detail
         void erase(K const& key) { do_erase(key); }
 
         /* TODO: declare value_range and key_range
-            How the hell do I make these?
-
-            'using value_range = decltype(detail::environ_keyval(environment(),bool))' doesn't work, 
-            cause environment is an incomplete type.
+            How the hell do I declare these? 😭
 
             detail::environ_keyval() calls ranges::view::transform()
         */
@@ -205,7 +197,7 @@ namespace detail
 
     public:
         splitpath_t(std::string_view val) : m_value(val) {
-            rng = range_t(m_value, sys::path_sep);
+            rng = range_t(m_value, environment::path_separator);
         }
 
         auto begin() {
@@ -248,14 +240,18 @@ namespace detail
         [[nodiscard]] int argc() const noexcept;
 
 #ifdef SESSION_NOEXTENTIONS
+        /* Initialize arguments's global storage.
+           Users need to call this function *ONLY* if SESSIONS_NOEXTENTIONS is set.
+        */
         static void init(int argc, const char** argv) noexcept;
-#endif
+#endif // SESSION_NOEXTENTIONS
+
     };
 
 
     CPP_template(class Rng)
         (requires ranges::range<Rng> && concepts::convertible_to<ranges::range_value_t<Rng>, std::string_view>)
-    std::string join_paths(Rng&& rng, char sep = sys::path_sep) {
+    std::string join_paths(Rng&& rng, char sep = environment::path_separator) {
         using namespace ranges;
 
         std::string var = rng | views::join(sep) | to<std::string>();
@@ -267,7 +263,7 @@ namespace detail
 
     CPP_template(class Iter)
         (requires concepts::convertible_to<ranges::iter_value_t<Iter>, std::string_view>)
-    std::string join_paths(Iter begin, Iter end, char sep = sys::path_sep) {
+    std::string join_paths(Iter begin, Iter end, char sep = environment::path_separator) {
         return join_paths(ranges::subrange(begin, end), sep);
     }
 
