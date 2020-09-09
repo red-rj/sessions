@@ -68,65 +68,61 @@ namespace detail {
         }
     };
 
-    class environ_range : public ranges::view_facade<environ_range>
+    struct narrowing_cursor : ptr_array_cursor<sys::envchar>
     {
-        friend ranges::range_access;
+        using base_cursor = ptr_array_cursor<sys::envchar>;
 
-        // narrowing cursor
-        struct cursor : ptr_array_cursor<sys::envchar>
+        narrowing_cursor() = default;
+        narrowing_cursor(sys::env_t e) : base_cursor(e)
         {
-            using base_cursor = ptr_array_cursor<sys::envchar>;
-
-            cursor() = default;
-            cursor(sys::env_t e) : base_cursor(e)
-            {
-                elem = *e;
-                current = sys::narrow(elem);
-            }
-
-            using value_type = std::string;
-
-            value_type& read() const
-            {
-                auto cur = base_cursor::read();
-                if (cur != elem) {
-                    current = sys::narrow(cur);
-                    elem = cur;
-                }
-
-                return current;
-            }
-
-        private:
-            mutable sys::envchar* elem = nullptr; // last read elem.
-            mutable std::string current; // last read data
-        };
-        
-        
-        auto begin_cursor() const {
-            return cursor(sys::envp());
+            elem = *e;
+            current = sys::narrow(elem);
         }
-        
-    public:
-        environ_range()=default;
+
+        using value_type = std::string;
+
+        value_type& read() const
+        {
+            auto cur = base_cursor::read();
+            if (cur != elem) {
+                current = sys::narrow(cur);
+                elem = cur;
+            }
+
+            return current;
+        }
+
+    private:
+        mutable sys::envchar* elem = nullptr; // last read elem.
+        mutable std::string current; // last read data
     };
 
+    class environ_view : public ranges::view_facade<environ_view>
+    {
+        friend ranges::range_access;
+        using cursor = narrowing_cursor;
+        auto begin_cursor() const { return cursor(sys::envp()); }
+    };
 
-    inline auto env_key_range(const environ_range& rng)
+    using environ_iterator = ranges::iterator_t<environ_view>;
+    using environ_common_iter = ranges::common_iterator<environ_iterator, ranges::default_sentinel_t>;
+
+    static_assert(ranges::bidirectional_iterator<environ_iterator>, "environ_iterator isn't bidir");
+
+
+    inline auto get_key_view(const environ_view& rng)
     {
         using namespace ranges;
-        return views::transform(rng, [](std::string const& arg){
-            std::string_view line = arg;
+        return views::transform(rng, [](std::string const& line){
             auto const eq = line.find('=');
             return line.substr(0, eq);
         });
     }
 
-    inline auto env_value_range(const environ_range& rng)
+    inline auto get_value_view(const environ_view& rng)
     {
         using namespace ranges;
-        return views::transform(rng, [](std::string const& arg){
-            std::string_view line = arg;
+        return views::transform(rng, [](std::string const& line){
             auto const eq = line.find('=');
             return line.substr(eq+1);
         });
@@ -134,9 +130,9 @@ namespace detail {
 
 } // namespace detail
 
-    class environment : public detail::environ_range
+    class environment
     {
-        using base_class = detail::environ_range;
+        detail::environ_view m_rng;
     public:
         class variable
         {
@@ -159,9 +155,11 @@ namespace detail {
         // the separator char. used in the PATH variable
         static const char path_separator;
 
-        using iterator = ranges::common_iterator<ranges::iterator_t<base_class>, ranges::default_sentinel_t>;
+        using iterator = detail::environ_common_iter;
         using value_type = variable;
         using size_type = size_t;
+        using value_range = decltype(get_value_view(detail::environ_view{}));
+        using key_range = decltype(get_key_view(detail::environ_view{}));
 
         template <class T>
         using Is_Strview = std::enable_if_t<
@@ -188,6 +186,8 @@ namespace detail {
 
         bool contains(std::string_view key) const;
 
+        iterator begin() const noexcept { return m_rng.begin(); }
+        iterator end() const noexcept { return m_rng.end(); }
         iterator cbegin() const noexcept { return begin(); }
         iterator cend() const noexcept { return end(); }
 
@@ -197,21 +197,18 @@ namespace detail {
         template <class K, class = Is_Strview_Convertible<K>>
         void erase(K const& key) { do_erase(key); }
 
-        using value_range = decltype(detail::env_value_range(base_class{}));
-        using key_range = decltype(detail::env_key_range(base_class{}));
 
         value_range values() const noexcept {
-            return detail::env_value_range(*this);
+            return get_value_view(m_rng);
         }
         key_range keys() const noexcept {
-            return detail::env_key_range(*this);
+            return get_key_view(m_rng);
         }
 
     private:
         void do_erase(std::string_view key);
         iterator do_find(std::string_view k) const;
     };
-
 
     class environment::variable::splitpath_t
     {
