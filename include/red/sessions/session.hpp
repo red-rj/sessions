@@ -68,12 +68,19 @@ namespace detail {
         }
     };
 
-    struct narrowing_cursor : ptr_array_cursor<sys::envchar>
-    {
-        using base_cursor = ptr_array_cursor<sys::envchar>;
+    using env_cursor = ptr_array_cursor<sys::envchar>;
 
+    class native_environ_view : public ranges::view_facade<native_environ_view>
+    {
+        friend ranges::range_access;
+        using cursor = env_cursor;
+        auto begin_cursor() const { return cursor(sys::envp()); }
+    };
+
+    struct narrowing_cursor : env_cursor
+    {
         narrowing_cursor() = default;
-        narrowing_cursor(sys::env_t e) : base_cursor(e)
+        narrowing_cursor(sys::env_t e) : env_cursor(e)
         {
             elem = *e;
             current = sys::narrow(elem);
@@ -83,7 +90,7 @@ namespace detail {
 
         value_type& read() const
         {
-            auto cur = base_cursor::read();
+            auto cur = env_cursor::read();
             if (cur != elem) {
                 current = sys::narrow(cur);
                 elem = cur;
@@ -105,7 +112,6 @@ namespace detail {
     };
 
     using environ_iterator = ranges::iterator_t<environ_view>;
-    using environ_common_iter = ranges::common_iterator<environ_iterator, ranges::default_sentinel_t>;
 
 
     inline auto get_key_view(const environ_view& rng)
@@ -153,7 +159,7 @@ namespace detail {
         // the separator char. used in the PATH variable
         static const char path_separator;
 
-        using iterator = detail::environ_common_iter;
+        using iterator = ranges::common_iterator<ranges::iterator_t<detail::environ_view>, ranges::default_sentinel_t>;
         using value_type = variable;
         using size_type = std::size_t;
         using value_range = decltype(detail::get_value_view({}));
