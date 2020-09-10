@@ -9,7 +9,7 @@ What's in the package?
 - `arguments` an _immutable_ wrapper around the old `argv` pointer, behaves like a `std::vector<T> const`.
 - `environment` an _associative container_-like class, it let's you get and set environment variables like getting and setting keys in a `std::map`, but with a couple of differences:
     - `environment::operator[]` returns `environment::variable`, a proxy for interacting a single environment variable. You may assign it to a string to get the value or keep an instance of it and do operations on it later.
-- The `join_paths` function allows joining a series of `std::filesystem::path` into a `std::string` *(not implemented)*
+- The `join_paths` function allows joining a series of `std::filesystem::path` into a `std::string`
 
 Both are empty classes and can be freely constructed around.
 
@@ -22,7 +22,7 @@ Feel free to open an issue or contact me if you want to share some feedback. :)
 It's as simple as creating an instance and using it like a container. 
 
 ```cpp
-#include "red/session.hpp"
+#include "red/sessions/session.hpp"
 using namespace red::session;
 
 arguments args;
@@ -42,7 +42,7 @@ std::vector<std::string> myargs{ args.begin(), args.end() };
 
 ### Environment
 ```cpp
-#include "red/session.hpp"
+#include "red/sessions/session.hpp"
 using namespace red::session;
 
 environment env;

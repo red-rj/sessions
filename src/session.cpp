@@ -12,14 +12,12 @@
 
 #include <range/v3/algorithm.hpp>
 
-#include "red/config.h"
-#include "red/session.hpp"
+#include "red/sessions/session.hpp"
 
 using std::string;
 using std::wstring;
 using std::string_view;
 using std::wstring_view;
-using namespace red::session::detail;
 namespace sys = red::session::sys;
 
 
@@ -34,38 +32,38 @@ std::string make_envstr(std::string_view k, std::string_view v)
     return es;
 }
 
-
-template<class T>
-struct ci_char_traits : public std::char_traits<T> {
-    using typename std::char_traits<T>::char_type;
+struct ci_char_traits : public std::char_traits<char> {
+    using typename std::char_traits<char>::char_type;
 
     static bool eq(char_type c1, char_type c2) {
-        std::locale l;
-        return toupper(c1, l) == toupper(c2, l);
+        return toupper(c1) == toupper(c2);
     }
     static bool lt(char_type c1, char_type c2) {
-        std::locale l;
-        return toupper(c1, l) < toupper(c2, l);
+        return toupper(c1) < toupper(c2);
     }
     static int compare(const char_type* s1, const char_type* s2, size_t n) {
-        std::locale l;
         while (n-- != 0) {
-            if (toupper(*s1, l) < toupper(*s2, l)) return -1;
-            if (toupper(*s1, l) > toupper(*s2, l)) return 1;
+            if (toupper(*s1) < toupper(*s2)) return -1;
+            if (toupper(*s1) > toupper(*s2)) return 1;
             ++s1; ++s2;
         }
         return 0;
     }
     static const char_type* find(const char_type* s, int n, char_type a) {
-        std::locale l;
-        auto const ua = toupper(a, l);
+        auto const ua = toupper(a);
         while (n-- != 0)
         {
-            if (toupper(*s, l) == ua)
+            if (toupper(*s) == ua)
                 return s;
             s++;
         }
         return nullptr;
+    }
+
+private:
+    static char toupper(char ch) {
+        const auto& C = std::locale::classic();
+        return std::toupper(ch, C);
     }
 };
 
@@ -105,9 +103,7 @@ struct envstr_finder_base
 };
 
 using envstr_finder = envstr_finder_base<std::char_traits<char>>;
-
-using ci_envstr_finder = envstr_finder_base<ci_char_traits<char>>;
-
+using ci_envstr_finder = envstr_finder_base<ci_char_traits>;
 } // unnamed namespace
 
 #if defined(WIN32)
@@ -186,13 +182,14 @@ namespace
 
             std::transform(wargv.get(), wargv.get()+argc, vec.begin(), [](const wchar_t* arg) {
                 auto length = narrow(arg);
-                auto ptr = std::make_unique<char[]>(length);
-                auto result = narrow(arg, -1, ptr.get(), length);
+                auto* ptr = new char[length];
+                auto result = narrow(arg, -1, ptr, length);
                 if (result==0) {
+                    delete[] ptr;
                     throw_win_error();
                 }
                 
-                return ptr.release();
+                return ptr;
             });
 
             return vec;
@@ -238,6 +235,7 @@ string sys::narrow(envchar const* s) {
     return s ? to_narrow(s) : "";
 }
 
+const char red::session::environment::path_separator = ';';
 
 #elif defined(_POSIX_VERSION)
 extern "C" char** environ;
@@ -247,6 +245,22 @@ namespace
     char const** my_argv{};
     int my_argc{};
 } // unnamed namespace
+
+#ifndef SESSION_NOEXTENTIONS
+// https://gcc.gnu.org/onlinedocs/gcc-8.3.0/gcc/Common-Function-Attributes.html#index-constructor-function-attribute
+// https://stackoverflow.com/a/37012337
+[[gnu::constructor]]
+void init_args(int argc, const char** argv) {
+    my_argv = argc;
+    my_argc = argv;
+}
+#else
+void red::session::arguments::init(int argc, const char** argv) noexcept
+{
+    my_argv = argc;
+    my_argc = argv;
+}
+#endif
 
 char const** sys::argv() noexcept { return my_argv; }
 int sys::argc() noexcept { return my_argc; }
@@ -273,34 +287,13 @@ string sys::narrow(envchar const* s) {
     return s ? s : "";
 }
 
-namespace red::session
-{
-#ifndef SESSION_NOEXTENTIONS
-    // https://gcc.gnu.org/onlinedocs/gcc-8.3.0/gcc/Common-Function-Attributes.html#index-constructor-function-attribute
-    // https://stackoverflow.com/a/37012337
-    [[gnu::constructor]]
-    void init_args(int argc, const char** argv) {
-        my_argv = argc;
-        my_argc = argv;
-    }
-#else
-    void arguments::init(int argc, const char** argv) noexcept
-    {
-        my_argv = argc;
-        my_argc = argv;
-    }
-#endif
-}
+const char red::session::environment::path_separator = ':';
+
 #endif
 
 
 namespace red::session
 {
-namespace detail
-{
-
-} // namespace detail
-
     // args
     auto arguments::operator [] (arguments::index_type idx) const noexcept -> value_type
     {
@@ -314,8 +307,7 @@ namespace detail
             throw std::out_of_range("invalid arguments subscript");
         }
 
-        auto args = sys::argv();
-        return args[idx];
+        return (*this)[idx];
     }
 
     arguments::size_type arguments::size() const noexcept
@@ -338,13 +330,29 @@ namespace detail
 
     // env
 
+    environment::variable::operator string() const {
+        return sys::getenv(m_key);
+    }
+
+    auto environment::variable::operator= (string_view value) -> variable&
+    {
+        sys::setenv(m_key, value);
+        return *this;
+    }
+
     auto environment::variable::split() const->splitpath_t
     {
         auto v = sys::getenv(m_key);
         return splitpath_t{v};
     }
 
-    size_t environment::size() const noexcept { return sys::envsize(sys::envp()); }
+    auto environment::size() const noexcept -> size_type
+    {
+        auto** env = sys::envp();
+        size_type size = 0;
+        while (*env++) size++;
+        return size;
+    }
 
     environment::environment() noexcept
     {
