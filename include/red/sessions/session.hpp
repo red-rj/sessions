@@ -68,6 +68,30 @@ namespace detail {
         }
     };
 
+    class native_environ_view : public ranges::view_facade<native_environ_view>
+    {
+        friend ranges::range_access;
+        using cursor = ptr_array_cursor<sys::envchar>;
+        auto begin_cursor() const { return cursor(sys::envp()); }
+    };
+
+    class narrow_environ_view : public ranges::view_adaptor<narrow_environ_view, native_environ_view>
+    {
+        friend ranges::range_access;
+
+        class adaptor : public ranges::adaptor_base
+        {
+            using native_iter = ranges::iterator_t<native_environ_view>;
+        public:
+            auto read(native_iter it) const {
+                return sys::narrow(*it);
+            }
+        };
+        adaptor begin_adaptor() const { return {}; }
+        adaptor end_adaptor() const { return {}; }
+    };
+
+
     struct narrowing_cursor : ptr_array_cursor<sys::envchar>
     {
         using base_cursor = ptr_array_cursor<sys::envchar>;
@@ -104,13 +128,14 @@ namespace detail {
         auto begin_cursor() const { return cursor(sys::envp()); }
     };
 
-    using environ_iterator = ranges::iterator_t<environ_view>;
+    using environ_base = narrow_environ_view;
+    using environ_iterator = ranges::iterator_t<environ_base>;
     using environ_common_iter = ranges::common_iterator<environ_iterator, ranges::default_sentinel_t>;
 
-    static_assert(ranges::bidirectional_iterator<environ_iterator>, "environ_iterator isn't bidir");
+    static_assert(ranges::bidirectional_iterator<environ_iterator>, "environ_iterator should be bidir.");
 
 
-    inline auto get_key_view(const environ_view& rng)
+    inline auto get_key_view(const environ_base& rng)
     {
         using namespace ranges;
         return views::transform(rng, [](std::string const& line){
@@ -119,7 +144,7 @@ namespace detail {
         });
     }
 
-    inline auto get_value_view(const environ_view& rng)
+    inline auto get_value_view(const environ_base& rng)
     {
         using namespace ranges;
         return views::transform(rng, [](std::string const& line){
@@ -132,17 +157,17 @@ namespace detail {
 
     class environment
     {
-        detail::environ_view m_rng;
+        detail::environ_base m_rng;
     public:
         class variable
         {
         public:
-            class splitpath_t;
+            class splitpath;
             friend class environment;
         
             operator std::string() const;
             std::string_view key() const noexcept { return m_key; }
-            splitpath_t split () const;
+            splitpath split () const;
 
             variable& operator=(std::string_view value);
 
@@ -158,8 +183,8 @@ namespace detail {
         using iterator = detail::environ_common_iter;
         using value_type = variable;
         using size_type = size_t;
-        using value_range = decltype(get_value_view(detail::environ_view{}));
-        using key_range = decltype(get_key_view(detail::environ_view{}));
+        using value_range = decltype(get_value_view(detail::environ_base{}));
+        using key_range = decltype(get_key_view(detail::environ_base{}));
 
         template <class T>
         using Is_Strview = std::enable_if_t<
@@ -210,14 +235,14 @@ namespace detail {
         iterator do_find(std::string_view k) const;
     };
 
-    class environment::variable::splitpath_t
+    class environment::variable::splitpath
     {
         using range_t = ranges::split_view<ranges::views::all_t<std::string_view>, ranges::single_view<char>>;
         std::string m_value;
         range_t rng;
 
     public:
-        splitpath_t(std::string_view val) : m_value(val) {
+        splitpath(std::string_view val) : m_value(val) {
             rng = range_t(m_value, environment::path_separator);
         }
 

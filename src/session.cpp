@@ -291,7 +291,6 @@ const char red::session::environment::path_separator = ':';
 
 #endif
 
-
 namespace red::session
 {
     // args
@@ -340,7 +339,7 @@ namespace red::session
         return *this;
     }
 
-    auto environment::variable::split() const->splitpath_t
+    auto environment::variable::split() const->splitpath
     {
         auto v = sys::getenv(m_key);
         return splitpath_t{v};
