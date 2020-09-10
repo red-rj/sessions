@@ -107,8 +107,6 @@ namespace detail {
     using environ_iterator = ranges::iterator_t<environ_view>;
     using environ_common_iter = ranges::common_iterator<environ_iterator, ranges::default_sentinel_t>;
 
-    static_assert(ranges::bidirectional_iterator<environ_iterator>, "environ_iterator isn't bidir");
-
 
     inline auto get_key_view(const environ_view& rng)
     {
@@ -137,12 +135,12 @@ namespace detail {
         class variable
         {
         public:
-            class splitpath_t;
+            class splitpath;
             friend class environment;
         
             operator std::string() const;
             std::string_view key() const noexcept { return m_key; }
-            splitpath_t split () const;
+            splitpath split () const;
 
             variable& operator=(std::string_view value);
 
@@ -157,9 +155,9 @@ namespace detail {
 
         using iterator = detail::environ_common_iter;
         using value_type = variable;
-        using size_type = size_t;
-        using value_range = decltype(get_value_view(detail::environ_view{}));
-        using key_range = decltype(get_key_view(detail::environ_view{}));
+        using size_type = std::size_t;
+        using value_range = decltype(detail::get_value_view({}));
+        using key_range = decltype(detail::get_key_view({}));
 
         template <class T>
         using Is_Strview = std::enable_if_t<
@@ -210,14 +208,14 @@ namespace detail {
         iterator do_find(std::string_view k) const;
     };
 
-    class environment::variable::splitpath_t
+    class environment::variable::splitpath
     {
         using range_t = ranges::split_view<ranges::views::all_t<std::string_view>, ranges::single_view<char>>;
         std::string m_value;
         range_t rng;
 
     public:
-        splitpath_t(std::string_view val) : m_value(val) {
+        splitpath(std::string_view val) : m_value(val) {
             rng = range_t(m_value, environment::path_separator);
         }
 
