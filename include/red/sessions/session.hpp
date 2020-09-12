@@ -68,36 +68,19 @@ namespace detail {
         }
     };
 
+    using env_cursor = ptr_array_cursor<sys::envchar>;
+
     class native_environ_view : public ranges::view_facade<native_environ_view>
     {
         friend ranges::range_access;
-        using cursor = ptr_array_cursor<sys::envchar>;
+        using cursor = env_cursor;
         auto begin_cursor() const { return cursor(sys::envp()); }
     };
 
-    class narrow_environ_view : public ranges::view_adaptor<narrow_environ_view, native_environ_view>
+    struct narrowing_cursor : env_cursor
     {
-        friend ranges::range_access;
-
-        class adaptor : public ranges::adaptor_base
-        {
-            using native_iter = ranges::iterator_t<native_environ_view>;
-        public:
-            auto read(native_iter it) const {
-                return sys::narrow(*it);
-            }
-        };
-        adaptor begin_adaptor() const { return {}; }
-        adaptor end_adaptor() const { return {}; }
-    };
-
-
-    struct narrowing_cursor : ptr_array_cursor<sys::envchar>
-    {
-        using base_cursor = ptr_array_cursor<sys::envchar>;
-
         narrowing_cursor() = default;
-        narrowing_cursor(sys::env_t e) : base_cursor(e)
+        narrowing_cursor(sys::env_t e) : env_cursor(e)
         {
             elem = *e;
             current = sys::narrow(elem);
@@ -107,7 +90,7 @@ namespace detail {
 
         value_type& read() const
         {
-            auto cur = base_cursor::read();
+            auto cur = env_cursor::read();
             if (cur != elem) {
                 current = sys::narrow(cur);
                 elem = cur;
@@ -128,11 +111,7 @@ namespace detail {
         auto begin_cursor() const { return cursor(sys::envp()); }
     };
 
-    using environ_base = narrow_environ_view;
-    using environ_iterator = ranges::iterator_t<environ_base>;
-    using environ_common_iter = ranges::common_iterator<environ_iterator, ranges::default_sentinel_t>;
-
-    static_assert(ranges::bidirectional_iterator<environ_iterator>, "environ_iterator should be bidir.");
+    using environ_iterator = ranges::iterator_t<environ_view>;
 
 
     inline auto get_key_view(const environ_base& rng)
@@ -180,11 +159,11 @@ namespace detail {
         // the separator char. used in the PATH variable
         static const char path_separator;
 
-        using iterator = detail::environ_common_iter;
+        using iterator = ranges::common_iterator<ranges::iterator_t<detail::environ_view>, ranges::default_sentinel_t>;
         using value_type = variable;
-        using size_type = size_t;
-        using value_range = decltype(get_value_view(detail::environ_base{}));
-        using key_range = decltype(get_key_view(detail::environ_base{}));
+        using size_type = std::size_t;
+        using value_range = decltype(detail::get_value_view({}));
+        using key_range = decltype(detail::get_key_view({}));
 
         template <class T>
         using Is_Strview = std::enable_if_t<

@@ -24,14 +24,6 @@ namespace sys = red::session::sys;
 // helpers
 namespace
 {
-std::string make_envstr(std::string_view k, std::string_view v)
-{
-    std::string es;
-    es.reserve(k.size() + v.size() + 1);
-    es += k; es += '='; es += v;
-    return es;
-}
-
 struct ci_char_traits : public std::char_traits<char> {
     using typename std::char_traits<char>::char_type;
 
@@ -61,7 +53,7 @@ struct ci_char_traits : public std::char_traits<char> {
     }
 
 private:
-    static char toupper(char ch) {
+    static char toupper(char_type ch) {
         const auto& C = std::locale::classic();
         return std::toupper(ch, C);
     }
@@ -220,11 +212,9 @@ string sys::getenv(string_view k) {
     return wval ? to_narrow(wval) : "";
 }
 void sys::setenv(string_view key, string_view value) {
-    auto wenv = to_wide(make_envstr(key, value));
-    wenv[key.size()] = L'\0'; // replace '='
-    wchar_t const *wkey = wenv.c_str();
-    auto wvalue = wkey + key.size() + 1;
-    _wputenv_s(wkey, wvalue);
+    auto wkey = to_wide(key);
+    auto wvalue = to_wide(value);
+    _wputenv_s(wkey.c_str(), wvalue.c_str());
 }
 void sys::rmenv(string_view k) {
     auto wkey = to_wide(k);
@@ -342,15 +332,12 @@ namespace red::session
     auto environment::variable::split() const->splitpath
     {
         auto v = sys::getenv(m_key);
-        return splitpath_t{v};
+        return splitpath{v};
     }
 
     auto environment::size() const noexcept -> size_type
     {
-        auto** env = sys::envp();
-        size_type size = 0;
-        while (*env++) size++;
-        return size;
+        return ranges::distance(m_rng);
     }
 
     environment::environment() noexcept
