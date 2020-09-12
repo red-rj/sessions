@@ -337,7 +337,8 @@ namespace red::session
 
     auto environment::size() const noexcept -> size_type
     {
-        return ranges::distance(m_rng);
+        //return ranges::distance(*this); //BUG: SIGSEGV - Stack overflow on "remove env. variables"
+        return ranges::distance(begin(), end());
     }
 
     environment::environment() noexcept

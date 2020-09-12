@@ -17,6 +17,22 @@
 
 namespace red::session {
 
+namespace meta
+{
+    template <class T>
+        using is_strview = std::enable_if_t<
+            std::conjunction_v<
+                std::is_convertible<const T&, std::string_view>, 
+                std::negation<std::is_convertible<const T&, const char*>>
+            >
+        , bool>;
+
+    template <class T>
+    using is_strview_convertible = std::enable_if_t<
+        std::is_convertible_v<const T&, std::string_view>
+    , bool>;
+}
+
 // system layer (impl detail)
 namespace sys {
 #ifdef WIN32
@@ -79,53 +95,31 @@ namespace detail {
 
     struct narrowing_cursor : env_cursor
     {
-        narrowing_cursor() = default;
-        narrowing_cursor(sys::env_t e) : env_cursor(e)
-        {
-            elem = *e;
-            current = sys::narrow(elem);
-        }
-
-        using value_type = std::string;
-
-        value_type& read() const
-        {
+        using env_cursor::env_cursor;
+        
+        auto read() const {
             auto cur = env_cursor::read();
-            if (cur != elem) {
-                current = sys::narrow(cur);
-                elem = cur;
-            }
-
-            return current;
+            return sys::narrow(cur);
         }
-
-    private:
-        mutable sys::envchar* elem = nullptr; // last read elem.
-        mutable std::string current; // last read data
     };
 
-    class environ_view : public ranges::view_facade<environ_view>
-    {
-        friend ranges::range_access;
-        using cursor = narrowing_cursor;
-        auto begin_cursor() const { return cursor(sys::envp()); }
-    };
+    using native_iterator = ranges::basic_iterator<env_cursor>;
+    using narrowing_iterator = ranges::basic_iterator<narrowing_cursor>;
 
-    using environ_iterator = ranges::iterator_t<environ_view>;
-
-
-    inline auto get_key_view(const environ_base& rng)
+    inline auto get_key_view()
     {
         using namespace ranges;
+        auto rng = subrange(narrowing_iterator(sys::envp()), default_sentinel);
         return views::transform(rng, [](std::string const& line){
             auto const eq = line.find('=');
             return line.substr(0, eq);
         });
     }
 
-    inline auto get_value_view(const environ_base& rng)
+    inline auto get_value_view()
     {
         using namespace ranges;
+        auto rng = subrange(narrowing_iterator(sys::envp()), default_sentinel);
         return views::transform(rng, [](std::string const& line){
             auto const eq = line.find('=');
             return line.substr(eq+1);
@@ -136,7 +130,6 @@ namespace detail {
 
     class environment
     {
-        detail::environ_base m_rng;
     public:
         class variable
         {
@@ -159,54 +152,42 @@ namespace detail {
         // the separator char. used in the PATH variable
         static const char path_separator;
 
-        using iterator = ranges::common_iterator<ranges::iterator_t<detail::environ_view>, ranges::default_sentinel_t>;
+        using iterator = ranges::common_iterator<detail::narrowing_iterator, ranges::default_sentinel_t>;
         using value_type = variable;
         using size_type = std::size_t;
-        using value_range = decltype(detail::get_value_view({}));
-        using key_range = decltype(detail::get_key_view({}));
-
-        template <class T>
-        using Is_Strview = std::enable_if_t<
-            std::conjunction_v<
-                std::is_convertible<const T&, std::string_view>, 
-                std::negation<std::is_convertible<const T&, const char*>>
-            >
-        >;
-        template <class T>
-        using Is_Strview_Convertible = std::enable_if_t<std::is_convertible_v<const T&, std::string_view>>;
-
+        using value_range = decltype(detail::get_value_view());
+        using key_range = decltype(detail::get_key_view());
 
         environment() noexcept;
 
-        template <class T, class = Is_Strview<T>>
+        template <class T, meta::is_strview<T> = true>
         variable operator [] (T const& k) const { return variable(k); }
 
         variable operator [] (std::string_view k) const { return variable(k); }
         variable operator [] (std::string const& k) const { return variable(k); }
         variable operator [] (char const* k) const { return variable(k); }
 
-        template <class K, class = Is_Strview_Convertible<K>>
+        template <class K, meta::is_strview_convertible<K> = true>
         iterator find(K const& key) const noexcept { return do_find(key); }
 
         bool contains(std::string_view key) const;
 
-        iterator begin() const noexcept { return m_rng.begin(); }
-        iterator end() const noexcept { return m_rng.end(); }
+        iterator begin() const noexcept { return detail::narrowing_iterator(sys::envp()); }
+        iterator end() const noexcept { return ranges::default_sentinel; }
         iterator cbegin() const noexcept { return begin(); }
         iterator cend() const noexcept { return end(); }
 
         size_type size() const noexcept;
 		[[nodiscard]] bool empty() const noexcept { return size() == 0; }
 
-        template <class K, class = Is_Strview_Convertible<K>>
+        template <class K, meta::is_strview_convertible<K> = true>
         void erase(K const& key) { do_erase(key); }
 
-
         value_range values() const noexcept {
-            return get_value_view(m_rng);
+            return detail::get_value_view();
         }
         key_range keys() const noexcept {
-            return get_key_view(m_rng);
+            return detail::get_key_view();
         }
 
     private:

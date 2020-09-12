@@ -13,6 +13,7 @@
 #include <range/v3/view.hpp>
 #include <range/v3/action.hpp>
 #include <range/v3/range/conversion.hpp>
+#include <range/v3/algorithm.hpp>
 
 #include "red/sessions/session.hpp"
 
@@ -63,9 +64,6 @@ TEST_CASE("get environment variables", "[environment]")
 {
     test_vars_guard _;
     environment env;
-
-    auto const env_size = env.size();
-    CAPTURE(env_size);
 
     SECTION("operator[]")
     {
@@ -186,6 +184,22 @@ TEST_CASE("environment::variable", "[environment]")
         }
     }
 
+}
+
+TEST_CASE("use environment like a range","[environment][range]")
+{
+    test_vars_guard _g_;
+
+    environment environment;
+    auto dist = ranges::distance(environment);
+    REQUIRE(dist == environment.size());
+
+    auto const envline = string(TEST_VARS[0].first) + "="s + string(TEST_VARS[0].second);
+    auto range_it = ranges::find(environment, envline);
+    auto env_it = environment.find(TEST_VARS[0].first);
+
+    REQUIRE(range_it == env_it);
+    REQUIRE(ranges::distance(environment.begin(), range_it) == ranges::distance(environment.begin(), env_it));
 }
 
 TEST_CASE("join_paths")
