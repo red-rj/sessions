@@ -71,13 +71,13 @@ struct envstr_finder_base
             std::negation<std::is_convertible<const T&, const char_type*>>,
             std::negation<std::is_convertible<const T&, StrView>>
         >
-    >;
+    , bool>;
 
     StrView key;
 
     explicit envstr_finder_base(StrView k) : key(k) {}
 
-    template<class T, class = Is_Other_Strview<T>>
+    template<class T, Is_Other_Strview<T> = true>
     explicit envstr_finder_base(const T& k) : key(k.data(), k.size()) {}
 
     bool operator() (StrView entry) noexcept
@@ -88,7 +88,7 @@ struct envstr_finder_base
             entry.compare(0, key.size(), key) == 0;
     }
 
-    template<class T, class = Is_Other_Strview<T>>
+    template<class T, Is_Other_Strview<T> = true>
     bool operator() (const T& v) noexcept {
         return this->operator()(StrView(v.data(), v.size()));
     }
