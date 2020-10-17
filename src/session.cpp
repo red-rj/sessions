@@ -139,11 +139,11 @@ namespace
         auto length = narrow(wstr.data(), (int)wstr.size());
         auto str = std::string(length, '\0');
         auto result = narrow(wstr.data(), (int)wstr.size(), str.data(), length);
-        str.shrink_to_fit();
 
         if (result == 0)
             throw_win_error();
 
+        str.resize(result);
         return str;
     }
 
@@ -151,11 +151,11 @@ namespace
         auto length = wide(nstr.data(), (int)nstr.size());
         auto str = std::wstring(length, L'\0');
         auto result = wide(nstr.data(), (int)nstr.size(), str.data(), length);
-        str.shrink_to_fit();
 
         if (result == 0)
             throw_win_error();
 
+        str.resize(result);
         return str;
     }
 
@@ -335,7 +335,6 @@ namespace red::session
 
     auto environment::size() const noexcept -> size_type
     {
-        //return ranges::distance(*this); //BUG: SIGSEGV - Stack overflow on "remove env. variables"
         return ranges::distance(begin(), end());
     }
 
