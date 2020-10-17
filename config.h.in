@@ -13,7 +13,7 @@
 #cmakedefine SESSIONS_NOEXTENTIONS
 
 
-#if defined(_MSVC_VER) or defined(SESSIONS_NOEXTENTIONS)
+#if defined(SESSIONS_NOEXTENTIONS) or defined(_MSC_VER)
 #   define SESSIONS_AUTORUN
 #else
 // https://gcc.gnu.org/onlinedocs/gcc-8.3.0/gcc/Common-Function-Attributes.html#index-constructor-function-attribute
