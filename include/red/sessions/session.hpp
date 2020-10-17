@@ -19,18 +19,21 @@ namespace red::session {
 
 namespace meta
 {
+    template <bool cond>
+    using test_t = std::enable_if_t<cond, bool>;
+
     template <class T>
-        using is_strview = std::enable_if_t<
+        using is_strview = test_t<
             std::conjunction_v<
                 std::is_convertible<const T&, std::string_view>, 
                 std::negation<std::is_convertible<const T&, const char*>>
             >
-        , bool>;
+        >;
 
     template <class T>
-    using is_strview_convertible = std::enable_if_t<
+    using is_strview_convertible = test_t<
         std::is_convertible_v<const T&, std::string_view>
-    , bool>;
+    >;
 }
 
 // system layer (impl detail)
@@ -106,10 +109,13 @@ namespace detail {
     using native_iterator = ranges::basic_iterator<env_cursor>;
     using narrowing_iterator = ranges::basic_iterator<narrowing_cursor>;
 
+    using env_iterator = narrowing_iterator;
+    
+
     inline auto get_key_view()
     {
         using namespace ranges;
-        auto rng = subrange(narrowing_iterator(sys::envp()), default_sentinel);
+        auto rng = subrange(env_iterator(sys::envp()), default_sentinel);
         return views::transform(rng, [](std::string const& line){
             auto const eq = line.find('=');
             return line.substr(0, eq);
@@ -119,7 +125,7 @@ namespace detail {
     inline auto get_value_view()
     {
         using namespace ranges;
-        auto rng = subrange(narrowing_iterator(sys::envp()), default_sentinel);
+        auto rng = subrange(env_iterator(sys::envp()), default_sentinel);
         return views::transform(rng, [](std::string const& line){
             auto const eq = line.find('=');
             return line.substr(eq+1);
@@ -152,7 +158,7 @@ namespace detail {
         // the separator char. used in the PATH variable
         static const char path_separator;
 
-        using iterator = ranges::common_iterator<detail::narrowing_iterator, ranges::default_sentinel_t>;
+        using iterator = ranges::common_iterator<detail::env_iterator, ranges::default_sentinel_t>;
         using value_type = variable;
         using size_type = std::size_t;
         using value_range = decltype(detail::get_value_view());
@@ -172,7 +178,7 @@ namespace detail {
 
         bool contains(std::string_view key) const;
 
-        iterator begin() const noexcept { return detail::narrowing_iterator(sys::envp()); }
+        iterator begin() const noexcept { return detail::env_iterator(sys::envp()); }
         iterator end() const noexcept { return ranges::default_sentinel; }
         iterator cbegin() const noexcept { return begin(); }
         iterator cend() const noexcept { return end(); }
@@ -245,12 +251,12 @@ namespace detail {
         [[nodiscard]] const char** argv() const noexcept;
         [[nodiscard]] int argc() const noexcept;
 
-#ifdef SESSION_NOEXTENTIONS
+#ifndef WIN32
         /* Initialize arguments's global storage.
-           Users need to call this function *ONLY* if SESSIONS_NOEXTENTIONS is set.
+           POSIX Users need to call this function *ONLY* if SESSIONS_NOEXTENTIONS is set.
         */
         static void init(int argc, const char** argv) noexcept;
-#endif // SESSION_NOEXTENTIONS
+#endif
 
     };
 

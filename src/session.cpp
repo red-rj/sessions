@@ -18,6 +18,7 @@ using std::string;
 using std::wstring;
 using std::string_view;
 using std::wstring_view;
+using red::session::meta::test_t;
 namespace sys = red::session::sys;
 
 
@@ -65,19 +66,29 @@ struct envstr_finder_base
     using char_type = typename CharTraits::char_type;
     using StrView = std::basic_string_view<char_type, CharTraits>;
 
+    // template <class T>
+    // using Is_Other_Strview = std::enable_if_t<
+    //     std::conjunction_v<
+    //         std::negation<std::is_convertible<const T&, const char_type*>>,
+    //         std::negation<std::is_convertible<const T&, StrView>>
+    //     >
+    // , bool>;
+
     template <class T>
-    using Is_Other_Strview = std::enable_if_t<
-        std::conjunction_v<
-            std::negation<std::is_convertible<const T&, const char_type*>>,
-            std::negation<std::is_convertible<const T&, StrView>>
+    using is_other_strview = test_t<
+        std::negation_v<
+            std::conjunction<
+                std::is_convertible<const T&, const char_type*>,
+                std::is_convertible<const T&, StrView>
+            >
         >
-    , bool>;
+    >;
 
     StrView key;
 
     explicit envstr_finder_base(StrView k) : key(k) {}
 
-    template<class T, Is_Other_Strview<T> = true>
+    template<class T, is_other_strview<T> = true>
     explicit envstr_finder_base(const T& k) : key(k.data(), k.size()) {}
 
     bool operator() (StrView entry) noexcept
@@ -88,7 +99,7 @@ struct envstr_finder_base
             entry.compare(0, key.size(), key) == 0;
     }
 
-    template<class T, Is_Other_Strview<T> = true>
+    template<class T, is_other_strview<T> = true>
     bool operator() (const T& v) noexcept {
         return this->operator()(StrView(v.data(), v.size()));
     }
@@ -240,17 +251,12 @@ namespace
 // https://gcc.gnu.org/onlinedocs/gcc-8.3.0/gcc/Common-Function-Attributes.html#index-constructor-function-attribute
 // https://stackoverflow.com/a/37012337
 [[gnu::constructor]]
-void init_args(int argc, const char** argv) {
-    my_argv = argc;
-    my_argc = argv;
-}
-#else
+#endif
 void red::session::arguments::init(int argc, const char** argv) noexcept
 {
-    my_argv = argc;
-    my_argc = argv;
+    my_argv = argv;
+    my_argc = argc;
 }
-#endif
 
 char const** sys::argv() noexcept { return my_argv; }
 int sys::argc() noexcept { return my_argc; }
