@@ -24,7 +24,7 @@ target_include_directories(sessions PUBLIC
 )
 
 # 3rd-party
-find_package(range-v3 0.10.0 CONFIG REQUIRED)
+find_package(range-v3 CONFIG REQUIRED)
 target_link_libraries(sessions PUBLIC range-v3::range-v3)
 
 # range-v3 0.11.0 allows MSVC in c++17 mode

@@ -12,6 +12,7 @@
 #include <range/v3/iterator/basic_iterator.hpp>
 #include <range/v3/view/transform.hpp>
 #include <range/v3/view/facade.hpp>
+#include <range/v3/range/conversion.hpp>
 
 #include "config.h"
 
@@ -251,13 +252,14 @@ namespace detail {
         [[nodiscard]] const char** argv() const noexcept;
         [[nodiscard]] int argc() const noexcept;
 
-#ifndef WIN32
-        /* Initialize arguments's global storage.
-           POSIX Users need to call this function *ONLY* if SESSIONS_NOEXTENTIONS is set.
-        */
-        static void init(int argc, const char** argv) noexcept;
-#endif
 
+        /* Initialize arguments's global storage.
+            Users on POSIX platforms need to call this function *ONLY* if SESSIONS_NOEXTENTIONS is set.
+
+           On Windows, this function does nothing.
+        */
+        SESSIONS_AUTORUN
+        static void init(int argc, const char** argv) noexcept;
     };
 
 

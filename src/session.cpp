@@ -66,14 +66,6 @@ struct envstr_finder_base
     using char_type = typename CharTraits::char_type;
     using StrView = std::basic_string_view<char_type, CharTraits>;
 
-    // template <class T>
-    // using Is_Other_Strview = std::enable_if_t<
-    //     std::conjunction_v<
-    //         std::negation<std::is_convertible<const T&, const char_type*>>,
-    //         std::negation<std::is_convertible<const T&, StrView>>
-    //     >
-    // , bool>;
-
     template <class T>
     using is_other_strview = test_t<
         std::negation_v<
@@ -238,28 +230,28 @@ string sys::narrow(envchar const* s) {
 
 const char red::session::environment::path_separator = ';';
 
-#elif defined(_POSIX_VERSION)
+// noop
+void red::session::arguments::init(int, const char**) noexcept {}
+
+#else // POSIX
+
 extern "C" char** environ;
 
 namespace
 {
-    char const** my_argv{};
-    int my_argc{};
+    char const** my_args{};
+    int my_arg_count{};
 } // unnamed namespace
 
-#ifndef SESSION_NOEXTENTIONS
-// https://gcc.gnu.org/onlinedocs/gcc-8.3.0/gcc/Common-Function-Attributes.html#index-constructor-function-attribute
-// https://stackoverflow.com/a/37012337
-[[gnu::constructor]]
-#endif
-void red::session::arguments::init(int argc, const char** argv) noexcept
+
+void red::session::arguments::init(int count, const char** arguments) noexcept
 {
-    my_argv = argv;
-    my_argc = argc;
+    my_args = arguments;
+    my_arg_count = count;
 }
 
-char const** sys::argv() noexcept { return my_argv; }
-int sys::argc() noexcept { return my_argc; }
+char const** sys::argv() noexcept { return my_args; }
+int sys::argc() noexcept { return my_arg_count; }
 
 sys::env_t sys::envp() noexcept {
     return environ;

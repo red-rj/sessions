@@ -12,4 +12,13 @@
 #cmakedefine SESSIONS_UTF8
 #cmakedefine SESSIONS_NOEXTENTIONS
 
+
+#if defined(_MSVC_VER) or defined(SESSIONS_NOEXTENTIONS)
+#   define SESSIONS_AUTORUN
+#else
+// https://gcc.gnu.org/onlinedocs/gcc-8.3.0/gcc/Common-Function-Attributes.html#index-constructor-function-attribute
+// https://stackoverflow.com/a/37012337
+#   define SESSIONS_AUTORUN [[gnu::constructor]]
+#endif // WIN32 or SESSIONS_NOEXTENTIONS
+
 #endif // RED_SESSIONS_CONFIG
