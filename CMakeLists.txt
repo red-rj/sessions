@@ -2,10 +2,12 @@ cmake_minimum_required(VERSION 3.10)
 project(sessions VERSION 0.2.5)
 
 option(SESSIONS_TESTS "Build tests." On)
-option(SESSIONS_UTF8 "Force UTF-8 storage." On)
 
 if(UNIX)
   option(SESSIONS_NOEXTENTIONS "Disable use of the gnu constructor attribute (requires calling 'arguments::init')")
+endif()
+if(WIN32)
+  option(SESSIONS_UTF8 "Use UTF-8 codepage when converting to/from wide strings." On)
 endif()
 
 set(INC_SUBDIR red/sessions)
