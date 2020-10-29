@@ -231,8 +231,8 @@ namespace detail {
         using index_type = size_t;
         using size_type = size_t;
 
-        value_type operator [] (index_type) const noexcept;
-        value_type at(index_type) const;
+        value_type operator [] (index_type i) const noexcept;
+        value_type at(index_type i) const;
 
         [[nodiscard]] bool empty() const noexcept { return size() == 0; }
         size_type size() const noexcept;
@@ -253,8 +253,8 @@ namespace detail {
         [[nodiscard]] int argc() const noexcept;
 
 
-        /* Initialize arguments's global storage.
-            Users on POSIX platforms need to call this function *ONLY* if SESSIONS_NOEXTENTIONS is set.
+        /* [POSIX SPECIFIC] Initialize arguments's global storage.
+            Users on need to call this function *ONLY* if SESSIONS_NOEXTENTIONS is set.
 
            On Windows, this function does nothing.
         */
