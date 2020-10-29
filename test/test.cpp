@@ -34,26 +34,19 @@ auto constexpr TEST_VARS = std::array<keyval_pair, 5>{{
     {"thug2song", "354125go"}
 }};
 
-void push_test_vars() {
-    for(auto[key, value] : TEST_VARS) {
-        sys::setenv(key, value);
-    }
-    sys::rmenv("nonesuch");
-}
-void pop_test_vars() {
-    for(auto[key, _] : TEST_VARS) {
-        sys::rmenv(key);
-    }
-}
-
 class test_vars_guard
 {
 public:
     test_vars_guard() {
-        push_test_vars();
+        for(auto[key, value] : TEST_VARS) {
+            sys::setenv(key, value);
+        }
+        sys::rmenv("nonesuch");
     }
     ~test_vars_guard() {
-        pop_test_vars();
+        for(auto[key, _] : TEST_VARS) {
+            sys::rmenv(key);
+        }
     }
 };
 

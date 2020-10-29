@@ -97,8 +97,6 @@ struct envstr_finder_base
     }
 };
 
-using envstr_finder = envstr_finder_base<std::char_traits<char>>;
-using ci_envstr_finder = envstr_finder_base<ci_char_traits>;
 } // unnamed namespace
 
 #if defined(WIN32)
@@ -112,6 +110,8 @@ constexpr auto NARROW_CP = CP_ACP;
 
 namespace
 {
+    using envstr_finder = envstr_finder_base<ci_char_traits>;
+
     [[noreturn]]
     void throw_win_error(DWORD error = GetLastError())
     {
@@ -241,6 +241,8 @@ namespace
 {
     char const** my_args{};
     int my_arg_count{};
+
+    using envstr_finder = envstr_finder_base<std::char_traits<char>>;
 } // unnamed namespace
 
 
@@ -348,11 +350,7 @@ namespace red::session
 
     auto environment::do_find(string_view k) const ->iterator
     {
-#ifdef WIN32
-        auto pred = ci_envstr_finder(k);
-#else
         auto pred = envstr_finder(k);
-#endif
         return ranges::find_if(*this, pred);
     }
 
