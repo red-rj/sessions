@@ -125,10 +125,9 @@ namespace detail {
 
 } // namespace detail
 
-    class environment : public ranges::view_facade<environment>
+    class environment : public ranges::basic_view<ranges::finite>
     {
         friend ranges::range_access;
-        using base = ranges::view_facade<environment>;
         using cursor = detail::narrowing_cursor;
 
         auto begin_cursor() const { return cursor(sys::envp()); }
@@ -163,8 +162,6 @@ namespace detail {
 
         environment() noexcept;
 
-        template <class T, meta::is_strview<T> = true>
-        variable operator [] (T const& k) const { return variable(k); }
         variable operator [] (std::string_view k) const { return variable(k); }
 
         template <class K, meta::is_strview_convertible<K> = true>
@@ -172,15 +169,17 @@ namespace detail {
 
         bool contains(std::string_view key) const;
 
-        iterator cbegin() const noexcept { return base::begin(); }
-        auto cend() const noexcept { return base::end(); }
+        iterator begin() const noexcept { return iterator(begin_cursor()); }
+        iterator cbegin() const noexcept { return begin(); }
+        auto end() const noexcept { return ranges::default_sentinel; }
+        auto cend() const noexcept { return end(); }
 
         size_type size () const noexcept {
             return ranges::distance(begin(), end());
         }
 
         [[nodiscard]]
-        bool empty() const noexcept { return base::empty(); }
+        bool empty() const noexcept { return size() == 0; }
 
         template <class K, meta::is_strview_convertible<K> = true>
         void erase(K const& key) { do_erase(key); }
@@ -260,6 +259,9 @@ namespace detail {
         SESSIONS_AUTORUN
         static void init(int argc, const char** argv) noexcept;
     };
+
+    static_assert(ranges::random_access_range<arguments>, "arguments is a rand. access range.");
+
 
 
     CPP_template(class Rng)
