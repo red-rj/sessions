@@ -17,7 +17,6 @@
 
 #include "red/sessions/session.hpp"
 
-using namespace red::session;
 using namespace std::literals;
 namespace sys = red::session::sys;
 
@@ -51,91 +50,90 @@ public:
 };
 
 
+static red::session::environment environment;
+static red::session::arguments arguments;
+
 //---
 
 TEST_CASE("get environment variables", "[environment]")
 {
     test_vars_guard _;
-    environment env;
 
     SECTION("operator[]")
     {
         for(auto[key, value] : TEST_VARS)
         {
-            REQUIRE(string(env[key]) == value);
+            string envvalue = environment[key];
+            REQUIRE(envvalue == value);
         }
 
-        REQUIRE(std::string(env["nonesuch"]).empty());
+        REQUIRE(environment["nonesuch"].operator std::string().empty());
     }
     SECTION("find()")
     {
         for(auto c : TEST_VARS)
         {
-            auto it = env.find(c.first);
-            REQUIRE(it != env.end());
+            auto it = environment.find(c.first);
+            REQUIRE(it != environment.end());
         }
 
-        REQUIRE(env.find("nonesuch") == env.end());
+        REQUIRE(environment.find("nonesuch") == environment.end());
     }
     SECTION("contains()")
     {
         for(auto c : TEST_VARS)
         {
-            REQUIRE(env.contains(c.first));
+            REQUIRE(environment.contains(c.first));
         }
         
-        REQUIRE_FALSE(env.contains("nonesuch"));
+        REQUIRE_FALSE(environment.contains("nonesuch"));
     }
     SECTION("from external changes")
     {
         sys::setenv("Horizon", "Chase");
         sys::rmenv("DRUAGA1");
 
-        REQUIRE(env.contains("Horizon"));
-        REQUIRE_FALSE(env.contains("DRUAGA1"));
+        REQUIRE(environment.contains("Horizon"));
+        REQUIRE_FALSE(environment.contains("DRUAGA1"));
     }
 }
 
 TEST_CASE("set environment variables", "[environment]")
 {
-    environment env;
-
     for(auto[key, value] : TEST_VARS)
     {
-        env[key] = value;
-        CHECK(env.contains(key));
+        environment[key] = value;
+        CHECK(environment.contains(key));
         REQUIRE_FALSE(sys::getenv(key).empty());
     }
 
-    REQUIRE(std::string(env["nonesuch"]).empty());
+    REQUIRE(std::string(environment["nonesuch"]).empty());
 }
 
 TEST_CASE("remove environment variables", "[environment]")
 {
     test_vars_guard _;
-    environment env;
-    auto const env_size = env.size();
+    auto const env_size = environment.size();
 
-    env.erase("PROTOCOL");
-    CHECK(env.size() == env_size - 1);
-    REQUIRE_FALSE(env.contains("PROTOCOL"));
-    REQUIRE(env.find("PROTOCOL") == env.end());
+    environment.erase("PROTOCOL");
+    CHECK(environment.size() == env_size - 1);
+    REQUIRE_FALSE(environment.contains("PROTOCOL"));
+    REQUIRE(environment.find("PROTOCOL") == environment.end());
 }
 
 TEST_CASE("environment iteration", "[environment]")
 {
     using namespace ranges;
-    environment env;
 
     SECTION("Key/Value ranges")
     {
-        for (auto k : env.keys() | views::take(10))
+        for (auto k : environment.keys() | views::take(10))
         {
             CAPTURE(k);
             REQUIRE(k.find('=') == std::string::npos);
-            REQUIRE(env.contains(k));
+            REQUIRE(environment.contains(k));
         }
-        for (auto v : env.values() | views::take(10))
+        for (auto v : environment.values() | views::take(10))
         {
             CAPTURE(v);
             REQUIRE(v.find('=') == std::string::npos);
@@ -143,7 +141,7 @@ TEST_CASE("environment iteration", "[environment]")
     }
     SECTION("iterator")
     {
-        auto begin = env.begin();
+        auto begin = environment.begin();
         auto it1 = begin; auto it2 = begin;
 
         it1++; it2++;
@@ -161,19 +159,17 @@ TEST_CASE("environment iteration", "[environment]")
 
 TEST_CASE("environment::variable", "[environment]")
 {
-    environment environment;
-
     SECTION("Path Split")
     {
         auto pathsplit = environment["PATH"].split();
         
         int count=0;
-        CAPTURE(environment::path_separator, count);
+        CAPTURE(environment.path_separator, count);
         for (auto it = pathsplit.begin(); it != pathsplit.end(); it++, count++)
         {
             auto current = ranges::to<std::string>(*it);
             CAPTURE(current);
-            REQUIRE(current.find(environment::path_separator) == std::string::npos);
+            REQUIRE(current.find(environment.path_separator) == std::string::npos);
         }
     }
 
@@ -183,7 +179,6 @@ TEST_CASE("use environment like a range","[environment][range]")
 {
     test_vars_guard _g_;
 
-    environment environment;
     auto dist = ranges::distance(environment);
     REQUIRE(dist == environment.size());
 
@@ -197,6 +192,8 @@ TEST_CASE("use environment like a range","[environment][range]")
 
 TEST_CASE("join_paths")
 {
+    using red::session::join_paths;
+
     auto elems = sv_array<5> {
         "path", "dir", "folder", "location"
     };
@@ -222,14 +219,11 @@ std::vector<std::string> cmdargs;
 
 TEST_CASE("Arguments")
 {
-    arguments args;
-    
-    REQUIRE(args.size() == cmdargs.size());
+    REQUIRE(arguments.size() == cmdargs.size());
 
-    for (size_t i = 0; i < args.size(); i++)
+    for (size_t i = 0; i < arguments.size(); i++)
     {
-        CAPTURE(args[i], cmdargs[i]);
-        REQUIRE(args[i] == cmdargs[i]);
+        REQUIRE(arguments[i] == cmdargs[i]);
     }
 }
 
