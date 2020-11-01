@@ -90,13 +90,6 @@ namespace detail {
 
     using env_cursor = ptr_array_cursor<sys::envchar>;
 
-    class native_environ_view : public ranges::view_facade<native_environ_view>
-    {
-        friend ranges::range_access;
-        using cursor = env_cursor;
-        auto begin_cursor() const { return cursor(sys::envp()); }
-    };
-
     struct narrowing_cursor : env_cursor
     {
         using env_cursor::env_cursor;
@@ -201,6 +194,10 @@ namespace detail {
         void do_erase(std::string_view key);
         iterator do_find(std::string_view k) const;
     };
+
+    // TODO: make these work
+    // static_assert(ranges::bidirectional_iterator<environment::iterator>, "environment::iterator is not a bidirectional.");
+    // static_assert(ranges::bidirectional_range<environment>, "environment is not a bidirectional range.");
 
     class environment::variable::splitpath
     {
