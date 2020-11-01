@@ -90,13 +90,6 @@ namespace detail {
 
     using env_cursor = ptr_array_cursor<sys::envchar>;
 
-    class native_environ_view : public ranges::view_facade<native_environ_view>
-    {
-        friend ranges::range_access;
-        using cursor = env_cursor;
-        auto begin_cursor() const { return cursor(sys::envp()); }
-    };
-
     struct narrowing_cursor : env_cursor
     {
         using env_cursor::env_cursor;
@@ -107,27 +100,36 @@ namespace detail {
         }
     };
 
+    class native_environ_view : public ranges::view_facade<native_environ_view>
+    {
+        friend ranges::range_access;
+        using cursor = env_cursor;
+        auto begin_cursor() const { return cursor(sys::envp()); }
+    };
+    class narrowing_environ_view : public ranges::view_facade<narrowing_environ_view>
+    {
+        friend ranges::range_access;
+        using cursor = narrowing_cursor;
+        auto begin_cursor() const { return cursor(sys::envp()); }
+    };
+
     using native_iterator = ranges::basic_iterator<env_cursor>;
     using narrowing_iterator = ranges::basic_iterator<narrowing_cursor>;
-
-    using env_iterator = narrowing_iterator;
     
 
-    inline auto get_key_view()
+    inline auto get_key_view(narrowing_environ_view const& env)
     {
         using namespace ranges;
-        auto rng = subrange(env_iterator(sys::envp()), default_sentinel);
-        return views::transform(rng, [](std::string const& line){
+        return views::transform(env, [](std::string const& line){
             auto const eq = line.find('=');
             return line.substr(0, eq);
         });
     }
 
-    inline auto get_value_view()
+    inline auto get_value_view(narrowing_environ_view const& env)
     {
         using namespace ranges;
-        auto rng = subrange(env_iterator(sys::envp()), default_sentinel);
-        return views::transform(rng, [](std::string const& line){
+        return views::transform(env, [](std::string const& line){
             auto const eq = line.find('=');
             return line.substr(eq+1);
         });
@@ -135,8 +137,10 @@ namespace detail {
 
 } // namespace detail
 
-    class environment
+    class environment : public detail::narrowing_environ_view
     {
+        using base = detail::narrowing_environ_view;
+
     public:
         class variable
         {
@@ -159,11 +163,11 @@ namespace detail {
         // the separator char. used in the PATH variable
         static const char path_separator;
 
-        using iterator = ranges::common_iterator<detail::env_iterator, ranges::default_sentinel_t>;
+        using iterator = ranges::iterator_t<base>;
         using value_type = variable;
         using size_type = std::size_t;
-        using value_range = decltype(detail::get_value_view());
-        using key_range = decltype(detail::get_key_view());
+        using value_range = decltype(detail::get_value_view(base()));
+        using key_range = decltype(detail::get_key_view(base()));
 
         environment() noexcept;
 
@@ -179,22 +183,17 @@ namespace detail {
 
         bool contains(std::string_view key) const;
 
-        iterator begin() const noexcept { return detail::env_iterator(sys::envp()); }
-        iterator end() const noexcept { return ranges::default_sentinel; }
-        iterator cbegin() const noexcept { return begin(); }
-        iterator cend() const noexcept { return end(); }
-
-        size_type size() const noexcept;
-		[[nodiscard]] bool empty() const noexcept { return size() == 0; }
+        auto cbegin() const noexcept { return base::begin(); }
+        auto cend() const noexcept { return base::end(); }
 
         template <class K, meta::is_strview_convertible<K> = true>
         void erase(K const& key) { do_erase(key); }
 
         value_range values() const noexcept {
-            return detail::get_value_view();
+            return detail::get_value_view(*this);
         }
         key_range keys() const noexcept {
-            return detail::get_key_view();
+            return detail::get_key_view(*this);
         }
 
     private:

@@ -335,11 +335,6 @@ namespace red::session
         return splitpath{v};
     }
 
-    auto environment::size() const noexcept -> size_type
-    {
-        return ranges::distance(begin(), end());
-    }
-
     environment::environment() noexcept
     {
 #ifdef WIN32
