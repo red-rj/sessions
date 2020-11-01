@@ -59,15 +59,16 @@ TEST_CASE("get environment variables", "[environment]")
 {
     test_vars_guard _;
 
+    REQUIRE_FALSE(environment.empty());
+
     SECTION("operator[]")
     {
         for(auto[key, value] : TEST_VARS)
         {
-            string envvalue = environment[key];
-            REQUIRE(envvalue == value);
+            REQUIRE(string(environment[key]) == value);
         }
 
-        REQUIRE(environment["nonesuch"].operator std::string().empty());
+        REQUIRE(string(environment["nonesuch"]).empty());
     }
     SECTION("find()")
     {

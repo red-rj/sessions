@@ -179,6 +179,9 @@ namespace detail {
             return ranges::distance(begin(), end());
         }
 
+        [[nodiscard]]
+        bool empty() const noexcept { return base::empty(); }
+
         template <class K, meta::is_strview_convertible<K> = true>
         void erase(K const& key) { do_erase(key); }
 
