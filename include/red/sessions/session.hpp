@@ -117,29 +117,15 @@ namespace detail {
     using narrowing_iterator = ranges::basic_iterator<narrowing_cursor>;
     
 
-    inline auto get_key_view(narrowing_environ_view const& env)
-    {
-        using namespace ranges;
-        return views::transform(env, [](std::string const& line){
-            auto const eq = line.find('=');
-            return line.substr(0, eq);
-        });
-    }
-
-    inline auto get_value_view(narrowing_environ_view const& env)
-    {
-        using namespace ranges;
-        return views::transform(env, [](std::string const& line){
-            auto const eq = line.find('=');
-            return line.substr(eq+1);
-        });
-    }
-
 } // namespace detail
 
-    class environment : public detail::narrowing_environ_view
+    class environment : public ranges::view_facade<environment>
     {
-        using base = detail::narrowing_environ_view;
+        friend ranges::range_access;
+        using base = ranges::view_facade<environment>;
+        using cursor = detail::narrowing_cursor;
+
+        auto begin_cursor() const { return cursor(sys::envp()); }
 
     public:
         class variable
@@ -163,20 +149,18 @@ namespace detail {
         // the separator char. used in the PATH variable
         static const char path_separator;
 
-        using iterator = ranges::iterator_t<base>;
+        // using iterator = ranges::common_iterator_t<ranges::basic_iterator<cursor>, ranges::default_sentinel_t>;
+        using iterator = ranges::basic_iterator<cursor>;
         using value_type = variable;
         using size_type = std::size_t;
-        using value_range = decltype(detail::get_value_view(base()));
-        using key_range = decltype(detail::get_key_view(base()));
+        // using value_range = decltype(detail::get_value_view(base()));
+        // using key_range = decltype(detail::get_key_view(base()));
 
         environment() noexcept;
 
         template <class T, meta::is_strview<T> = true>
         variable operator [] (T const& k) const { return variable(k); }
-
         variable operator [] (std::string_view k) const { return variable(k); }
-        variable operator [] (std::string const& k) const { return variable(k); }
-        variable operator [] (char const* k) const { return variable(k); }
 
         template <class K, meta::is_strview_convertible<K> = true>
         iterator find(K const& key) const noexcept { return do_find(key); }
@@ -186,20 +170,34 @@ namespace detail {
         auto cbegin() const noexcept { return base::begin(); }
         auto cend() const noexcept { return base::end(); }
 
+        size_type size () const noexcept {
+            return ranges::distance(begin(), end());
+        }
+
         template <class K, meta::is_strview_convertible<K> = true>
         void erase(K const& key) { do_erase(key); }
 
-        value_range values() const noexcept {
-            return detail::get_value_view(*this);
+        auto values() const noexcept {
+            using namespace ranges;
+            return views::transform(*this, [](std::string const& line){
+                auto const eq = line.find('=');
+                return line.substr(eq+1);
+            });
         }
-        key_range keys() const noexcept {
-            return detail::get_key_view(*this);
+        auto keys() const noexcept {
+            using namespace ranges;
+            return views::transform(*this, [](std::string const& line){
+                auto const eq = line.find('=');
+                return line.substr(0, eq);
+            });
         }
 
     private:
         void do_erase(std::string_view key);
         iterator do_find(std::string_view k) const;
     };
+
+    static_assert(ranges::bidirectional_range<environment>, "environment is a bidirectional range.");
 
     class environment::variable::splitpath
     {
@@ -253,7 +251,7 @@ namespace detail {
 
 
         /* [POSIX SPECIFIC] Initialize arguments's global storage.
-            Users on need to call this function *ONLY* if SESSIONS_NOEXTENTIONS is set.
+            Users need to call this function *ONLY* if SESSIONS_NOEXTENTIONS is set.
 
            On Windows, this function does nothing.
         */
