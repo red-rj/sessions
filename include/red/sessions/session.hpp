@@ -8,10 +8,8 @@
 #include <range/v3/view/split.hpp>
 #include <range/v3/view/join.hpp>
 #include <range/v3/view/subrange.hpp>
-#include <range/v3/iterator/common_iterator.hpp>
 #include <range/v3/iterator/basic_iterator.hpp>
 #include <range/v3/view/transform.hpp>
-#include <range/v3/view/facade.hpp>
 #include <range/v3/range/conversion.hpp>
 
 #include "config.h"
@@ -97,13 +95,6 @@ namespace detail {
             auto cur = env_cursor::read();
             return sys::narrow(cur);
         }
-    };
-
-    class native_environ_view : public ranges::view_facade<native_environ_view>
-    {
-        friend ranges::range_access;
-        using cursor = env_cursor;
-        auto begin_cursor() const { return cursor(sys::envp()); }
     };
 
 
