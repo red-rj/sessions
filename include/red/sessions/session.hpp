@@ -70,7 +70,6 @@ namespace detail {
     public:
         void next() noexcept { block++; }
         void prev() noexcept { block--; }
-        // void advance(ptrdiff_t n) noexcept { block += n; }
         T* read() const noexcept { return *block; };
         std::ptrdiff_t distance_to(ptr_array_cursor const &that) const noexcept {
             return that.block - block;
@@ -83,9 +82,8 @@ namespace detail {
         }
 
         ptr_array_cursor()=default;
-        ptr_array_cursor(T** ep) : block(ep) {
-            //assert(block != nullptr);
-        }
+        ptr_array_cursor(T** ep) : block(ep)
+        {}
     };
 
     using env_cursor = ptr_array_cursor<sys::envchar>;
@@ -93,6 +91,7 @@ namespace detail {
     struct narrowing_cursor : env_cursor
     {
         using env_cursor::env_cursor;
+        using value_type = std::string;
         
         auto read() const {
             auto cur = env_cursor::read();
@@ -106,15 +105,22 @@ namespace detail {
         using cursor = env_cursor;
         auto begin_cursor() const { return cursor(sys::envp()); }
     };
-    class narrowing_environ_view : public ranges::view_facade<narrowing_environ_view>
-    {
-        friend ranges::range_access;
-        using cursor = narrowing_cursor;
-        auto begin_cursor() const { return cursor(sys::envp()); }
-    };
 
-    using native_iterator = ranges::basic_iterator<env_cursor>;
-    using narrowing_iterator = ranges::basic_iterator<narrowing_cursor>;
+
+    struct keyval_fn
+    {
+        explicit keyval_fn(bool key) : getkey(key)
+        {}
+
+        auto operator() (std::string const& line) const noexcept
+        {
+            auto const eq = line.find('=');
+            return getkey ? line.substr(0, eq) : line.substr(eq+1);
+        }
+
+    private:
+        bool getkey;
+    };
     
 
 } // namespace detail
@@ -149,12 +155,11 @@ namespace detail {
         // the separator char. used in the PATH variable
         static const char path_separator;
 
-        // using iterator = ranges::common_iterator_t<ranges::basic_iterator<cursor>, ranges::default_sentinel_t>;
         using iterator = ranges::basic_iterator<cursor>;
         using value_type = variable;
         using size_type = std::size_t;
-        // using value_range = decltype(detail::get_value_view(base()));
-        // using key_range = decltype(detail::get_key_view(base()));
+        using value_range = ranges::transform_view<environment,detail::keyval_fn>;
+        using key_range = value_range;
 
         environment() noexcept;
 
@@ -167,7 +172,7 @@ namespace detail {
 
         bool contains(std::string_view key) const;
 
-        auto cbegin() const noexcept { return base::begin(); }
+        iterator cbegin() const noexcept { return base::begin(); }
         auto cend() const noexcept { return base::end(); }
 
         size_type size () const noexcept {
@@ -177,19 +182,13 @@ namespace detail {
         template <class K, meta::is_strview_convertible<K> = true>
         void erase(K const& key) { do_erase(key); }
 
-        auto values() const noexcept {
+        value_range values() const noexcept {
             using namespace ranges;
-            return views::transform(*this, [](std::string const& line){
-                auto const eq = line.find('=');
-                return line.substr(eq+1);
-            });
+            return views::transform(*this, detail::keyval_fn(false));
         }
-        auto keys() const noexcept {
+        key_range keys() const noexcept {
             using namespace ranges;
-            return views::transform(*this, [](std::string const& line){
-                auto const eq = line.find('=');
-                return line.substr(0, eq);
-            });
+            return views::transform(*this, detail::keyval_fn(true));
         }
 
     private:
