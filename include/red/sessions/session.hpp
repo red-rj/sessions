@@ -70,7 +70,6 @@ namespace detail {
     public:
         void next() noexcept { block++; }
         void prev() noexcept { block--; }
-        // void advance(ptrdiff_t n) noexcept { block += n; }
         T* read() const noexcept { return *block; };
         std::ptrdiff_t distance_to(ptr_array_cursor const &that) const noexcept {
             return that.block - block;
@@ -83,9 +82,8 @@ namespace detail {
         }
 
         ptr_array_cursor()=default;
-        ptr_array_cursor(T** ep) : block(ep) {
-            //assert(block != nullptr);
-        }
+        ptr_array_cursor(T** ep) : block(ep)
+        {}
     };
 
     using env_cursor = ptr_array_cursor<sys::envchar>;
@@ -93,6 +91,7 @@ namespace detail {
     struct narrowing_cursor : env_cursor
     {
         using env_cursor::env_cursor;
+        using value_type = std::string;
         
         auto read() const {
             auto cur = env_cursor::read();
@@ -100,36 +99,40 @@ namespace detail {
         }
     };
 
-    using native_iterator = ranges::basic_iterator<env_cursor>;
-    using narrowing_iterator = ranges::basic_iterator<narrowing_cursor>;
+    class native_environ_view : public ranges::view_facade<native_environ_view>
+    {
+        friend ranges::range_access;
+        using cursor = env_cursor;
+        auto begin_cursor() const { return cursor(sys::envp()); }
+    };
 
-    using env_iterator = narrowing_iterator;
+
+    struct keyval_fn
+    {
+        explicit keyval_fn(bool key) : getkey(key)
+        {}
+
+        auto operator() (std::string const& line) const noexcept
+        {
+            auto const eq = line.find('=');
+            return getkey ? line.substr(0, eq) : line.substr(eq+1);
+        }
+
+    private:
+        bool getkey;
+    };
     
-
-    inline auto get_key_view()
-    {
-        using namespace ranges;
-        auto rng = subrange(env_iterator(sys::envp()), default_sentinel);
-        return views::transform(rng, [](std::string const& line){
-            auto const eq = line.find('=');
-            return line.substr(0, eq);
-        });
-    }
-
-    inline auto get_value_view()
-    {
-        using namespace ranges;
-        auto rng = subrange(env_iterator(sys::envp()), default_sentinel);
-        return views::transform(rng, [](std::string const& line){
-            auto const eq = line.find('=');
-            return line.substr(eq+1);
-        });
-    }
 
 } // namespace detail
 
-    class environment
+    class environment : public ranges::view_facade<environment>
     {
+        friend ranges::range_access;
+        using base = ranges::view_facade<environment>;
+        using cursor = detail::narrowing_cursor;
+
+        auto begin_cursor() const { return cursor(sys::envp()); }
+
     public:
         class variable
         {
@@ -152,42 +155,40 @@ namespace detail {
         // the separator char. used in the PATH variable
         static const char path_separator;
 
-        using iterator = ranges::common_iterator<detail::env_iterator, ranges::default_sentinel_t>;
+        using iterator = ranges::basic_iterator<cursor>;
         using value_type = variable;
         using size_type = std::size_t;
-        using value_range = decltype(detail::get_value_view());
-        using key_range = decltype(detail::get_key_view());
+        using value_range = ranges::transform_view<environment,detail::keyval_fn>;
+        using key_range = value_range;
 
         environment() noexcept;
 
         template <class T, meta::is_strview<T> = true>
         variable operator [] (T const& k) const { return variable(k); }
-
         variable operator [] (std::string_view k) const { return variable(k); }
-        variable operator [] (std::string const& k) const { return variable(k); }
-        variable operator [] (char const* k) const { return variable(k); }
 
         template <class K, meta::is_strview_convertible<K> = true>
         iterator find(K const& key) const noexcept { return do_find(key); }
 
         bool contains(std::string_view key) const;
 
-        iterator begin() const noexcept { return detail::env_iterator(sys::envp()); }
-        iterator end() const noexcept { return ranges::default_sentinel; }
-        iterator cbegin() const noexcept { return begin(); }
-        iterator cend() const noexcept { return end(); }
+        iterator cbegin() const noexcept { return base::begin(); }
+        auto cend() const noexcept { return base::end(); }
 
-        size_type size() const noexcept;
-		[[nodiscard]] bool empty() const noexcept { return size() == 0; }
+        size_type size () const noexcept {
+            return ranges::distance(begin(), end());
+        }
 
         template <class K, meta::is_strview_convertible<K> = true>
         void erase(K const& key) { do_erase(key); }
 
         value_range values() const noexcept {
-            return detail::get_value_view();
+            using namespace ranges;
+            return views::transform(*this, detail::keyval_fn(false));
         }
         key_range keys() const noexcept {
-            return detail::get_key_view();
+            using namespace ranges;
+            return views::transform(*this, detail::keyval_fn(true));
         }
 
     private:
@@ -195,9 +196,7 @@ namespace detail {
         iterator do_find(std::string_view k) const;
     };
 
-    // TODO: make these work
-    // static_assert(ranges::bidirectional_iterator<environment::iterator>, "environment::iterator is not a bidirectional.");
-    // static_assert(ranges::bidirectional_range<environment>, "environment is not a bidirectional range.");
+    static_assert(ranges::bidirectional_range<environment>, "environment is a bidirectional range.");
 
     class environment::variable::splitpath
     {
@@ -251,7 +250,7 @@ namespace detail {
 
 
         /* [POSIX SPECIFIC] Initialize arguments's global storage.
-            Users on need to call this function *ONLY* if SESSIONS_NOEXTENTIONS is set.
+            Users need to call this function *ONLY* if SESSIONS_NOEXTENTIONS is set.
 
            On Windows, this function does nothing.
         */

@@ -214,6 +214,14 @@ TEST_CASE("join_paths")
     }
 }
 
+// don't judge me, working w/ ranges is hard D:
+#include <typeinfo>
+
+TEST_CASE("wtftype", "[.]")
+{
+    std::cout << "environment::values() -> " << typeid(environment.values()).name() << '\n';
+    std::cout << "environment::keys() -> " << typeid(environment.keys()).name() << '\n';
+}
 
 std::vector<std::string> cmdargs;
 
