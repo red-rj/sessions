@@ -14,12 +14,10 @@
 
 #include "red/sessions/session.hpp"
 
-using std::string;
-using std::wstring;
-using std::string_view;
-using std::wstring_view;
-using red::session::meta::test_t;
+using std::string; using std::wstring;
+using std::string_view; using std::wstring_view;
 namespace sys = red::session::sys;
+namespace smeta = red::session::meta;
 
 
 // helpers
@@ -67,7 +65,7 @@ struct envstr_finder_base
     using StrView = std::basic_string_view<char_type, CharTraits>;
 
     template <class T>
-    using is_other_strview = test_t<
+    using is_other_strview = smeta::test_t<
         std::negation_v<
             std::conjunction<
                 std::is_convertible<const T&, const char_type*>,

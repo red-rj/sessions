@@ -22,7 +22,7 @@ namespace meta
     using test_t = std::enable_if_t<cond, bool>;
 
     template <class T>
-        using is_strview = test_t<
+        using is_strview_ish = test_t<
             std::conjunction_v<
                 std::is_convertible<const T&, std::string_view>, 
                 std::negation<std::is_convertible<const T&, const char*>>
@@ -155,6 +155,9 @@ namespace detail {
 
         variable operator [] (std::string_view k) const { return variable(k); }
 
+        template <class K, meta::is_strview_ish<K> = true>
+        value_type operator [] (K const& key) const { return variable(key); }
+
         template <class K, meta::is_strview_convertible<K> = true>
         iterator find(K const& key) const noexcept { return do_find(key); }
 
@@ -217,8 +220,8 @@ namespace detail {
         using iterator = char const* const*;
         using reverse_iterator = std::reverse_iterator<iterator>;
         using value_type = std::string_view;
-        using index_type = size_t;
-        using size_type = size_t;
+        using index_type = std::size_t;
+        using size_type = std::size_t;
 
         value_type operator [] (index_type i) const noexcept;
         value_type at(index_type i) const;
@@ -252,7 +255,6 @@ namespace detail {
     };
 
     static_assert(ranges::random_access_range<arguments>, "arguments is a rand. access range.");
-
 
 
     CPP_template(class Rng)
