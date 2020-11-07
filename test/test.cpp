@@ -267,10 +267,10 @@ int main(int argc, const char* argv[]) {
 
     // remove args past '--'
     using namespace ranges;
-    std::vector<char_t const*> argvec{argv, argv+argc};
-    argvec |= actions::take_while([](char_t const* arg) { return arg != T("--"sv); });
+    auto real_args = views::take_while(subrange(argv, argv+argc), 
+        [](char_t const* arg) { return arg != T("--"sv); }) | to<std::vector<char_t const*>>();
 
-    int rc = session.applyCommandLine((int)argvec.size(), argvec.data());
+    int rc = session.applyCommandLine((int)real_args.size(), real_args.data());
     if (rc != 0)
         return rc;
 
