@@ -118,7 +118,7 @@ namespace detail {
             friend class environment;
         
             std::string_view key() const noexcept { return m_key; }
-            std::string_view value() const noexcept { return m_value; }
+            std::string& value() const noexcept { return m_value; }
             operator std::string() const { return m_value; }
 
             splitpath split () const;
