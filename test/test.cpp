@@ -18,7 +18,13 @@
 #include "red/sessions/session.hpp"
 
 using namespace std::literals;
-namespace sys = red::session::sys;
+
+namespace sys
+{
+    std::string getenv(std::string_view key);
+    void setenv(std::string_view key, std::string_view value);
+    void rmenv(std::string_view key);
+}
 
 using std::string;
 using std::string_view;
@@ -65,10 +71,10 @@ TEST_CASE("get environment variables", "[environment]")
     {
         for(auto[key, value] : TEST_VARS)
         {
-            REQUIRE(string(environment[key]) == value);
+            REQUIRE(environment[key].value() == value);
         }
 
-        REQUIRE(string(environment["nonesuch"]).empty());
+        REQUIRE(environment["nonesuch"].value().empty());
     }
     SECTION("find()")
     {
@@ -108,7 +114,7 @@ TEST_CASE("set environment variables", "[environment]")
         REQUIRE_FALSE(sys::getenv(key).empty());
     }
 
-    REQUIRE(std::string(environment["nonesuch"]).empty());
+    REQUIRE(environment["nonesuch"].value().empty());
 }
 
 TEST_CASE("remove environment variables", "[environment]")
@@ -247,32 +253,29 @@ int main(int argc, const char* argv[]) {
     using char_t = char;
 #endif // WIN32
     using namespace Catch::clara;
+    using namespace ranges;
     
     setlocale(LC_ALL, "");
 
-    for (int i = 0; i < argc; i++)
-    {
-        std::string arg = sys::narrow(argv[i]);
-        cmdargs.push_back(arg);
-    }
+    auto args_rng = subrange(argv, argv+argc);
+    cmdargs = args_rng | views::transform(red::session::detail::narrow_copy) | to<decltype(cmdargs)>();
 
     Catch::Session session;
 
-    // fake support for '--'
+    // simple support for '--'
+    // we already copied all the args above, strip args after '--' and pass to Catch::Session
     string dummy;
     auto cli = session.cli()
-    | Opt(dummy, "arg1 arg2 ...")["--"]("pass more values to session::arguments tests");
+    | Opt(dummy, "arg1 arg2 ...")["--"]("additional values, for testing session::arguments");
 
     session.cli(cli);
 
-    // remove args past '--'
-    using namespace ranges;
-    auto real_args = views::take_while(subrange(argv, argv+argc), 
+    auto session_args = views::take_while(args_rng, 
         [](char_t const* arg) { return arg != T("--"sv); }) | to<std::vector<char_t const*>>();
 
-    int rc = session.applyCommandLine((int)real_args.size(), real_args.data());
-    if (rc != 0)
+    int rc = session.applyCommandLine((int)session_args.size(), session_args.data());
+    if (rc == 0)
+        return session.run();
+    else
         return rc;
-
-    return session.run();
 }

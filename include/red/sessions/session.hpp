@@ -35,30 +35,17 @@ namespace meta
     >;
 }
 
-// system layer (impl detail)
-namespace sys {
+// impl detail
+namespace detail {
 #ifdef WIN32
     using envchar = wchar_t;
 #else
     using envchar = char;
 #endif
-
     using env_t = envchar**;
 
-    env_t envp() noexcept;
 
-    std::string getenv(std::string_view key);
-    void setenv(std::string_view key, std::string_view value);
-    void rmenv(std::string_view key);
-
-    char const** argv() noexcept;
-    int argc() noexcept;
-    
-    std::string narrow(envchar const* s);
-} // namespace sys
-
-// impl detail
-namespace detail {
+    std::string narrow_copy(envchar const* s);
 
     // cursor over an array of pointers where the end is nullptr
     template<typename T>
@@ -84,7 +71,7 @@ namespace detail {
         {}
     };
 
-    using env_cursor = ptr_array_cursor<sys::envchar>;
+    using env_cursor = ptr_array_cursor<envchar>;
 
     struct narrowing_cursor : env_cursor
     {
@@ -93,7 +80,7 @@ namespace detail {
         
         auto read() const {
             auto cur = env_cursor::read();
-            return sys::narrow(cur);
+            return narrow_copy(cur);
         }
     };
 
@@ -121,7 +108,7 @@ namespace detail {
         friend ranges::range_access;
         using cursor = detail::narrowing_cursor;
 
-        auto begin_cursor() const { return cursor(sys::envp()); }
+        cursor begin_cursor() const;
 
     public:
         class variable
@@ -130,16 +117,18 @@ namespace detail {
             class splitpath;
             friend class environment;
         
-            operator std::string() const;
             std::string_view key() const noexcept { return m_key; }
+            std::string_view value() const noexcept { return m_value; }
+            operator std::string() const { return m_value; }
+
             splitpath split () const;
 
             variable& operator=(std::string_view value);
 
         private:
-            explicit variable(std::string_view key_) : m_key(key_) {}
+            explicit variable(std::string_view key_);
 
-            std::string m_key;
+            std::string m_key, m_value;
         };
 
         // the separator char. used in the PATH variable

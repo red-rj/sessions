@@ -16,9 +16,23 @@
 
 using std::string; using std::wstring;
 using std::string_view; using std::wstring_view;
-namespace sys = red::session::sys;
 namespace smeta = red::session::meta;
 
+// system layer
+namespace sys {
+    using red::session::detail::envchar;
+    using red::session::detail::env_t;
+
+    env_t envp() noexcept;
+
+    std::string getenv(std::string_view key);
+    void setenv(std::string_view key, std::string_view value);
+    void rmenv(std::string_view key);
+
+    char const** argv() noexcept;
+    int argc() noexcept;
+    
+} // namespace sys
 
 // helpers
 namespace
@@ -100,10 +114,11 @@ struct envstr_finder_base
 #if defined(WIN32)
 #undef environ
 
+constexpr auto NARROW_CP =
 #ifdef SESSIONS_UTF8
-constexpr auto NARROW_CP = CP_UTF8;
+    CP_UTF8;
 #else
-constexpr auto NARROW_CP = CP_ACP;
+    CP_ACP;
 #endif // SESSIONS_UTF8
 
 namespace
@@ -222,7 +237,7 @@ void sys::rmenv(string_view k) {
     _wputenv_s(wkey.c_str(), L"");
 }
 
-string sys::narrow(envchar const* s) {
+string red::session::detail::narrow_copy(envchar const* s) {
     return s ? to_narrow(s) : "";
 }
 
@@ -271,7 +286,7 @@ void sys::rmenv(string_view k) {
     ::unsetenv(key.c_str());
 }
 
-string sys::narrow(envchar const* s) { 
+string red::session::detail::narrow_copy(envchar const* s) { 
     return s ? s : "";
 }
 
@@ -315,15 +330,17 @@ namespace red::session
     const char** arguments::argv() const noexcept { return sys::argv(); }
     int arguments::argc() const noexcept { return sys::argc(); }
 
-    // env
+    // env variable
 
-    environment::variable::operator string() const {
-        return sys::getenv(m_key);
+    environment::variable::variable(std::string_view key_) : m_key(key_)
+    {
+        m_value = sys::getenv(m_key);
     }
 
     auto environment::variable::operator= (string_view value) -> variable&
     {
         sys::setenv(m_key, value);
+        m_value = string(value);
         return *this;
     }
 
@@ -331,6 +348,13 @@ namespace red::session
     {
         auto v = sys::getenv(m_key);
         return splitpath{v};
+    }
+
+    // env
+
+    auto environment::begin_cursor() const -> cursor
+    {
+        return cursor(sys::envp());
     }
 
     environment::environment() noexcept
