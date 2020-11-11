@@ -39,34 +39,32 @@ struct ci_char_traits : public std::char_traits<char> {
     using typename std::char_traits<char>::char_type;
 
     static bool eq(char_type c1, char_type c2) {
-        return toupper(c1) == toupper(c2);
+        auto& LC = std::locale::classic();
+        return toupper(c1, LC) == toupper(c2, LC);
     }
     static bool lt(char_type c1, char_type c2) {
-        return toupper(c1) < toupper(c2);
+        auto& LC = std::locale::classic();
+        return toupper(c1, LC) < toupper(c2, LC);
     }
     static int compare(const char_type* s1, const char_type* s2, size_t n) {
+        auto& LC = std::locale::classic();
         while (n-- != 0) {
-            if (toupper(*s1) < toupper(*s2)) return -1;
-            if (toupper(*s1) > toupper(*s2)) return 1;
+            if (toupper(*s1, LC) < toupper(*s2, LC)) return -1;
+            if (toupper(*s1, LC) > toupper(*s2, LC)) return 1;
             ++s1; ++s2;
         }
         return 0;
     }
     static const char_type* find(const char_type* s, int n, char_type a) {
-        auto const ua = toupper(a);
+        auto& LC = std::locale::classic();
+        auto const ua = toupper(a, LC);
         while (n-- != 0)
         {
-            if (toupper(*s) == ua)
+            if (toupper(*s, LC) == ua)
                 return s;
             s++;
         }
         return nullptr;
-    }
-
-private:
-    static char toupper(char_type ch) {
-        const auto& C = std::locale::classic();
-        return std::toupper(ch, C);
     }
 };
 
@@ -76,22 +74,14 @@ struct envstr_finder
     using char_type = typename CharTraits::char_type;
     using StrView = std::basic_string_view<char_type, CharTraits>;
 
-    template <class T>
-    using is_other_strview = smeta::test_t<
-        std::negation_v<
-            std::conjunction<
-                std::is_convertible<const T&, const char_type*>,
-                std::is_convertible<const T&, StrView>
-            >
-        >
-    >;
-
     StrView key;
 
     explicit envstr_finder(StrView k) : key(k) {}
 
-    template<class T, is_other_strview<T> = true>
-    explicit envstr_finder(const T& k) : key(k.data(), k.size()) {}
+    CPP_template(class T)
+        (requires !concepts::convertible_to<T, StrView>)
+    explicit envstr_finder(const T& k) : key(k.data(), k.size())
+    {}
 
     bool operator() (StrView entry) noexcept
     {
@@ -101,7 +91,8 @@ struct envstr_finder
             entry.compare(0, key.size(), key) == 0;
     }
 
-    template<class T, is_other_strview<T> = true>
+    CPP_template(class T)
+        (requires !concepts::convertible_to<T, StrView>)
     bool operator() (const T& v) noexcept {
         return this->operator()(StrView(v.data(), v.size()));
     }
@@ -243,7 +234,7 @@ const char** red::session::arguments::argv() const noexcept {
 }
 
 int red::session::arguments::argc() const noexcept {
-    return static_cast<int>(argvec().size());
+    return static_cast<int>(argvec().size()) - 1;
 }
 
 void red::session::arguments::init(int, const char**) noexcept {
