@@ -118,7 +118,7 @@ namespace detail {
             friend class environment;
         
             std::string_view key() const noexcept { return m_key; }
-            std::string& value() const noexcept { return m_value; }
+            const std::string& value() const noexcept { return m_value; }
             operator std::string() const { return m_value; }
 
             splitpath split () const;
@@ -168,12 +168,10 @@ namespace detail {
         void erase(K const& key) { do_erase(key); }
 
         value_range values() const noexcept {
-            using namespace ranges;
-            return views::transform(*this, detail::keyval_fn(false));
+            return ranges::views::transform(*this, detail::keyval_fn(false));
         }
         key_range keys() const noexcept {
-            using namespace ranges;
-            return views::transform(*this, detail::keyval_fn(true));
+            return ranges::views::transform(*this, detail::keyval_fn(true));
         }
 
     private:
