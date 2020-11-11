@@ -212,14 +212,31 @@ namespace detail {
         using index_type = std::size_t;
         using size_type = std::size_t;
 
-        value_type operator [] (index_type i) const noexcept;
-        value_type at(index_type i) const;
+        value_type operator [] (index_type i) const noexcept {
+            return argv()[i];
+        }
 
-        [[nodiscard]] bool empty() const noexcept { return size() == 0; }
-        size_type size() const noexcept;
+        value_type at(index_type i) const {
+            if (i >= size()) {
+                throw std::out_of_range("invalid arguments subscript");
+            }
 
-        iterator cbegin() const noexcept;
-        iterator cend() const noexcept;
+            return (*this)[i];
+        }
+
+        [[nodiscard]]
+        bool empty() const noexcept { return size() == 0; }
+
+        size_type size() const noexcept {
+            return static_cast<size_type>(argc());
+        }
+
+        iterator cbegin() const noexcept {
+            return iterator(argv());
+        }
+        iterator cend() const noexcept {
+            return iterator(argv() + argc());
+        }
 
         iterator begin() const noexcept { return cbegin(); }
         iterator end() const noexcept { return cend(); }
@@ -230,9 +247,11 @@ namespace detail {
         reverse_iterator rbegin() const noexcept { return crbegin(); }
         reverse_iterator rend() const noexcept { return crend(); }
 
-        [[nodiscard]] const char** argv() const noexcept;
-        [[nodiscard]] int argc() const noexcept;
-
+        [[nodiscard]] 
+        const char** argv() const noexcept;
+        
+        [[nodiscard]] 
+        int argc() const noexcept;
 
         /* [POSIX SPECIFIC] Initialize arguments's global storage.
             Users need to call this function *ONLY* if SESSIONS_NOEXTENTIONS is set.

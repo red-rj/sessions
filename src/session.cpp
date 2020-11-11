@@ -28,9 +28,6 @@ namespace sys {
     std::string getenv(std::string_view key);
     void setenv(std::string_view key, std::string_view value);
     void rmenv(std::string_view key);
-
-    char const** argv() noexcept;
-    int argc() noexcept;
     
 } // namespace sys
 
@@ -202,7 +199,7 @@ namespace
 
             return vec;
         }
-        catch(...)
+        catch (std::exception&)
         {
             for (auto p : vec) delete[] p;
             std::throw_with_nested(std::runtime_error("Failed to create arguments"));
@@ -214,9 +211,6 @@ namespace
         return vec;
     }
 } // unnamed namespace
-
-char const** sys::argv() noexcept { return argvec().data(); }
-int sys::argc() noexcept { return static_cast<int>(argvec().size()) - 1; }
 
 sys::env_t sys::envp() noexcept {
     return _wenviron;
@@ -243,8 +237,17 @@ string red::session::detail::narrow_copy(envchar const* s) {
 
 const char red::session::environment::path_separator = ';';
 
-// noop
-void red::session::arguments::init(int, const char**) noexcept {}
+const char** red::session::arguments::argv() const noexcept {
+    return argvec().data();
+}
+
+int red::session::arguments::argc() const noexcept {
+    return static_cast<int>(argvec().size());
+}
+
+void red::session::arguments::init(int, const char**) noexcept {
+    // noop
+}
 
 #else // POSIX
 
@@ -253,20 +256,11 @@ extern "C" char** environ;
 namespace
 {
     char const** my_args{};
-    int my_arg_count{};
+    int my_args_count{};
 
     using envstr_finder = envstr_finder_base<std::char_traits<char>>;
 } // unnamed namespace
 
-
-void red::session::arguments::init(int count, const char** arguments) noexcept
-{
-    my_args = arguments;
-    my_arg_count = count;
-}
-
-char const** sys::argv() noexcept { return my_args; }
-int sys::argc() noexcept { return my_arg_count; }
 
 sys::env_t sys::envp() noexcept {
     return environ;
@@ -292,46 +286,25 @@ string red::session::detail::narrow_copy(envchar const* s) {
 
 const char red::session::environment::path_separator = ':';
 
+const char** red::session::arguments::argv() const noexcept {
+    return my_args;
+}
+
+int red::session::arguments::argc() const noexcept {
+    return my_args_count;
+}
+
+void red::session::arguments::init(int count, const char** arguments) noexcept
+{
+    my_args = arguments;
+    my_args_count = count;
+}
+
 #endif
 
 namespace red::session
 {
-    // args
-    auto arguments::operator [] (arguments::index_type idx) const noexcept -> value_type
-    {
-        auto args = sys::argv();
-        return args[idx];
-    }
-
-    arguments::value_type arguments::at(arguments::index_type idx) const
-    {
-        if (idx >= size()) {
-            throw std::out_of_range("invalid arguments subscript");
-        }
-
-        return (*this)[idx];
-    }
-
-    arguments::size_type arguments::size() const noexcept
-    {
-        return static_cast<size_type>(argc());
-    }
-
-    arguments::iterator arguments::cbegin () const noexcept
-    {
-        return iterator{argv()};
-    }
-
-    arguments::iterator arguments::cend () const noexcept
-    {
-        return iterator{argv() + argc()};
-    }
-
-    const char** arguments::argv() const noexcept { return sys::argv(); }
-    int arguments::argc() const noexcept { return sys::argc(); }
-
     // env variable
-
     environment::variable::variable(std::string_view key_) : m_key(key_)
     {
         m_value = sys::getenv(m_key);
@@ -351,7 +324,6 @@ namespace red::session
     }
 
     // env
-
     auto environment::begin_cursor() const -> cursor
     {
         return cursor(sys::envp());
