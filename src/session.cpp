@@ -1,8 +1,11 @@
+// check platfrom
 #if defined(WIN32)
-    #define _CRT_SECURE_NO_WARNINGS
-    #include "win32.hpp"
-    #include <shellapi.h>
-#endif // WIN32
+#   define _CRT_SECURE_NO_WARNINGS
+#   include "win32.hpp"
+#   include <shellapi.h>
+#elif defined(__unix__)
+#   include <unistd.h>
+#endif
 
 #include <vector>
 #include <locale>
@@ -241,7 +244,7 @@ void red::session::arguments::init(int, const char**) noexcept {
     // noop
 }
 
-#else // POSIX
+#elif defined(_POSIX_VERSION)
 
 extern "C" char** environ;
 
@@ -290,7 +293,8 @@ void red::session::arguments::init(int count, const char** arguments) noexcept
     my_args = arguments;
     my_args_count = count;
 }
-
+#else
+#   error "unknown platform"
 #endif
 
 namespace red::session
