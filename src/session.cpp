@@ -34,6 +34,7 @@ namespace sys {
 // helpers
 namespace
 {
+
 struct ci_char_traits : public std::char_traits<char> {
     using typename std::char_traits<char>::char_type;
 
@@ -70,7 +71,7 @@ private:
 };
 
 template<typename CharTraits>
-struct envstr_finder_base
+struct envstr_finder
 {
     using char_type = typename CharTraits::char_type;
     using StrView = std::basic_string_view<char_type, CharTraits>;
@@ -87,10 +88,10 @@ struct envstr_finder_base
 
     StrView key;
 
-    explicit envstr_finder_base(StrView k) : key(k) {}
+    explicit envstr_finder(StrView k) : key(k) {}
 
     template<class T, is_other_strview<T> = true>
-    explicit envstr_finder_base(const T& k) : key(k.data(), k.size()) {}
+    explicit envstr_finder(const T& k) : key(k.data(), k.size()) {}
 
     bool operator() (StrView entry) noexcept
     {
@@ -118,10 +119,10 @@ constexpr auto NARROW_CP =
     CP_ACP;
 #endif // SESSIONS_UTF8
 
+using envfind_fn = envstr_finder<ci_char_traits>;
+
 namespace
 {
-    using envstr_finder = envstr_finder_base<ci_char_traits>;
-
     [[noreturn]]
     void throw_win_error(DWORD error = GetLastError())
     {
@@ -257,10 +258,9 @@ namespace
 {
     char const** my_args{};
     int my_args_count{};
+}
 
-    using envstr_finder = envstr_finder_base<std::char_traits<char>>;
-} // unnamed namespace
-
+using envfind_fn = envstr_finder<std::char_traits<char>>;
 
 sys::env_t sys::envp() noexcept {
     return environ;
@@ -319,8 +319,7 @@ namespace red::session
 
     auto environment::variable::split() const->splitpath
     {
-        auto v = sys::getenv(m_key);
-        return splitpath{v};
+        return splitpath{m_value};
     }
 
     // env
@@ -339,8 +338,7 @@ namespace red::session
 
     auto environment::do_find(string_view k) const ->iterator
     {
-        auto pred = envstr_finder(k);
-        return ranges::find_if(*this, pred);
+        return ranges::find_if(*this, envfind_fn(k));
     }
 
     bool environment::contains(string_view k) const
