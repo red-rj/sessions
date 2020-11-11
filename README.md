@@ -3,6 +3,10 @@ Red Sessions is a library for accessing arguments and environment variables from
 
 It's an implementation of the proposed P1275's Desert Sessions API - See link above for details on the paper it self.
 
+## Objective
+_Red Session's_ objective is to provide a set of safe, easy to use utilities to interact with the system's environment and program arguments anywhere, at any time.
+These utilities should be straight to the point, acting as wrappers around non-portable OS facilities, applying conversions when necessary to keep the API consistent.
+
 ## Overview
 What's in the package?
 
