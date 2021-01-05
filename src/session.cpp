@@ -35,41 +35,7 @@ namespace sys {
 } // namespace sys
 
 // helpers
-namespace
-{
-
-struct ci_char_traits : public std::char_traits<char> {
-    using typename std::char_traits<char>::char_type;
-
-    static bool eq(char_type c1, char_type c2) {
-        auto& LC = std::locale::classic();
-        return toupper(c1, LC) == toupper(c2, LC);
-    }
-    static bool lt(char_type c1, char_type c2) {
-        auto& LC = std::locale::classic();
-        return toupper(c1, LC) < toupper(c2, LC);
-    }
-    static int compare(const char_type* s1, const char_type* s2, size_t n) {
-        auto& LC = std::locale::classic();
-        while (n-- != 0) {
-            if (toupper(*s1, LC) < toupper(*s2, LC)) return -1;
-            if (toupper(*s1, LC) > toupper(*s2, LC)) return 1;
-            ++s1; ++s2;
-        }
-        return 0;
-    }
-    static const char_type* find(const char_type* s, int n, char_type a) {
-        auto& LC = std::locale::classic();
-        auto const ua = toupper(a, LC);
-        while (n-- != 0)
-        {
-            if (toupper(*s, LC) == ua)
-                return s;
-            s++;
-        }
-        return nullptr;
-    }
-};
+namespace {
 
 template<typename CharTraits>
 struct envstr_finder
@@ -112,6 +78,39 @@ constexpr auto NARROW_CP =
 #else
     CP_ACP;
 #endif // SESSIONS_UTF8
+
+struct ci_char_traits : public std::char_traits<char> {
+    using typename std::char_traits<char>::char_type;
+
+    static bool eq(char_type c1, char_type c2) {
+        auto& LC = std::locale::classic();
+        return toupper(c1, LC) == toupper(c2, LC);
+    }
+    static bool lt(char_type c1, char_type c2) {
+        auto& LC = std::locale::classic();
+        return toupper(c1, LC) < toupper(c2, LC);
+    }
+    static int compare(const char_type* s1, const char_type* s2, size_t n) {
+        auto& LC = std::locale::classic();
+        while (n-- != 0) {
+            if (toupper(*s1, LC) < toupper(*s2, LC)) return -1;
+            if (toupper(*s1, LC) > toupper(*s2, LC)) return 1;
+            ++s1; ++s2;
+        }
+        return 0;
+    }
+    static const char_type* find(const char_type* s, int n, char_type a) {
+        auto& LC = std::locale::classic();
+        auto const ua = toupper(a, LC);
+        while (n-- != 0)
+        {
+            if (toupper(*s, LC) == ua)
+                return s;
+            s++;
+        }
+        return nullptr;
+    }
+};
 
 using envfind_fn = envstr_finder<ci_char_traits>;
 

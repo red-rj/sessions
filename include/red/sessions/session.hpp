@@ -87,8 +87,7 @@ namespace detail {
 
     struct keyval_fn
     {
-        explicit keyval_fn(bool key) : getkey(key)
-        {}
+        explicit keyval_fn(bool key) : getkey(key) {}
 
         auto operator() (std::string const& line) const noexcept
         {
