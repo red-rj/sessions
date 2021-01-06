@@ -16,7 +16,7 @@ What's in the package?
     It holds the value of a environment variable _at the time it's constructed_, it's not effected by changes to the system's environment.
     - To update the value of a `environment::variable`, call `environment::operator[]` again.
     - `environment::variable::split()` function returns a range-like object that can be used to iterate through variables like `PATH` that use your system's `path_separator`.
-- The `join_paths` function allows joining a series of `std::filesystem::path` into a `std::string`
+- The `join_paths` function allows joining a series of `std::filesystem::path` into a `std::string` using your system's `path_separator`, or a character of your choice.
 
 Both `arguments` and `environment` are empty classes and can be freely constructed around.
 
@@ -28,48 +28,47 @@ It's as simple as creating an instance and using it like a container.
 
 ```cpp
 #include "red/sessions/session.hpp"
-using namespace red::session;
 
-arguments args;
+red::session::arguments arguments;
 
-for (const auto& a : args) {
+for (const auto& a : arguments) {
     // reading each arg
 }
 
 // ...
 
-auto it = args.begin();
+auto it = arguments.begin();
 *it = "whatever"; // Error, can't modify/add elements to `arguments`
 
 // copy the arguments if you want to modify them
-std::vector<std::string> myargs{ args.begin(), args.end() };
+std::vector<std::string> myargs{ arguments.begin(), arguments.end() };
 ```
 
 ### Environment
 ```cpp
 #include "red/sessions/session.hpp"
-using namespace red::session;
 
-environment env;
+red::session::environment environment;
 
 // get a value by assinging it to a string
-std::string myvar_value = env["myvar"];
+std::string myvar_value = environment["myvar"];
 
 // or keep the environment::variable object it self and do operations on it latter.
-environment::variable mypath = env["PATH"];
-std::string_view key = mypath.key() // "PATH"
+auto mypath = environment["PATH"];
+std::string_view key = mypath.key(); // "PATH"
+std::string_view value = mypath.value(); // value of "PATH" when `mypath` was created
 
 // set
-env["myvar"] = "something clever";
+environment["myvar"] = "something clever";
 mypath = "a;b;c"; // assigns to PATH
 
 // checking if a variable exists
-if (env.contains("myvar")) {
+if (environment.contains("myvar")) {
     // do stuff
 }
 
 // iterating the environment
-for (auto envline : env)
+for (auto envline : environment)
 {
     /* 'envline' has the format key=value
     
@@ -81,8 +80,7 @@ for (auto envline : env)
 }
 
 // erasing a variable
-env.erase("myvar");
-assert(!env.contains("myvar"));
+environment.erase("myvar");
 
 // ...
 ```
