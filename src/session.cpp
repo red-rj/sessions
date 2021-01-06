@@ -223,23 +223,34 @@ void sys::rmenv(string_view k) {
     _wputenv_s(wkey.c_str(), L"");
 }
 
-string red::session::detail::narrow_copy(envchar const* s) {
+namespace red::session {
+
+string detail::narrow_copy(envchar const* s) {
     return s ? to_narrow(s) : "";
 }
 
-const char red::session::environment::path_separator = ';';
-
-const char** red::session::arguments::argv() const noexcept {
+const char** arguments::argv() const noexcept {
     return argvec().data();
 }
 
-int red::session::arguments::argc() const noexcept {
+int arguments::argc() const noexcept {
     return static_cast<int>(argvec().size()) - 1;
 }
 
-void red::session::arguments::init(int, const char**) noexcept {
+void arguments::init(int, const char**) noexcept {
     // noop
 }
+
+const char environment::path_separator = ';';
+
+environment::environment() noexcept
+{
+    if (!_wenviron)
+        _wgetenv(L"Red Sessions init wchar env");
+}
+
+} // namespace red::session
+
 
 #elif defined(_POSIX_VERSION)
 
@@ -271,25 +282,31 @@ void sys::rmenv(string_view k) {
     ::unsetenv(key.c_str());
 }
 
-string red::session::detail::narrow_copy(envchar const* s) { 
+namespace red::session {
+
+string detail::narrow_copy(envchar const* s) { 
     return s ? s : "";
 }
 
-const char red::session::environment::path_separator = ':';
-
-const char** red::session::arguments::argv() const noexcept {
+const char** arguments::argv() const noexcept {
     return my_args;
 }
 
-int red::session::arguments::argc() const noexcept {
+int arguments::argc() const noexcept {
     return my_args_count;
 }
 
-void red::session::arguments::init(int count, const char** arguments) noexcept
+void arguments::init(int count, const char** arguments) noexcept
 {
     my_args = arguments;
     my_args_count = count;
 }
+
+const char environment::path_separator = ':';
+
+environment::environment() noexcept = default;
+
+} // namespace red::session
 #else
 #   error "unknown platform"
 #endif
@@ -318,14 +335,6 @@ namespace red::session
     auto environment::begin_cursor() const -> cursor
     {
         return cursor(sys::envp());
-    }
-
-    environment::environment() noexcept
-    {
-#ifdef WIN32
-        if (!_wenviron)
-            _wgetenv(L"Red Sessions init wchar env");
-#endif
     }
 
     auto environment::do_find(string_view k) const ->iterator
