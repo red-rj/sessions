@@ -1,10 +1,6 @@
 #define CATCH_CONFIG_RUNNER
 #include "catch.hpp"
 
-#if defined(WIN32)
-#include "../src/win32.hpp"
-#endif // WIN32
-
 #include <iostream>
 #include <array>
 #include <vector>
@@ -29,7 +25,6 @@ namespace sys
 using std::string;
 using std::string_view;
 using keyval_pair = std::pair<string_view, string_view>;
-template <size_t N> using sv_array = std::array<string_view, N>;
 
 auto constexpr TEST_VARS = std::array<keyval_pair, 5>{{
     {"DRUAGA1", "WEED"},
@@ -201,8 +196,8 @@ TEST_CASE("join_paths")
 {
     using red::session::join_paths;
 
-    auto elems = sv_array<5> {
-        "path", "dir", "folder", "location"
+    auto elems = std::array {
+        "path"sv, "dir"sv, "folder"sv, "location"sv
     };
     auto constexpr joinend_elems = "path;dir;folder;location"sv;
     string_view expected = joinend_elems;
@@ -242,38 +237,39 @@ TEST_CASE("Arguments")
     }
 }
 
-// entry point
+
+using red::session::detail::envchar;
+
+// on windows, use wmain for unicode arguments
 #if defined(WIN32)
-#define T(txt) L ## txt
-int wmain(int argc, const wchar_t* argv[]) {
-    using char_t = wchar_t;
+#define main wmain
+#define T(x) L ## x
 #else
-#define T(txt) txt
-int main(int argc, const char* argv[]) {
-    using char_t = char;
-#endif // WIN32
-    using namespace Catch::clara;
+#define T(x) x
+#endif
+
+
+int main(int argc, const envchar* argv[]) {
     using namespace ranges;
-    
+    using std::vector;
     setlocale(LC_ALL, "");
 
-    auto args_rng = subrange(argv, argv+argc);
-    cmdargs = args_rng | views::transform(red::session::detail::narrow_copy) | to<decltype(cmdargs)>();
+    // copy arguments as narrow strings, for testing session::arguments
+    cmdargs = subrange(argv, argv+argc) | views::transform(red::session::detail::narrow_copy) | to_vector;
+    auto arg_strings = cmdargs;
 
     Catch::Session session;
 
-    // simple support for '--'
-    // we already copied all the args above, strip args after '--' and pass to Catch::Session
+    // support for '--', to pass additional args
+    const auto eoa = "--"s;
     string dummy;
-    auto cli = session.cli()
-    | Opt(dummy, "arg1 arg2 ...")["--"]("additional values, for testing session::arguments");
-
+    auto cli = session.cli() | Catch::clara::Opt(dummy, "arg1 arg2 ...")[eoa]("additional values, for testing session::arguments");
     session.cli(cli);
 
-    auto session_args = views::take_while(args_rng, 
-        [](char_t const* arg) { return arg != T("--"sv); }) | to<std::vector<char_t const*>>();
+    vector<const char*> arg_ptrs = arg_strings | views::take_while([&](const string& arg) { return arg != eoa; }) 
+        | views::transform([](const string& arg){ return arg.data(); }) | to_vector;
 
-    int rc = session.applyCommandLine((int)session_args.size(), session_args.data());
+    int rc = session.applyCommandLine((int)arg_ptrs.size(), arg_ptrs.data());
     if (rc == 0)
         return session.run();
     else
