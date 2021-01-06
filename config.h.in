@@ -12,7 +12,6 @@
 #cmakedefine SESSIONS_UTF8
 #cmakedefine SESSIONS_NOEXTENTIONS
 
-
 #if defined(_MSC_VER) || defined(SESSIONS_NOEXTENTIONS)
 #   define SESSIONS_AUTORUN
 #else
@@ -20,5 +19,18 @@
 // https://stackoverflow.com/a/37012337
 #   define SESSIONS_AUTORUN [[gnu::constructor]]
 #endif
+
+// types of the platform environment
+namespace red::session::detail
+{
+#ifdef WIN32
+    using envchar = wchar_t;
+#else
+    using envchar = char;
+#endif
+
+    using envblock = envchar**;
+}
+
 
 #endif // RED_SESSIONS_CONFIG

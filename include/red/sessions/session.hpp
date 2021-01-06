@@ -37,13 +37,6 @@ namespace meta
 
 // impl detail
 namespace detail {
-#ifdef WIN32
-    using envchar = wchar_t;
-#else
-    using envchar = char;
-#endif
-    using env_t = envchar**;
-
 
     std::string narrow_copy(envchar const* s);
 
@@ -251,8 +244,8 @@ namespace detail {
         [[nodiscard]] 
         int argc() const noexcept;
 
-        /* [POSIX SPECIFIC] Initialize arguments's global storage.
-            Users need to call this function *ONLY* if SESSIONS_NOEXTENTIONS is set.
+        /* [POSIX SPECIFIC] If SESSIONS_NOEXTENTIONS is set, users must call this function to
+            initialize arguments's global storage.
 
            On Windows, this function does nothing.
         */
