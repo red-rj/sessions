@@ -19,14 +19,13 @@
 
 using std::string; using std::wstring;
 using std::string_view; using std::wstring_view;
-namespace smeta = red::session::meta;
 
 // system layer
 namespace sys {
     using red::session::detail::envchar;
-    using red::session::detail::env_t;
+    using red::session::detail::envblock;
 
-    env_t envp() noexcept;
+    envblock envp() noexcept;
 
     std::string getenv(std::string_view key);
     void setenv(std::string_view key, std::string_view value);
@@ -37,12 +36,11 @@ namespace sys {
 // helpers
 namespace {
 
-template<typename CharTraits>
+template<typename Traits>
 struct envstr_finder
 {
-    using char_type = typename CharTraits::char_type;
-    using StrView = std::basic_string_view<char_type, CharTraits>;
-
+    using char_type = typename Traits::char_type;
+    using StrView = std::basic_string_view<char_type, Traits>;
     StrView key;
 
     explicit envstr_finder(StrView k) : key(k) {}
@@ -57,7 +55,7 @@ struct envstr_finder
         return
             entry.length() > key.length() &&
             entry[key.length()] == '=' &&
-            entry.compare(0, key.size(), key) == 0;
+            entry.compare(0, key.length(), key) == 0;
     }
 
     CPP_template(class T)
@@ -206,7 +204,7 @@ namespace
     }
 } // unnamed namespace
 
-sys::env_t sys::envp() noexcept {
+sys::envblock sys::envp() noexcept {
     return _wenviron;
 }
 
@@ -326,7 +324,7 @@ namespace red::session
     {
 #ifdef WIN32
         if (!_wenviron)
-            _wgetenv(L"initpls");
+            _wgetenv(L"Red Sessions init wchar env");
 #endif
     }
 
