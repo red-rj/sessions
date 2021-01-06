@@ -60,8 +60,7 @@ namespace detail {
         }
 
         ptr_array_cursor()=default;
-        ptr_array_cursor(T** ep) : block(ep)
-        {}
+        ptr_array_cursor(T** ep) : block(ep) {}
     };
 
     using env_cursor = ptr_array_cursor<envchar>;
@@ -97,9 +96,7 @@ namespace detail {
 
     class environment : public ranges::basic_view<ranges::finite>
     {
-        friend ranges::range_access;
         using cursor = detail::narrowing_cursor;
-
         cursor begin_cursor() const;
 
     public:
@@ -145,9 +142,14 @@ namespace detail {
 
         bool contains(std::string_view key) const;
 
-        iterator begin() const noexcept { return iterator(begin_cursor()); }
-        iterator cbegin() const noexcept { return begin(); }
-        auto end() const noexcept { return ranges::default_sentinel; }
+        auto begin() const noexcept {
+            return iterator(begin_cursor());
+        }
+        auto cbegin() const noexcept { return begin(); }
+
+        auto end() const noexcept {
+            return ranges::default_sentinel;
+        }
         auto cend() const noexcept { return end(); }
 
         size_type size () const noexcept {
