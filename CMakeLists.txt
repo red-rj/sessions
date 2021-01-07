@@ -40,8 +40,7 @@ if(SESSIONS_TESTS)
   target_link_libraries(tests PRIVATE sessions Catch2::Catch2)
   target_compile_definitions(tests PRIVATE UNICODE)
 
-  add_test(NAME all-tests  COMMAND tests -- áéíóú words something -l 123
-          WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  add_test(all-tests  tests  -- áéíóú words something -l 123)
 endif()
 
 configure_file(config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/include/${INC_SUBDIR}/config.h)

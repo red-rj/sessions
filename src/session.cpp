@@ -210,8 +210,17 @@ sys::envblock sys::envp() noexcept {
 
 string sys::getenv(string_view k) {
     auto wkey = to_wide(k);
-    wchar_t* wval = _wgetenv(wkey.c_str());
-    return wval ? to_narrow(wval) : "";
+    
+    wchar_t* wval; size_t count;
+    errno_t err = _wdupenv_s(&wval, &count, wkey.c_str());
+    std::unique_ptr<wchar_t[]> _g_{wval};
+
+    if (err || count==0)
+        return {};
+    else {
+        auto view = wstring_view(wval, count-1); // count includes null
+        return to_narrow(view);
+    }
 }
 void sys::setenv(string_view key, string_view value) {
     auto wkey = to_wide(key);
