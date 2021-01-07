@@ -335,11 +335,6 @@ namespace red::session
         return *this;
     }
 
-    auto environment::variable::split(char sep) const->splitpath
-    {
-        return splitpath{m_value, sep};
-    }
-
     // env
     auto environment::begin_cursor() const -> cursor
     {

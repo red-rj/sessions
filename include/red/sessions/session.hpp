@@ -8,8 +8,8 @@
 #include <range/v3/view/split.hpp>
 #include <range/v3/view/join.hpp>
 #include <range/v3/view/subrange.hpp>
-#include <range/v3/iterator/basic_iterator.hpp>
 #include <range/v3/view/transform.hpp>
+#include <range/v3/iterator/basic_iterator.hpp>
 #include <range/v3/range/conversion.hpp>
 
 #include "config.h"
@@ -106,7 +106,6 @@ namespace detail {
         class variable
         {
         public:
-            class splitpath;
             friend class environment;
         
             std::string_view key() const noexcept { return m_key; }
@@ -114,7 +113,11 @@ namespace detail {
             std::string value() const && noexcept { return m_value; }
             operator std::string() const { return m_value; }
 
-            splitpath split (char sep = environment::path_separator) const;
+            auto split (char sep = environment::path_separator) const
+            {
+                using namespace ranges;
+                return m_value | views::split(sep);
+            }
 
             variable& operator=(std::string_view value);
 
@@ -175,25 +178,6 @@ namespace detail {
     };
 
     static_assert(ranges::bidirectional_range<environment>, "environment is a bidirectional range.");
-
-    class environment::variable::splitpath
-    {
-        using range_t = ranges::split_view<ranges::views::all_t<std::string_view>, ranges::single_view<char>>;
-        std::string m_value;
-        range_t rng;
-
-    public:
-        splitpath(std::string_view val, char sep) : m_value(val) {
-            rng = range_t(m_value, sep);
-        }
-
-        auto begin() {
-            return rng.begin();
-        }
-        auto end() {
-            return rng.end();
-        }
-    };
 
 
     class arguments
