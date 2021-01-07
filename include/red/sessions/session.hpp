@@ -100,6 +100,9 @@ namespace detail {
         cursor begin_cursor() const;
 
     public:
+        // the separator char. used in the PATH variable
+        static const char path_separator;
+
         class variable
         {
         public:
@@ -111,7 +114,7 @@ namespace detail {
             std::string value() const && noexcept { return m_value; }
             operator std::string() const { return m_value; }
 
-            splitpath split () const;
+            splitpath split (char sep = environment::path_separator) const;
 
             variable& operator=(std::string_view value);
 
@@ -120,9 +123,6 @@ namespace detail {
 
             std::string m_key, m_value;
         };
-
-        // the separator char. used in the PATH variable
-        static const char path_separator;
 
         using iterator = ranges::basic_iterator<cursor>;
         using value_type = variable;
@@ -183,8 +183,8 @@ namespace detail {
         range_t rng;
 
     public:
-        splitpath(std::string_view val) : m_value(val) {
-            rng = range_t(m_value, environment::path_separator);
+        splitpath(std::string_view val, char sep) : m_value(val) {
+            rng = range_t(m_value, sep);
         }
 
         auto begin() {

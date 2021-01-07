@@ -335,9 +335,9 @@ namespace red::session
         return *this;
     }
 
-    auto environment::variable::split() const->splitpath
+    auto environment::variable::split(char sep) const->splitpath
     {
-        return splitpath{m_value};
+        return splitpath{m_value, sep};
     }
 
     // env
