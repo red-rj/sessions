@@ -5,6 +5,7 @@
 #include <array>
 #include <vector>
 #include <utility>
+#include <typeinfo>
 
 #include <range/v3/view.hpp>
 #include <range/v3/action.hpp>
@@ -56,7 +57,7 @@ static red::session::arguments arguments;
 
 //---
 
-TEST_CASE("get environment variables", "[environment]")
+TEST_CASE("get environment variables", "[env]")
 {
     test_vars_guard _;
 
@@ -100,7 +101,7 @@ TEST_CASE("get environment variables", "[environment]")
     }
 }
 
-TEST_CASE("set environment variables", "[environment]")
+TEST_CASE("set environment variables", "[env]")
 {
     for(auto[key, value] : TEST_VARS)
     {
@@ -112,7 +113,7 @@ TEST_CASE("set environment variables", "[environment]")
     REQUIRE(environment["nonesuch"].value().empty());
 }
 
-TEST_CASE("remove environment variables", "[environment]")
+TEST_CASE("remove environment variables", "[env]")
 {
     test_vars_guard _;
     auto const env_size = environment.size();
@@ -123,7 +124,7 @@ TEST_CASE("remove environment variables", "[environment]")
     REQUIRE(environment.find("PROTOCOL") == environment.end());
 }
 
-TEST_CASE("environment iteration", "[environment]")
+TEST_CASE("environment iteration", "[env]")
 {
     using namespace ranges;
 
@@ -159,25 +160,37 @@ TEST_CASE("environment iteration", "[environment]")
 
 }
 
-TEST_CASE("environment::variable", "[environment]")
+TEST_CASE("environment::variable", "[var]")
 {
+    using ranges::to;
+    auto valid_char = [](unsigned char ch) { return isprint(ch); };
+    
     SECTION("Path Split")
     {
-        auto pathsplit = environment["PATH"].split();
-        
-        int count=0;
-        CAPTURE(environment.path_separator, count);
-        for (auto it = pathsplit.begin(); it != pathsplit.end(); it++, count++)
+        auto path = environment["PATH"];
+        auto pathsplit = path.split();
+
+        for (auto p : pathsplit)
         {
-            auto current = ranges::to<std::string>(*it);
-            CAPTURE(current);
-            REQUIRE(current.find(environment.path_separator) == std::string::npos);
+            CAPTURE(to<string>(p));
+            REQUIRE(ranges::all_of(p, valid_char));
+            REQUIRE(ranges::find(p, environment.path_separator) == p.end());
         }
     }
-
+    SECTION("Custom split sep")
+    {
+        auto var = environment["mysplitvar"] = "values.separated.by.dots";
+        auto split = var.split('.');
+        for (auto p : split)
+        {
+            CAPTURE(to<string>(p));
+            REQUIRE(ranges::all_of(p, valid_char));
+            REQUIRE(ranges::find(p, environment.path_separator) == p.end());
+        }
+    }
 }
 
-TEST_CASE("use environment like a range","[environment][range]")
+TEST_CASE("use environment like a range", "[env][range]")
 {
     test_vars_guard _g_;
 
@@ -217,17 +230,18 @@ TEST_CASE("join_paths")
 }
 
 // don't judge me, working w/ ranges is hard D:
-#include <typeinfo>
-
 TEST_CASE("wtftype", "[.]")
 {
     std::cout << "environment::values() -> " << typeid(environment.values()).name() << '\n';
     std::cout << "environment::keys() -> " << typeid(environment.keys()).name() << '\n';
+
+    auto pathsplit = environment["PATH"].split();
+    std::cout << "splitpath value_type -> " << typeid(*pathsplit.begin()).name() << '\n';
 }
 
 std::vector<std::string> cmdargs;
 
-TEST_CASE("Arguments")
+TEST_CASE("Arguments", "[args]")
 {
     REQUIRE(arguments.size() == cmdargs.size());
 
@@ -243,31 +257,30 @@ using red::session::detail::envchar;
 // on windows, use wmain for unicode arguments
 #if defined(WIN32)
 #define main wmain
-#define T(x) L ## x
-#else
-#define T(x) x
 #endif
 
 
 int main(int argc, const envchar* argv[]) {
     using namespace ranges;
+    using views::transform; using views::take_while;
     using std::vector;
     setlocale(LC_ALL, "");
 
     // copy arguments as narrow strings, for testing session::arguments
-    cmdargs = subrange(argv, argv+argc) | views::transform(red::session::detail::narrow_copy) | to_vector;
-    auto arg_strings = cmdargs;
+    cmdargs = subrange(argv, argv+argc) | transform(red::session::detail::narrow_copy) | to_vector;
 
     Catch::Session session;
 
-    // support for '--', to pass additional args
+    // support passing additional args
     const auto eoa = "--"s;
     string dummy;
     auto cli = session.cli() | Catch::clara::Opt(dummy, "arg1 arg2 ...")[eoa]("additional values, for testing session::arguments");
     session.cli(cli);
 
-    vector<const char*> arg_ptrs = arg_strings | views::take_while([&](const string& arg) { return arg != eoa; }) 
-        | views::transform([](const string& arg){ return arg.data(); }) | to_vector;
+    vector<const char*> arg_ptrs = cmdargs 
+        | take_while([&](const string& arg) { return arg != eoa; }) 
+        | transform([](const string& arg){ return arg.data(); })
+        | to_vector;
 
     int rc = session.applyCommandLine((int)arg_ptrs.size(), arg_ptrs.data());
     if (rc == 0)
