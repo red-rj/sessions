@@ -6,15 +6,12 @@
 #elif defined(__unix__)
 #   include <unistd.h>
 #endif
-
 #include <vector>
 #include <locale>
 #include <system_error>
 #include <cstdlib>
 #include <cassert>
-
 #include <range/v3/algorithm.hpp>
-
 #include "red/sessions/session.hpp"
 
 using std::string; using std::wstring;
