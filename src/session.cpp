@@ -96,14 +96,9 @@ struct ci_char_traits : public std::char_traits<char> {
     }
     static const char_type* find(const char_type* s, int n, char_type a) {
         auto& LC = std::locale::classic();
-        auto const ua = toupper(a, LC);
-        while (n-- != 0)
-        {
-            if (toupper(*s, LC) == ua)
-                return s;
-            s++;
-        }
-        return nullptr;
+        const auto end = s+n;
+        auto it = std::find_if(s, end, [&,ua=toupper(a,LC)](char_type cc) { return toupper(cc, LC) == ua; });
+        return it!=end ? it : nullptr;
     }
 };
 
@@ -126,10 +121,10 @@ namespace {
         return WideCharToMultiByte(NARROW_CP, 0, wstr, wstr_l, ptr, length, nullptr, nullptr);
     }
 
-    template<class Ch, class Strview>
-    auto convert_str(Strview instr) -> std::basic_string<Ch>
+    template<class Ch, class SV>
+    auto convert_str(SV instr) -> std::basic_string<Ch>
     {
-        static_assert(!std::is_same_v<typename Strview::value_type, Ch>);
+        static_assert(!std::is_same_v<typename SV::value_type, Ch>);
 
         auto convert = [instr](Ch* dst=nullptr, int length=0) {
             if constexpr (std::is_same_v<Ch, char>) {
