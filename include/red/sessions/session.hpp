@@ -113,7 +113,7 @@ namespace detail {
             std::string value() const;
             operator std::string() const { return value(); }
 
-            auto split (char sep = environment::path_separator) const
+            auto split(char sep = environment::path_separator) const
             {
                 using namespace ranges;
                 return value() | actions::split(sep);
@@ -154,7 +154,7 @@ namespace detail {
         }
         auto cend() const noexcept { return end(); }
 
-        size_type size () const noexcept {
+        size_type size() const noexcept {
             return ranges::distance(begin(), end());
         }
 
