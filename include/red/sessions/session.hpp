@@ -6,6 +6,7 @@
 #include <string>
 
 #include <range/v3/view/split.hpp>
+#include <range/v3/action/split.hpp>
 #include <range/v3/view/join.hpp>
 #include <range/v3/view/subrange.hpp>
 #include <range/v3/view/transform.hpp>
@@ -107,24 +108,22 @@ namespace detail {
         {
         public:
             friend class environment;
-        
+
             std::string_view key() const noexcept { return m_key; }
-            std::string_view value() const & noexcept { return m_value; }
-            std::string value() const && noexcept { return m_value; }
-            operator std::string() const { return m_value; }
+            std::string value() const;
+            operator std::string() const { return value(); }
 
             auto split (char sep = environment::path_separator) const
             {
                 using namespace ranges;
-                return m_value | views::split(sep);
+                return value() | actions::split(sep);
             }
 
             variable& operator=(std::string_view value);
 
         private:
             explicit variable(std::string_view key_);
-
-            std::string m_key, m_value;
+            std::string m_key;
         };
 
         using iterator = ranges::basic_iterator<cursor>;

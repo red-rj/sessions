@@ -314,14 +314,17 @@ namespace red::session {
 
 environment::variable::variable(std::string_view key_) : m_key(key_)
 {
-    m_value = sys::getenv(m_key);
 }
 
 auto environment::variable::operator= (string_view value) -> variable&
 {
     sys::setenv(m_key, value);
-    m_value = string(value);
     return *this;
+}
+
+string environment::variable::value() const
+{
+    return sys::getenv(m_key);
 }
 
 auto environment::begin_cursor() const -> cursor

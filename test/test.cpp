@@ -229,14 +229,12 @@ TEST_CASE("join_paths")
     }
 }
 
-#if 0
+#if 1
 // don't judge me, working w/ ranges is hard D:
 TEST_CASE("wtftype", "[.]")
 {
-    std::cout << "environment::values() -> " << typeid(environment.values()).name() << '\n';
-    std::cout << "environment::keys() -> " << typeid(environment.keys()).name() << '\n';
-
     auto pathsplit = environment["PATH"].split();
+    std::cout << "splitpath value_type -> " << typeid(pathsplit).name() << '\n';
     std::cout << "splitpath value_type -> " << typeid(*pathsplit.begin()).name() << '\n';
 }
 #endif
