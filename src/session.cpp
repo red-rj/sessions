@@ -119,43 +119,45 @@ namespace
 
 
     auto wide(const char* nstr, int nstr_l = -1, wchar_t* ptr = nullptr, int length = 0) {
-        return MultiByteToWideChar(
-            NARROW_CP, 0,
-            nstr, nstr_l,
-            ptr, length);
+        return MultiByteToWideChar(NARROW_CP, 0, nstr, nstr_l, ptr, length);
     }
 
     auto narrow(wchar_t const* wstr, int wstr_l = -1, char* ptr = nullptr, int length = 0) {
-        return WideCharToMultiByte(
-            NARROW_CP, 0, 
-            wstr, wstr_l,
-            ptr, length, 
-            nullptr, nullptr);
+        return WideCharToMultiByte(NARROW_CP, 0, wstr, wstr_l, ptr, length, nullptr, nullptr);
+    }
+
+    template<class Ch, class Strview>
+    auto convert_str(Strview instr) -> std::basic_string<Ch>
+    {
+        static_assert(!std::is_same_v<typename Strview::value_type, Ch>);
+
+        auto convert = [instr](Ch* dst=nullptr, int length=0) {
+            if constexpr (std::is_same_v<Ch, char>) {
+                return narrow(instr.data(), (int)instr.size(), dst, length);
+            }
+            else if constexpr (std::is_same_v<Ch, wchar_t>) {
+                return wide(instr.data(), (int)instr.size(), dst, length);
+            }
+        };
+
+        auto length = convert();
+        auto str = std::basic_string<Ch>(length, Ch(0));
+        auto result = convert(str.data(), length);
+        
+        if (result == 0)
+            throw_win_error();
+
+        str.resize(result);
+        return str;
     }
 
     
     std::string to_narrow(std::wstring_view wstr) {
-        auto length = narrow(wstr.data(), (int)wstr.size());
-        auto str = std::string(length, '\0');
-        auto result = narrow(wstr.data(), (int)wstr.size(), str.data(), length);
-
-        if (result == 0)
-            throw_win_error();
-
-        str.resize(result);
-        return str;
+        return convert_str<char>(wstr);
     }
 
     std::wstring to_wide(std::string_view nstr) {
-        auto length = wide(nstr.data(), (int)nstr.size());
-        auto str = std::wstring(length, L'\0');
-        auto result = wide(nstr.data(), (int)nstr.size(), str.data(), length);
-
-        if (result == 0)
-            throw_win_error();
-
-        str.resize(result);
-        return str;
+        return convert_str<wchar_t>(nstr);
     }
 
     auto init_args() {
