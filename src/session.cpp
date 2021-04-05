@@ -109,8 +109,8 @@ struct ci_char_traits : public std::char_traits<char> {
 
 using envfind_fn = envstr_finder<ci_char_traits>;
 
-namespace
-{
+namespace {
+
     [[noreturn]]
     void throw_win_error(DWORD error = GetLastError())
     {
@@ -151,7 +151,6 @@ namespace
         return str;
     }
 
-    
     std::string to_narrow(std::wstring_view wstr) {
         return convert_str<char>(wstr);
     }
@@ -201,6 +200,7 @@ namespace
         static auto vec = init_args();
         return vec;
     }
+
 } // unnamed namespace
 
 sys::envblock sys::envp() noexcept {
@@ -209,17 +209,12 @@ sys::envblock sys::envp() noexcept {
 
 string sys::getenv(string_view k) {
     auto wkey = to_wide(k);
-    
-    wchar_t* wval; size_t count;
-    errno_t err = _wdupenv_s(&wval, &count, wkey.c_str());
-    std::unique_ptr<wchar_t[]> _g_{wval};
-
-    if (err || count==0)
-        return {};
-    else {
-        auto view = wstring_view(wval, count-1); // count includes null
-        return to_narrow(view);
+    auto* var = _wgetenv(wkey.c_str());
+    if (var) {
+        wstring wval = var;
+        return to_narrow(wval);
     }
+    else return {};
 }
 void sys::setenv(string_view key, string_view value) {
     auto wkey = to_wide(key);
@@ -319,39 +314,39 @@ environment::environment() noexcept = default;
 #   error "unknown platform"
 #endif
 
-namespace red::session
+// common
+namespace red::session {
+
+environment::variable::variable(std::string_view key_) : m_key(key_)
 {
-    // env variable
-    environment::variable::variable(std::string_view key_) : m_key(key_)
-    {
-        m_value = sys::getenv(m_key);
-    }
-
-    auto environment::variable::operator= (string_view value) -> variable&
-    {
-        sys::setenv(m_key, value);
-        m_value = string(value);
-        return *this;
-    }
-
-    // env
-    auto environment::begin_cursor() const -> cursor
-    {
-        return cursor(sys::envp());
-    }
-
-    auto environment::do_find(string_view k) const ->iterator
-    {
-        return ranges::find_if(*this, envfind_fn(k));
-    }
-
-    bool environment::contains(string_view k) const
-    {
-        return !sys::getenv(k).empty();
-    }
-
-    void environment::do_erase(string_view k)
-    {
-        sys::rmenv(k);
-    }
+    m_value = sys::getenv(m_key);
 }
+
+auto environment::variable::operator= (string_view value) -> variable&
+{
+    sys::setenv(m_key, value);
+    m_value = string(value);
+    return *this;
+}
+
+auto environment::begin_cursor() const -> cursor
+{
+    return cursor(sys::envp());
+}
+
+auto environment::do_find(string_view k) const ->iterator
+{
+    return ranges::find_if(*this, envfind_fn(k));
+}
+
+bool environment::contains(string_view k) const
+{
+    return !sys::getenv(k).empty();
+}
+
+void environment::do_erase(string_view k)
+{
+    sys::rmenv(k);
+}
+
+} // namespace red::session
