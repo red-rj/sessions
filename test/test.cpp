@@ -276,7 +276,7 @@ int main(int argc, const envchar* argv[]) {
     // support passing additional args
     const auto eoa = "--"s;
     string dummy;
-    auto cli = session.cli() | Catch::clara::Opt(dummy, "arg1 arg2 ...")[eoa]("additional values, for testing session::arguments");
+    auto cli = session.cli() | Catch::Clara::Opt(dummy, "arg1 arg2 ...")[eoa]("additional values, for testing session::arguments");
     session.cli(cli);
 
     vector<const char*> arg_ptrs = cmdargs 

@@ -267,7 +267,7 @@ namespace
 
 using envfind_fn = envstr_finder<std::char_traits<char>>;
 
-sys::env_t sys::envp() noexcept {
+sys::envblock sys::envp() noexcept {
     return environ;
 }
 

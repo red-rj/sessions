@@ -38,7 +38,9 @@ if(SESSIONS_TESTS)
 
   add_executable(tests test/test.cpp)
   target_link_libraries(tests PRIVATE sessions Catch2::Catch2)
-  target_compile_definitions(tests PRIVATE UNICODE)
+  if(WIN32)
+    target_compile_definitions(tests PRIVATE UNICODE)
+  endif()
 
   add_test(all-tests  tests  -- áéíóú words something -l 123)
 endif()
