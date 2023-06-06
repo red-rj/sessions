@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(sessions VERSION 0.3.0)
+project(sessions VERSION 0.3.1)
 
 option(SESSIONS_TESTS "Build tests." On)
 
