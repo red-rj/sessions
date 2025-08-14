@@ -24,7 +24,7 @@ Feel free to open an issue or contact me if you want to share some feedback. ðŸ˜
 
 ## How to use
 ### Arguments
-It's as simple as creating an instance and using it like a container. 
+It's as simple as creating an instance and using it like a container. Linux/Mac/BSD users may need additional setup, see note beelow.
 
 ```cpp
 #include "red/sessions/session.hpp"
@@ -43,6 +43,14 @@ auto it = arguments.begin();
 // copy the arguments if you want to modify them
 std::vector<std::string> myargs{ arguments.begin(), arguments.end() };
 ```
+
+**Note:**  By Default on non-Windows platforms we use the `gnu::constructor` extension attribute to get the program arguments.
+if you don't want to/can't use compiler extensions, define `SESSIONS_NOEXTENTIONS` at build time.
+
+When `SESSIONS_NOEXTENTIONS` is set:
+- On Linux `class arguments` will fallback to `/proc/self/cmdline`, reading from it when first constructed.
+    - if this somehow fails, you can still call `arguments::init` manually
+- On MacOS, BSD: calling `arguments::init` is required.
 
 ### Environment
 ```cpp
@@ -83,4 +91,15 @@ for (auto envline : environment)
 environment.erase("myvar");
 
 // ...
+```
+
+## Building
+Requires CMake 3.10 or later and optionaly Catch2 for the tests.
+
+```sh
+cd sessions
+mkdir build
+cmake -S . -B build -G "Your prefered build system"
+cd build
+your_prefered_build_command
 ```

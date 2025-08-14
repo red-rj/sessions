@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.10)
 project(sessions VERSION 0.3.1)
 
-option(SESSIONS_TESTS "Build tests." On)
+option(SESSIONS_TESTS "Build tests." Off)
 
 if(UNIX)
-  option(SESSIONS_NOEXTENTIONS "Disable use of the gnu constructor attribute (requires calling 'arguments::init')")
+  option(SESSIONS_NOEXTENTIONS "Disable use of the gnu constructor attribute.")
 endif()
 if(WIN32)
   option(SESSIONS_UTF8 "Use UTF-8 codepage when converting to/from wide strings." On)
