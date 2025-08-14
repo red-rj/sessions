@@ -1,10 +1,15 @@
 // check platfrom
+
+#define MAC_OR_BSD defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+
 #if defined(WIN32)
 #   define _CRT_SECURE_NO_WARNINGS
 #   include "win32.hpp"
 #   include <shellapi.h>
-#elif defined(__unix__)
+#elif defined(__linux__) || MAC_OR_BSD
 #   include <unistd.h>
+#   include <fstream>
+#   include <memory>
 #endif
 #include <vector>
 #include <locale>
@@ -254,16 +259,12 @@ environment::environment() noexcept
 
 } // namespace red::session
 
-
-#elif defined(_POSIX_VERSION)
+#elif defined(__linux__)
 
 extern "C" char** environ;
 
-namespace
-{
-    char const** my_args{};
-    int my_args_count{};
-}
+static std::vector<const char*> myargs;
+
 
 using envfind_fn = envstr_finder<std::char_traits<char>>;
 
@@ -291,18 +292,49 @@ string detail::narrow_copy(envchar const* s) {
     return s ? s : "";
 }
 
+arguments::arguments() 
+#if defined(__linux__) && defined(SESSIONS_NOEXTENTIONS)
+{
+    if (myargs.empty()) {
+        std::ifstream proc{"/proc/self/cmdline"};
+
+        while (proc.good()) {
+            string value;
+            getline(proc, value, char(0));
+
+            if (value.empty()) continue;
+
+            auto bababooye = std::make_unique<char[]>(value.length()+1);
+            value.copy(bababooye.get(), value.length());
+
+            myargs.push_back(bababooye.release());
+        }
+
+        // if myargs is still empty, we failed to read from procfs, don't add the null
+        if (!myargs.empty())
+            myargs.push_back(0);
+    }
+}
+#else
+= default;
+#endif
+
 const char** arguments::argv() const noexcept {
-    return my_args;
+    return myargs.data();
 }
 
 int arguments::argc() const noexcept {
-    return my_args_count;
+    return (int)myargs.size() - 1;
 }
 
 void arguments::init(int count, const char** arguments) noexcept
 {
-    my_args = arguments;
-    my_args_count = count;
+    if (!myargs.empty()) {
+        myargs.clear();
+    }
+    
+    std::copy(arguments, arguments+count, back_inserter(myargs));
+    myargs.push_back(0);
 }
 
 const char environment::path_separator = ':';

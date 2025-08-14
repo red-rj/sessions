@@ -177,7 +177,7 @@ namespace detail {
         iterator do_find(std::string_view k) const;
     };
 
-    static_assert(ranges::bidirectional_range<environment>, "environment is a bidirectional range.");
+    static_assert(ranges::bidirectional_range<environment>, "environment must be a bidirectional range.");
 
 
     class arguments
@@ -188,6 +188,8 @@ namespace detail {
         using value_type = std::string_view;
         using index_type = std::size_t;
         using size_type = std::size_t;
+
+        arguments();
 
         value_type operator [] (index_type i) const noexcept {
             return argv()[i];
