@@ -45,10 +45,10 @@ std::vector<std::string> myargs{ arguments.begin(), arguments.end() };
 ```
 
 **Note:**  By Default on non-Windows platforms we use the `gnu::constructor` extension attribute to get the program arguments.
-if you don't want to/can't use compiler extensions, define `SESSIONS_NOEXTENTIONS` at build time.
+if you don't want to/can't use compiler extensions, define `SESSIONS_NOEXTENTIONS`.
 
-When `SESSIONS_NOEXTENTIONS` is set, `arguments` will fallback to `/proc/self/cmdline`, reading from it once when first constructed.
-If ProcFS is not available in your system calling `arguments::init` is required.
+`arguments` will fallback to `/proc/self/cmdline` if available, reading from it once when first constructed.
+Otherwise calling `arguments::init` is required.
 
 
 ### Environment

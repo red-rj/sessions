@@ -13,14 +13,6 @@
 #cmakedefine SESSIONS_NOEXTENTIONS
 #cmakedefine01 HAS_PROCFS
 
-#if defined(_MSC_VER) || defined(SESSIONS_NOEXTENTIONS)
-#   define SESSIONS_AUTORUN
-#else
-// https://gcc.gnu.org/onlinedocs/gcc-8.3.0/gcc/Common-Function-Attributes.html#index-constructor-function-attribute
-// https://stackoverflow.com/a/37012337
-#   define SESSIONS_AUTORUN [[gnu::constructor]]
-#endif
-
 // types of the platform environment
 namespace red::session::detail
 {

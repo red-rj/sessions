@@ -232,6 +232,7 @@ namespace detail {
         [[nodiscard]] 
         int argc() const noexcept;
 
+        // only needed on posix systems if we can't auto-magically init
         static void init(int argc, const char** argv) noexcept;
     };
 

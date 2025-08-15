@@ -264,15 +264,7 @@ static std::vector<const char*> myargs;
 [[gnu::constructor]]
 // must have external linkage
 void sessions_autorun(int count, const char** args) {
-    // std::copy(args, args+count, back_inserter(myargs));
-
-    for (int i = 0; i<count; i++) {
-        string_view item = args[i];
-        auto a = new char[item.size()+1];
-        item.copy(a, item.size());
-        myargs.push_back(a);
-    }
-    
+    std::copy(args, args+count, back_inserter(myargs));
     myargs.push_back(nullptr);
 }
 
@@ -302,9 +294,8 @@ string detail::narrow_copy(envchar const* s) {
     return s ? s : "";
 }
 
-arguments::arguments() 
-{
-#if defined(SESSIONS_NOEXTENTIONS) && HAS_PROCFS
+arguments::arguments() {
+#if HAS_PROCFS
     if (myargs.empty()) {
         std::ifstream proc{"/proc/self/cmdline"};
 
@@ -316,7 +307,8 @@ arguments::arguments()
             string value;
             getline(proc, value, char(0));
 
-            if (value.empty()) continue;
+            if (value.empty())
+                continue;
 
             auto bababooye = std::make_unique<char[]>(value.length()+1);
             value.copy(bababooye.get(), value.length());
@@ -326,10 +318,9 @@ arguments::arguments()
 
         myargs.push_back(nullptr);
     }
+
 #elif !defined(SESSIONS_NOEXTENTIONS)
-    if (myargs.empty()) {
-        throw std::logic_error("somehow 'myargs' is not initialized");
-    }
+    assert(!myargs.empty() && "somehow 'myargs' is not initialized");
 #endif
 }
 
@@ -358,7 +349,7 @@ environment::environment() noexcept = default;
 
 } // namespace red::session
 #else
-#   error "unknown platform"
+#   error unknown platform
 #endif
 
 // common
