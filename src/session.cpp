@@ -1,12 +1,8 @@
-// check platfrom
-
-#define MAC_OR_BSD defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
-
 #if defined(WIN32)
 #   define _CRT_SECURE_NO_WARNINGS
 #   include "win32.hpp"
 #   include <shellapi.h>
-#elif defined(__linux__) || MAC_OR_BSD
+#elif defined(__unix__)
 #   include <unistd.h>
 #   include <fstream>
 #   include <memory>
@@ -259,7 +255,7 @@ environment::environment() noexcept
 
 } // namespace red::session
 
-#elif defined(__linux__)
+#elif defined(__unix__)
 
 extern "C" char** environ;
 
@@ -293,10 +289,14 @@ string detail::narrow_copy(envchar const* s) {
 }
 
 arguments::arguments() 
-#if defined(__linux__) && defined(SESSIONS_NOEXTENTIONS)
+#if defined(SESSIONS_NOEXTENTIONS) && HAS_PROCFS
 {
     if (myargs.empty()) {
         std::ifstream proc{"/proc/self/cmdline"};
+
+        if (proc.fail()) {
+            return;
+        }
 
         while (proc.good()) {
             string value;
@@ -310,9 +310,7 @@ arguments::arguments()
             myargs.push_back(bababooye.release());
         }
 
-        // if myargs is still empty, we failed to read from procfs, don't add the null
-        if (!myargs.empty())
-            myargs.push_back(0);
+        myargs.push_back(nullptr);
     }
 }
 #else

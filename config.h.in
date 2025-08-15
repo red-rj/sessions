@@ -11,6 +11,7 @@
 
 #cmakedefine SESSIONS_UTF8
 #cmakedefine SESSIONS_NOEXTENTIONS
+#cmakedefine01 HAS_PROCFS
 
 #if defined(_MSC_VER) || defined(SESSIONS_NOEXTENTIONS)
 #   define SESSIONS_AUTORUN
@@ -28,9 +29,7 @@ namespace red::session::detail
 #else
     using envchar = char;
 #endif
-
     using envblock = envchar**;
 }
-
 
 #endif // RED_SESSIONS_CONFIG
