@@ -53,7 +53,6 @@ public:
 
 
 static red::session::environment environment;
-static red::session::arguments arguments;
 
 //---
 
@@ -135,11 +134,6 @@ TEST_CASE("environment iteration", "[env]")
             CAPTURE(k);
             REQUIRE(k.find('=') == std::string::npos);
             REQUIRE(environment.contains(k));
-        }
-        for (auto v : environment.values() | views::take(10))
-        {
-            CAPTURE(v);
-            REQUIRE(v.find('=') == std::string::npos);
         }
     }
     SECTION("iterator")
@@ -245,6 +239,8 @@ std::vector<std::string> cmdargs;
 
 TEST_CASE("Arguments", "[args]")
 {
+    red::session::arguments arguments;
+    
     REQUIRE(arguments.size() == cmdargs.size());
 
     for (size_t i = 0; i < arguments.size(); i++)

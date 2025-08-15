@@ -261,6 +261,20 @@ extern "C" char** environ;
 
 static std::vector<const char*> myargs;
 
+[[gnu::constructor]]
+// must have external linkage
+void sessions_autorun(int count, const char** args) {
+    // std::copy(args, args+count, back_inserter(myargs));
+
+    for (int i = 0; i<count; i++) {
+        string_view item = args[i];
+        auto a = new char[item.size()+1];
+        item.copy(a, item.size());
+        myargs.push_back(a);
+    }
+    
+    myargs.push_back(nullptr);
+}
 
 using envfind_fn = envstr_finder<std::char_traits<char>>;
 
@@ -289,8 +303,8 @@ string detail::narrow_copy(envchar const* s) {
 }
 
 arguments::arguments() 
-#if defined(SESSIONS_NOEXTENTIONS) && HAS_PROCFS
 {
+#if defined(SESSIONS_NOEXTENTIONS) && HAS_PROCFS
     if (myargs.empty()) {
         std::ifstream proc{"/proc/self/cmdline"};
 
@@ -312,10 +326,12 @@ arguments::arguments()
 
         myargs.push_back(nullptr);
     }
-}
-#else
-= default;
+#elif !defined(SESSIONS_NOEXTENTIONS)
+    if (myargs.empty()) {
+        throw std::logic_error("somehow 'myargs' is not initialized");
+    }
 #endif
+}
 
 const char** arguments::argv() const noexcept {
     return myargs.data();
@@ -325,14 +341,15 @@ int arguments::argc() const noexcept {
     return (int)myargs.size() - 1;
 }
 
-void arguments::init(int count, const char** arguments) noexcept
+
+void arguments::init(int count, const char** args) noexcept
 {
     if (!myargs.empty()) {
         myargs.clear();
     }
     
-    std::copy(arguments, arguments+count, back_inserter(myargs));
-    myargs.push_back(0);
+    std::copy(args, args+count, back_inserter(myargs));
+    myargs.push_back(nullptr);
 }
 
 const char environment::path_separator = ':';

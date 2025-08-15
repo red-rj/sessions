@@ -232,12 +232,6 @@ namespace detail {
         [[nodiscard]] 
         int argc() const noexcept;
 
-        /* [POSIX SPECIFIC] If SESSIONS_NOEXTENTIONS is set, users must call this function to
-            initialize arguments's global storage.
-
-           On Windows, this function does nothing.
-        */
-        SESSIONS_AUTORUN
         static void init(int argc, const char** argv) noexcept;
     };
 
