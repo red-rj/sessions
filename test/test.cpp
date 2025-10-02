@@ -188,6 +188,7 @@ TEST_CASE("use environment like a range", "[env][range]")
 {
     test_vars_guard _g_;
 
+    REQUIRE(environment.size() > 0);
     auto dist = ranges::distance(environment);
     REQUIRE(dist == environment.size());
 

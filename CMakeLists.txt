@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(sessions VERSION 0.4.0)
+project(sessions VERSION 0.5.1)
 
 option(SESSIONS_TESTS "Build tests." Off)
 
@@ -23,7 +23,7 @@ set(HEADERS session.hpp config.h)
 list(TRANSFORM HEADERS PREPEND include/${INC_SUBDIR}/)
 
 add_library(sessions src/session.cpp ${HEADERS})
-target_compile_features(sessions PUBLIC cxx_std_17)
+target_compile_features(sessions PUBLIC cxx_std_20)
 
 target_include_directories(sessions PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -33,11 +33,6 @@ target_include_directories(sessions PUBLIC
 # 3rd-party
 find_package(range-v3 CONFIG REQUIRED)
 target_link_libraries(sessions PUBLIC range-v3::range-v3)
-
-# range-v3 0.11.0 allows MSVC in c++17 mode
-if(MSVC AND range-v3_VERSION VERSION_LESS 0.11.0)
-  target_compile_features(sessions PUBLIC cxx_std_20)
-endif()
 
 if(SESSIONS_TESTS)
   find_package(Catch2 CONFIG REQUIRED)

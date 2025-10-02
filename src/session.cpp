@@ -43,8 +43,8 @@ struct envstr_finder
 
     explicit envstr_finder(StrView k) : key(k) {}
 
-    CPP_template(class T)
-        (requires !concepts::convertible_to<T, StrView>)
+    template<class T>
+        requires (!std::convertible_to<T, StrView>)
     explicit envstr_finder(const T& k) : key(k.data(), k.size())
     {}
 
@@ -56,8 +56,8 @@ struct envstr_finder
             entry.compare(0, key.length(), key) == 0;
     }
 
-    CPP_template(class T)
-        (requires !concepts::convertible_to<T, StrView>)
+    template<class T>
+        requires (!std::convertible_to<T, StrView>)
     bool operator() (const T& v) noexcept {
         return this->operator()(StrView(v.data(), v.size()));
     }
@@ -264,6 +264,7 @@ static std::vector<const char*> myargs;
 [[gnu::constructor]]
 // must have external linkage
 void sessions_autorun(int count, const char** args) {
+    myargs.reserve(count);
     std::copy(args, args+count, back_inserter(myargs));
     myargs.push_back(nullptr);
 }
@@ -339,6 +340,7 @@ void arguments::init(int count, const char** args) noexcept
         myargs.clear();
     }
     
+    myargs.reserve(count);
     std::copy(args, args+count, back_inserter(myargs));
     myargs.push_back(nullptr);
 }
