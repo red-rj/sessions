@@ -38,7 +38,7 @@ template<typename Traits>
 struct envstr_finder
 {
     using char_type = typename Traits::char_type;
-    using StrView = std::basic_string_view<char_type, Traits>;
+    using StrView = std::basic_string_view<char_type, Traits>;    
     StrView key;
 
     explicit envstr_finder(StrView k) : key(k) {}
@@ -261,6 +261,7 @@ extern "C" char** environ;
 
 static std::vector<const char*> myargs;
 
+#if !defined(SESSIONS_NOEXTENTIONS)
 [[gnu::constructor]]
 // must have external linkage
 void sessions_autorun(int count, const char** args) {
@@ -268,6 +269,7 @@ void sessions_autorun(int count, const char** args) {
     std::copy(args, args+count, back_inserter(myargs));
     myargs.push_back(nullptr);
 }
+#endif
 
 using envfind_fn = envstr_finder<std::char_traits<char>>;
 
