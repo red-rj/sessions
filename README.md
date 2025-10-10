@@ -1,7 +1,8 @@
 # Red Sessions
-Red Sessions is a library for accessing arguments and environment variables from anywhere in your program.
+Red Sessions is a C++20 library for accessing arguments and environment variables from anywhere in your program.
 
-It's an implementation of the proposed P1275's Desert Sessions API - See [this link](https://wg21.link/p1275r0) for the paper.
+Originally it was an an implementation of [P1275 Desert Sessions](https://wg21.link/p1275r0), however due to the
+lack of news I decided to go my own way, it's still mostly the same for now.
 
 ## Objective
 _Red Session's_ objective is to provide a set of safe, easy to use utilities to interact with the system's environment and program arguments anywhere, at any time.

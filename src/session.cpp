@@ -34,6 +34,9 @@ namespace sys {
 // helpers
 namespace {
 
+template<class S>
+concept strview_members = requires(S s) { s.data(); s.size(); };
+
 template<typename Traits>
 struct envstr_finder
 {
@@ -44,7 +47,7 @@ struct envstr_finder
     explicit envstr_finder(StrView k) : key(k) {}
 
     template<class T>
-        requires (!std::convertible_to<T, StrView>)
+        requires (!std::convertible_to<T, StrView> && strview_members<T>)
     explicit envstr_finder(const T& k) : key(k.data(), k.size())
     {}
 
@@ -57,7 +60,7 @@ struct envstr_finder
     }
 
     template<class T>
-        requires (!std::convertible_to<T, StrView>)
+        requires (!std::convertible_to<T, StrView> && strview_members<T>)
     bool operator() (const T& v) noexcept {
         return this->operator()(StrView(v.data(), v.size()));
     }

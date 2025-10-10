@@ -54,15 +54,13 @@ namespace detail {
         ptr_array_cursor(T** ep) : block(ep) {}
     };
 
-    using env_cursor = ptr_array_cursor<envchar>;
-
-    struct narrowing_cursor : env_cursor
+    struct narrowing_cursor : ptr_array_cursor<envchar>
     {
-        using env_cursor::env_cursor;
+        using ptr_array_cursor::ptr_array_cursor;
         using value_type = std::string;
         
         auto read() const {
-            auto cur = env_cursor::read();
+            auto cur = ptr_array_cursor::read();
             return narrow_copy(cur);
         }
     };
@@ -82,7 +80,6 @@ namespace detail {
         bool getkey;
     };
     
-
 } // namespace detail
 
     class environment : public ranges::basic_view<ranges::finite>
@@ -128,11 +125,9 @@ namespace detail {
 
         variable operator [] (std::string_view k) const { return variable(k); }
 
-        template<meta::strview_only K>
-        value_type operator [] (K const& key) const { return variable(key); }
+        value_type operator [] (meta::strview_only auto const& key) const { return variable(key); }
 
-        template<meta::strview_like K>
-        iterator find(K const& key) const noexcept { return do_find(key); }
+        iterator find(meta::strview_like auto const& key) const noexcept { return do_find(key); }
 
         bool contains(std::string_view key) const;
 
@@ -153,8 +148,7 @@ namespace detail {
         [[nodiscard]]
         bool empty() const noexcept { return size() == 0; }
 
-        template<meta::strview_like K>
-        void erase(K const& key) { do_erase(key); }
+        void erase(meta::strview_like auto const& key) { do_erase(key); }
 
         value_range values() const noexcept {
             return ranges::views::transform(*this, detail::keyval_fn(false));
