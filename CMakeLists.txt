@@ -1,17 +1,13 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.20)
 project(sessions VERSION 0.5.1)
 
 option(SESSIONS_TESTS "Build tests." Off)
 
 if(UNIX)
   option(SESSIONS_NOEXTENTIONS "Disable use of the gnu constructor attribute.")
-
-  # check for /proc
-  execute_process(COMMAND sh -c "test -f /proc/self/cmdline" RESULT_VARIABLE ptest)
-  if(ptest EQUAL 0)
+  if(EXISTS /proc/self/cmdline)
     set(HAS_PROCFS YES)
   endif()
-  
 endif()
 if(WIN32)
   option(SESSIONS_UTF8 "Use UTF-8 codepage when converting to/from wide strings." On)
@@ -33,9 +29,9 @@ target_include_directories(sessions PUBLIC
 # 3rd-party
 find_package(range-v3 CONFIG REQUIRED)
 target_link_libraries(sessions PUBLIC range-v3::range-v3)
+find_package(Catch2 CONFIG)
 
-if(SESSIONS_TESTS)
-  find_package(Catch2 CONFIG REQUIRED)
+if(SESSIONS_TESTS AND Catch2_FOUND)
   enable_testing()
 
   add_executable(tests test/test.cpp)
@@ -44,7 +40,9 @@ if(SESSIONS_TESTS)
     target_compile_definitions(tests PRIVATE UNICODE)
   endif()
 
-  add_test(all-tests  tests  -- áéíóú words something -l 123)
+  add_test(environment tests "[env],[var]")
+  add_test(arguments   tests "[args]" -- áéíóú words something -l 123)
+  add_test(join_paths  tests "join_paths")
 endif()
 
 configure_file(config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/include/${INC_SUBDIR}/config.h)

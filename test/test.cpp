@@ -277,8 +277,8 @@ int main(int argc, const envchar* argv[]) {
     session.cli(cli);
 
     vector<const char*> arg_ptrs = cmdargs 
-        | take_while([&](const string& arg) { return arg != eoa; }) 
-        | transform([](const string& arg){ return arg.data(); })
+        | take_while([&](string_view arg) { return arg != eoa; }) 
+        | transform([](string_view arg){ return arg.data(); })
         | to_vector;
 
     int rc = session.applyCommandLine((int)arg_ptrs.size(), arg_ptrs.data());
