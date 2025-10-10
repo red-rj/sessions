@@ -34,17 +34,20 @@ namespace sys {
 // helpers
 namespace {
 
+template<class S>
+concept strview_members = requires(S s) { s.data(); s.size(); };
+
 template<typename Traits>
 struct envstr_finder
 {
     using char_type = typename Traits::char_type;
-    using StrView = std::basic_string_view<char_type, Traits>;
+    using StrView = std::basic_string_view<char_type, Traits>;    
     StrView key;
 
     explicit envstr_finder(StrView k) : key(k) {}
 
-    CPP_template(class T)
-        (requires !concepts::convertible_to<T, StrView>)
+    template<class T>
+        requires (!std::convertible_to<T, StrView> && strview_members<T>)
     explicit envstr_finder(const T& k) : key(k.data(), k.size())
     {}
 
@@ -56,8 +59,8 @@ struct envstr_finder
             entry.compare(0, key.length(), key) == 0;
     }
 
-    CPP_template(class T)
-        (requires !concepts::convertible_to<T, StrView>)
+    template<class T>
+        requires (!std::convertible_to<T, StrView> && strview_members<T>)
     bool operator() (const T& v) noexcept {
         return this->operator()(StrView(v.data(), v.size()));
     }
@@ -261,12 +264,15 @@ extern "C" char** environ;
 
 static std::vector<const char*> myargs;
 
+#if !defined(SESSIONS_NOEXTENTIONS)
 [[gnu::constructor]]
 // must have external linkage
 void sessions_autorun(int count, const char** args) {
+    myargs.reserve(count);
     std::copy(args, args+count, back_inserter(myargs));
     myargs.push_back(nullptr);
 }
+#endif
 
 using envfind_fn = envstr_finder<std::char_traits<char>>;
 
@@ -339,6 +345,7 @@ void arguments::init(int count, const char** args) noexcept
         myargs.clear();
     }
     
+    myargs.reserve(count);
     std::copy(args, args+count, back_inserter(myargs));
     myargs.push_back(nullptr);
 }

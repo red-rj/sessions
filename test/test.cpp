@@ -188,6 +188,7 @@ TEST_CASE("use environment like a range", "[env][range]")
 {
     test_vars_guard _g_;
 
+    REQUIRE(environment.size() > 0);
     auto dist = ranges::distance(environment);
     REQUIRE(dist == environment.size());
 
@@ -276,8 +277,8 @@ int main(int argc, const envchar* argv[]) {
     session.cli(cli);
 
     vector<const char*> arg_ptrs = cmdargs 
-        | take_while([&](const string& arg) { return arg != eoa; }) 
-        | transform([](const string& arg){ return arg.data(); })
+        | take_while([&](string_view arg) { return arg != eoa; }) 
+        | transform([](string_view arg){ return arg.data(); })
         | to_vector;
 
     int rc = session.applyCommandLine((int)arg_ptrs.size(), arg_ptrs.data());

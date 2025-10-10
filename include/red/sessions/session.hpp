@@ -4,6 +4,7 @@
 #include <type_traits>
 #include <string_view>
 #include <string>
+#include <concepts>
 
 #include <range/v3/view/split.hpp>
 #include <range/v3/view/join.hpp>
@@ -18,21 +19,11 @@ namespace red::session {
 
 namespace meta
 {
-    template <bool cond>
-    using test_t = std::enable_if_t<cond, bool>;
+    template <class T>
+    concept strview_like = std::convertible_to<const T&, std::string_view>;
 
     template <class T>
-        using is_strview_ish = test_t<
-            std::conjunction_v<
-                std::is_convertible<const T&, std::string_view>, 
-                std::negation<std::is_convertible<const T&, const char*>>
-            >
-        >;
-
-    template <class T>
-    using is_strview_convertible = test_t<
-        std::is_convertible_v<const T&, std::string_view>
-    >;
+    concept strview_only = strview_like<T> && !std::convertible_to<const T&, const char*>;
 }
 
 // impl detail
@@ -63,15 +54,13 @@ namespace detail {
         ptr_array_cursor(T** ep) : block(ep) {}
     };
 
-    using env_cursor = ptr_array_cursor<envchar>;
-
-    struct narrowing_cursor : env_cursor
+    struct narrowing_cursor : ptr_array_cursor<envchar>
     {
-        using env_cursor::env_cursor;
+        using ptr_array_cursor::ptr_array_cursor;
         using value_type = std::string;
         
         auto read() const {
-            auto cur = env_cursor::read();
+            auto cur = ptr_array_cursor::read();
             return narrow_copy(cur);
         }
     };
@@ -91,7 +80,6 @@ namespace detail {
         bool getkey;
     };
     
-
 } // namespace detail
 
     class environment : public ranges::basic_view<ranges::finite>
@@ -137,11 +125,9 @@ namespace detail {
 
         variable operator [] (std::string_view k) const { return variable(k); }
 
-        template <class K, meta::is_strview_ish<K> = true>
-        value_type operator [] (K const& key) const { return variable(key); }
+        value_type operator [] (meta::strview_only auto const& key) const { return variable(key); }
 
-        template <class K, meta::is_strview_convertible<K> = true>
-        iterator find(K const& key) const noexcept { return do_find(key); }
+        iterator find(meta::strview_like auto const& key) const noexcept { return do_find(key); }
 
         bool contains(std::string_view key) const;
 
@@ -162,8 +148,7 @@ namespace detail {
         [[nodiscard]]
         bool empty() const noexcept { return size() == 0; }
 
-        template <class K, meta::is_strview_convertible<K> = true>
-        void erase(K const& key) { do_erase(key); }
+        void erase(meta::strview_like auto const& key) { do_erase(key); }
 
         value_range values() const noexcept {
             return ranges::views::transform(*this, detail::keyval_fn(false));
@@ -177,7 +162,7 @@ namespace detail {
         iterator do_find(std::string_view k) const;
     };
 
-    static_assert(ranges::bidirectional_range<environment>, "environment must be a bidirectional range.");
+    static_assert(ranges::bidirectional_range<environment>);
 
 
     class arguments
@@ -236,11 +221,11 @@ namespace detail {
         static void init(int argc, const char** argv) noexcept;
     };
 
-    static_assert(ranges::random_access_range<arguments>, "arguments is a rand. access range.");
+    static_assert(ranges::random_access_range<arguments>);
 
 
-    CPP_template(class Rng)
-        (requires ranges::range<Rng> && concepts::convertible_to<ranges::range_value_t<Rng>, std::string_view>)
+    template<class Rng>
+        requires ranges::range<Rng> && std::convertible_to<ranges::range_value_t<Rng>, std::string_view>
     std::string join_paths(Rng&& rng, char sep = environment::path_separator) {
         using namespace ranges;
 
@@ -251,8 +236,8 @@ namespace detail {
         return var;
     }
 
-    CPP_template(class Iter)
-        (requires concepts::convertible_to<ranges::iter_value_t<Iter>, std::string_view>)
+    template<class Iter>
+        requires std::convertible_to<ranges::iter_value_t<Iter>, std::string_view>
     std::string join_paths(Iter begin, Iter end, char sep = environment::path_separator) {
         return join_paths(ranges::subrange(begin, end), sep);
     }
