@@ -94,7 +94,7 @@ environment.erase("myvar");
 ```
 
 ## Building
-Requires CMake 3.10 or later and optionaly Catch2 for the tests.
+Requires CMake 3.20 or later and optionaly Catch2 for the tests.
 
 ```sh
 cd sessions
