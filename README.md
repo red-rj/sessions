@@ -12,11 +12,10 @@ These utilities should be straight to the point, acting as wrappers around non-p
 What's in the package?
 
 - `arguments` an _immutable_ wrapper around the old `argv` pointer, behaves like a `std::vector<T> const`.
-- `environment` an _associative container_-like class, it let's you get and set environment variables like getting and setting keys in a `std::map`, except `environment::operator[]` returns a `environment::variable` object, see below.
+- `environment` an _associative container_-like class, it let's you get and set environment variables like getting and setting keys in a `std::map`, except `environment::operator[]` returns a `environment::variable` object.
 - `environment::variable` is a proxy object for interacting with a single environment variable.
-    It holds the value of a environment variable _at the time it's constructed_, it's not effected by changes to the system's environment.
-    - To update the value of a `environment::variable`, call `environment::operator[]` again.
-    - `environment::variable::split()` function returns a range-like object that can be used to iterate through variables like `PATH` that use your system's `path_separator`.
+    - Calling `value()` or converting to `std::string` will return the value of the environment variable.
+    - `split()` function returns a range-like object that can be used to iterate through variables like `PATH` that use your system's `path_separator`.
 - The `join_paths` function allows joining a series of `std::filesystem::path` into a `std::string` using your system's `path_separator`, or a character of your choice.
 
 Both `arguments` and `environment` are empty classes and can be freely constructed around.
@@ -64,7 +63,7 @@ std::string myvar_value = environment["myvar"];
 // or keep the environment::variable object it self and do operations on it latter.
 auto mypath = environment["PATH"];
 std::string_view key = mypath.key(); // "PATH"
-std::string_view value = mypath.value(); // value of "PATH" when `mypath` was created
+std::string value = mypath.value(); // value of "PATH"
 
 // set
 environment["myvar"] = "something clever";

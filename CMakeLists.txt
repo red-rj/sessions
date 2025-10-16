@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.20)
-project(sessions VERSION 0.5.1)
+project(sessions VERSION 0.6.0)
 
 option(SESSIONS_TESTS "Build tests." Off)
 
 if(UNIX)
-  option(SESSIONS_NOEXTENTIONS "Disable use of the gnu constructor attribute.")
+  option(SESSIONS_NOEXTENTIONS "Disable use of the gnu::constructor attribute.")
   if(EXISTS /proc/self/cmdline)
     set(HAS_PROCFS YES)
   endif()
@@ -13,10 +13,8 @@ if(WIN32)
   option(SESSIONS_UTF8 "Use UTF-8 codepage when converting to/from wide strings." On)
 endif()
 
-set(INC_SUBDIR red/sessions)
-
-set(HEADERS session.hpp config.h)
-list(TRANSFORM HEADERS PREPEND include/${INC_SUBDIR}/)
+set(INCLUDE include/red/sessions)
+set(HEADERS ${INCLUDE}/session.hpp ${INCLUDE}/config.h)
 
 add_library(sessions src/session.cpp ${HEADERS})
 target_compile_features(sessions PUBLIC cxx_std_20)
@@ -45,7 +43,7 @@ if(SESSIONS_TESTS AND Catch2_FOUND)
   add_test(join_paths  tests "join_paths")
 endif()
 
-configure_file(config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/include/${INC_SUBDIR}/config.h)
+configure_file(config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/${INCLUDE}/config.h)
 
 # installation
 add_library(red::sessions ALIAS sessions)

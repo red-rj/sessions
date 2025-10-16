@@ -22,7 +22,7 @@ using std::string_view; using std::wstring_view;
 namespace sys {
     using red::session::detail::envchar;
     using red::session::detail::envblock;
-
+    
     envblock envp() noexcept;
 
     std::string getenv(std::string_view key);
@@ -362,15 +362,14 @@ environment::environment() noexcept = default;
 // common
 namespace red::session {
 
-environment::variable::variable(std::string_view key_) : m_key(key_)
+std::string red::session::environment::variable::value() const
 {
-    m_value = sys::getenv(m_key);
+    return sys::getenv(m_key);
 }
 
 auto environment::variable::operator= (string_view value) -> variable&
 {
     sys::setenv(m_key, value);
-    m_value = string(value);
     return *this;
 }
 

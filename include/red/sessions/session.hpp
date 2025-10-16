@@ -116,20 +116,21 @@ namespace detail {
             friend class environment;
         
             std::string_view key() const noexcept { return m_key; }
-            std::string_view value() const & noexcept { return m_value; }
-            std::string value() const && noexcept { return m_value; }
-            operator std::string() const { return m_value; }
+            std::string value() const;
+            operator std::string() const { return value(); }
 
             auto split (char sep = environment::path_separator) const {
-                return ranges::actions::split(m_value, sep);
+                return ranges::actions::split(value(), sep);
             }
 
             variable& operator=(std::string_view value);
 
         private:
-            explicit variable(std::string_view key_);
+            explicit variable(std::string_view key_)
+            : m_key(key_)
+            {}
 
-            std::string m_key, m_value;
+            std::string m_key;
         };
 
         using iterator = ranges::basic_iterator<cursor>;
@@ -140,7 +141,7 @@ namespace detail {
 
         environment() noexcept;
 
-        variable operator [] (std::string_view k) const { return variable(k); }
+        value_type operator [] (std::string_view k) const { return variable(k); }
 
         value_type operator [] (meta::strview_only auto const& key) const { return variable(key); }
 
