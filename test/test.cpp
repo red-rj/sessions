@@ -171,6 +171,17 @@ TEST_CASE("environment::variable", "[var]")
             REQUIRE(ranges::find(p, environment.path_separator) == p.end());
         }
     }
+    SECTION("Path Split RValue")
+    {
+        auto pathsplit = environment["PATH"].split();
+
+        for (auto p : pathsplit)
+        {
+            CAPTURE(to<string>(p));
+            REQUIRE(ranges::all_of(p, valid_char));
+            REQUIRE(ranges::find(p, environment.path_separator) == p.end());
+        }
+    }
     SECTION("Custom split sep")
     {
         auto var = environment["mysplitvar"] = "values.separated.by.dots";

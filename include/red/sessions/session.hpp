@@ -7,6 +7,7 @@
 #include <concepts>
 
 #include <range/v3/view/split.hpp>
+#include <range/v3/action/split.hpp>
 #include <range/v3/view/join.hpp>
 #include <range/v3/view/subrange.hpp>
 #include <range/v3/view/transform.hpp>
@@ -82,6 +83,24 @@ namespace detail {
     
 } // namespace detail
 
+    struct varsplit {
+        varsplit(std::string v, char on) 
+        : var(std::move(v))
+        , view(var, on)
+        {}
+
+        constexpr auto begin() const {
+            return view.begin();
+        }
+        constexpr auto end() const {
+            return view.end();
+        }
+
+    private:
+        std::string var;
+        ranges::split_view<ranges::ref_view<std::string>, ranges::single_view<char>> view;
+    };
+
     class environment : public ranges::basic_view<ranges::finite>
     {
         using cursor = detail::narrowing_cursor;
@@ -101,10 +120,8 @@ namespace detail {
             std::string value() const && noexcept { return m_value; }
             operator std::string() const { return m_value; }
 
-            auto split (char sep = environment::path_separator) const
-            {
-                using namespace ranges;
-                return m_value | views::split(sep);
+            auto split (char sep = environment::path_separator) const {
+                return ranges::actions::split(m_value, sep);
             }
 
             variable& operator=(std::string_view value);
