@@ -6,7 +6,6 @@
 #include <string>
 #include <concepts>
 
-#include <range/v3/view/split.hpp>
 #include <range/v3/action/split.hpp>
 #include <range/v3/view/join.hpp>
 #include <range/v3/view/subrange.hpp>
@@ -21,10 +20,10 @@ namespace red::session {
 namespace meta
 {
     template <class T>
-    concept strview_like = std::convertible_to<const T&, std::string_view>;
+    concept sv_convertible = std::convertible_to<const T&, std::string_view>;
 
     template <class T>
-    concept strview_only = strview_like<T> && !std::convertible_to<const T&, const char*>;
+    concept not_cstr = sv_convertible<T> && !std::convertible_to<const T&, const char*>;
 }
 
 // impl detail
@@ -83,23 +82,6 @@ namespace detail {
     
 } // namespace detail
 
-    struct varsplit {
-        varsplit(std::string v, char on) 
-        : var(std::move(v))
-        , view(var, on)
-        {}
-
-        constexpr auto begin() const {
-            return view.begin();
-        }
-        constexpr auto end() const {
-            return view.end();
-        }
-
-    private:
-        std::string var;
-        ranges::split_view<ranges::ref_view<std::string>, ranges::single_view<char>> view;
-    };
 
     class environment : public ranges::basic_view<ranges::finite>
     {
@@ -143,9 +125,9 @@ namespace detail {
 
         value_type operator [] (std::string_view k) const { return variable(k); }
 
-        value_type operator [] (meta::strview_only auto const& key) const { return variable(key); }
+        value_type operator [] (meta::not_cstr auto const& key) const { return variable(key); }
 
-        iterator find(meta::strview_like auto const& key) const noexcept { return do_find(key); }
+        iterator find(meta::sv_convertible auto const& key) const noexcept { return do_find(key); }
 
         bool contains(std::string_view key) const;
 
@@ -166,7 +148,7 @@ namespace detail {
         [[nodiscard]]
         bool empty() const noexcept { return size() == 0; }
 
-        void erase(meta::strview_like auto const& key) { do_erase(key); }
+        void erase(meta::sv_convertible auto const& key) { do_erase(key); }
 
         value_range values() const noexcept {
             return ranges::views::transform(*this, detail::keyval_fn(false));
