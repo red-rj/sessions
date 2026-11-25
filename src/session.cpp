@@ -2,14 +2,14 @@
 #   define _CRT_SECURE_NO_WARNINGS
 #   include "win32.hpp"
 #   include <shellapi.h>
+#   include <locale>
+#   include <system_error>
 #elif defined(__unix__)
 #   include <unistd.h>
 #   include <fstream>
 #   include <memory>
 #endif
 #include <vector>
-#include <locale>
-#include <system_error>
 #include <cstdlib>
 #include <cassert>
 #include <range/v3/algorithm.hpp>
@@ -22,13 +22,13 @@ using std::string_view; using std::wstring_view;
 namespace sys {
     using red::session::detail::envchar;
     using red::session::detail::envblock;
-    
+
     envblock envp() noexcept;
 
     std::string getenv(std::string_view key);
     void setenv(std::string_view key, std::string_view value);
     void rmenv(std::string_view key);
-    
+
 } // namespace sys
 
 // helpers
@@ -41,7 +41,7 @@ template<typename Traits>
 struct envstr_finder
 {
     using char_type = typename Traits::char_type;
-    using StrView = std::basic_string_view<char_type, Traits>;    
+    using StrView = std::basic_string_view<char_type, Traits>;
     StrView key;
 
     explicit envstr_finder(StrView k) : key(k) {}
@@ -147,7 +147,7 @@ namespace {
         auto length = convert();
         auto str = std::basic_string<Ch>(length, Ch(0));
         auto result = convert(str.data(), length);
-        
+
         if (result == 0)
             throw_win_error();
 
@@ -172,7 +172,7 @@ namespace {
 
         if (!wargv)
             throw_win_error();
-        
+
         std::vector<char const*> vec;
 
         try
@@ -187,7 +187,7 @@ namespace {
                     delete[] ptr;
                     throw_win_error();
                 }
-                
+
                 return ptr;
             });
 
@@ -296,7 +296,7 @@ void sys::rmenv(string_view k) {
 
 namespace red::session {
 
-string detail::narrow_copy(envchar const* s) { 
+string detail::narrow_copy(envchar const* s) {
     return s ? s : "";
 }
 
@@ -344,7 +344,7 @@ void arguments::init(int count, const char** args) noexcept
     if (!myargs.empty()) {
         myargs.clear();
     }
-    
+
     myargs.reserve(count);
     std::copy(args, args+count, back_inserter(myargs));
     myargs.push_back(nullptr);
